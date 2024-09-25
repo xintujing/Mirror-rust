@@ -37,9 +37,16 @@ impl KcpTransport {
     // Server methods
     pub async fn awake(&mut self) {
         let server = Server::new(self.config, format!("{}:{}", "0.0.0.0", self.port),
-                                 Arc::new(|callback: &kcp2k_rust::kcp2k_callback::Callback| {}),
+                                 Arc::new(|callback: kcp2k_rust::kcp2k_callback::Callback| {}),
         ).unwrap();
         self.server = Some(Arc::new(Mutex::new(server)));
+    }
+
+    pub async fn server_start(&mut self) {
+        if let Some(server) = &self.server {
+            let mut server = server.lock().unwrap();
+            server.start().expect("TODO: panic message");
+        }
     }
 
     pub async fn server_send(&self, connection_id: u64, data: &[u8], channel: Kcp2KChannel) {
@@ -80,5 +87,14 @@ mod test {
     #[test]
     fn test_kcp_transport() {
         let mut kcp_transport = KcpTransport::new(1234);
+        tokio::runtime::Runtime::new().unwrap().block_on(async {
+            kcp_transport.server_start().await;
+            kcp_transport.awake().await;
+            loop {
+                kcp_transport.server_early_update().await;
+                kcp_transport.server_late_update().await;
+            }
+        });
+        loop {}
     }
 }
