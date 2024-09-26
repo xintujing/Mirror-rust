@@ -18,7 +18,7 @@ impl Debug for Endian {
 }
 
 pub struct Reader {
-    data: Vec<u8>,
+    buffer: Vec<u8>,
     position: usize,
     length: usize,
     endian: Endian,
@@ -44,7 +44,7 @@ impl Reader {
     pub fn new_with_ben(data: &[u8], is_ret: bool) -> Self {
         let length = data.len();
         let mut reader = Self {
-            data: data.to_vec(),
+            buffer: data.to_vec(),
             position: 0,
             length,
             endian: Endian::Big,
@@ -61,7 +61,7 @@ impl Reader {
     pub fn new_with_len(data: &[u8], is_ret: bool) -> Self {
         let length = data.len();
         let mut reader = Self {
-            data: data.to_vec(),
+            buffer: data.to_vec(),
             position: 0,
             length,
             endian: Endian::Little,
@@ -80,13 +80,27 @@ impl Reader {
 
     // 读取指定长度的数据
     #[allow(dead_code)]
-    pub fn read(&mut self, length: usize) -> &[u8] {
-        if self.get_remaining() < length {
+    pub fn read(&mut self, size: usize) -> &[u8] {
+        if self.get_remaining() < size {
             return &[];
         }
         let start = self.position;
-        self.position += length;
-        &self.data[start..self.position]
+        self.position += size;
+        &self.buffer[start..self.position]
+    }
+
+    // 读取一个 Message
+    #[allow(dead_code)]
+    pub fn read_one(&mut self) -> Self {
+        let size = self.decompress_var_uz();
+        match self.endian {
+            Endian::Big => {
+                Self::new_with_ben(self.read(size), false)
+            }
+            Endian::Little => {
+                Self::new_with_len(self.read(size), false)
+            }
+        }
     }
 
     // 读取剩余
@@ -100,7 +114,7 @@ impl Reader {
     pub fn clear(&mut self) {
         self.position = 0;
         self.length = 0;
-        self.data.clear();
+        self.buffer.clear();
     }
 
     // 获取当前位置
@@ -136,15 +150,13 @@ impl Reader {
     // 读取 u8
     #[allow(dead_code)]
     pub fn read_u8(&mut self) -> u8 {
-        let data = self.read(1);
-        data[0]
+        self.read(1)[0]
     }
 
     // 读取 i8
     #[allow(dead_code)]
     pub fn read_i8(&mut self) -> i8 {
-        let data = self.read(1);
-        data[0] as i8
+        self.read(1)[0] as i8
     }
 
     // 读取 u16
@@ -243,21 +255,8 @@ impl Reader {
         }
     }
 
-    // 读取一个 Message
     #[allow(dead_code)]
-    pub fn read_one(&mut self) -> Self {
-        let data_len = self.decompress_var_uint();
-        match self.endian {
-            Endian::Big => {
-                Self::new_with_ben(self.read(data_len as usize), false)
-            }
-            Endian::Little => {
-                Self::new_with_len(self.read(data_len as usize), false)
-            }
-        }
-    }
-    #[allow(dead_code)]
-    pub fn decompress_var_uint(&mut self) -> u64 {
+    pub fn decompress_var(&mut self) -> u64 {
         let a0 = self.read_u8();
         if a0 < 241 {
             return u64::from(a0);
@@ -305,11 +304,16 @@ impl Reader {
         0
     }
 
+    #[allow(dead_code)]
+    pub fn decompress_var_uz(&mut self) -> usize {
+        self.decompress_var() as usize
+    }
+
     // 读取字符串
     pub fn read_string(&mut self) -> String {
         let len = self.read_u16();
         let data = self.read(len as usize);
-        String::from_utf8(data.to_vec()).unwrap()
+        String::from_utf8(data.to_vec()).unwrap_or_else(|_| String::new())
     }
 
     // 读取 bool
@@ -320,13 +324,13 @@ impl Reader {
 
 impl Debug for Reader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Reader {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.data, self.position, self.length, self.endian)
+        write!(f, "Reader {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.buffer, self.position, self.length, self.endian)
     }
 }
 
 
 pub struct Writer {
-    data: Vec<u8>,
+    buffer: Vec<u8>,
     position: usize,
     length: usize,
     endian: Endian,
@@ -352,7 +356,7 @@ impl Writer {
     #[allow(dead_code)]
     pub fn new_with_ben(is_wet: bool) -> Self {
         let mut writer = Self {
-            data: vec![],
+            buffer: vec![],
             position: 0,
             length: 0,
             endian: Endian::Big,
@@ -368,7 +372,7 @@ impl Writer {
     #[allow(dead_code)]
     pub fn new_with_len(is_wet: bool) -> Self {
         let mut writer = Self {
-            data: vec![],
+            buffer: vec![],
             position: 0,
             length: 0,
             endian: Endian::Little,
@@ -382,7 +386,7 @@ impl Writer {
 
     // 获取数据
     pub fn get_data(&self) -> Vec<u8> {
-        self.data.clone()
+        self.buffer.clone()
     }
 
     // 获取时间戳
@@ -393,19 +397,19 @@ impl Writer {
     // 写入数据
     #[allow(dead_code)]
     pub fn write(&mut self, data: &[u8]) {
-        let self_data_len = self.data.len();
+        let self_data_len = self.buffer.len();
         let need_len = self.position + data.len();
         if self_data_len < need_len {
-            self.data.reserve(need_len - self_data_len);
+            self.buffer.reserve(need_len - self_data_len);
         }
 
         // 扩展 self.data 以确保有足够的空间
         if self_data_len < need_len {
-            self.data.resize(need_len, 0);
+            self.buffer.resize(need_len, 0);
         }
 
         // 从 position 开始写入数据
-        self.data[self.position..need_len].copy_from_slice(data);
+        self.buffer[self.position..need_len].copy_from_slice(data);
 
         // 更新 position
         self.position += data.len();
@@ -416,7 +420,7 @@ impl Writer {
     pub fn clear(&mut self) {
         self.position = 0;
         self.length = 0;
-        self.data.clear();
+        self.buffer.clear();
     }
 
     // 获取当前位置
@@ -536,7 +540,7 @@ impl Writer {
     }
 
     #[allow(dead_code)]
-    pub fn compress_var_uint(&mut self, value: u64) {
+    pub fn compress_var(&mut self, value: u64) {
         if value <= 240 {
             self.write_u8(value as u8);
         } else if value <= 2287 {
@@ -590,10 +594,15 @@ impl Writer {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn compress_var_uz(&mut self, value: usize) {
+        self.compress_var(value as u64);
+    }
+
     // 写入字符串
-    pub fn write_string(&mut self, value: &str) {
-        self.write_u16(value.len() as u16);
-        self.write(value.as_bytes());
+    pub fn write_string(&mut self, value: &[u8]) {
+        self.write_u16(1 + value.len() as u16);
+        self.write(value);
     }
 
     // 写入 bool
@@ -604,7 +613,7 @@ impl Writer {
 
 impl Debug for Writer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.data, self.position, self.length, self.endian)
+        write!(f, "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.buffer, self.position, self.length, self.endian)
     }
 }
 

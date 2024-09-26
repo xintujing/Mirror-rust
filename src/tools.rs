@@ -233,3 +233,11 @@ pub fn bytes_to_u32(bytes: &[u8]) -> u32 {
     }
     u32::from_be_bytes(u32_bytes)
 }
+
+#[allow(dead_code)]
+pub fn string_to_ascii(input: &str) -> Vec<u8> {
+    input.chars()
+        .filter(|&c| c.is_ascii())  // 过滤非 ASCII 字符
+        .map(|c| c as u8)           // 将字符转换为 ASCII 值
+        .collect()                  // 收集到 Vec<u8> 中
+}

@@ -13,3 +13,5 @@ byteorder = "1.5.0"
 bytemuck = "1.18.0"
 serde = { version = "1.0.210", features = ["derive"] }
 nalgebra = "0.33.0"
+encoding_rs = "0.8.34"
+hex = "0.4.3"

@@ -4,12 +4,68 @@ use nalgebra::{Quaternion, Vector3};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TimeSnapshotMessage {}
+impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
+    fn read(reader: &mut Reader) -> TimeSnapshotMessage {
+        TimeSnapshotMessage {}
+    }
+}
+impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var(2);
+        // 57097
+        writer.write_u16("Mirror.TimeSnapshotMessage".get_stable_hash_code16());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ReadyMessage {}
+impl DataReader<ReadyMessage> for ReadyMessage {
+    fn read(reader: &mut Reader) -> ReadyMessage {
+        ReadyMessage {}
+    }
+}
+impl DataWriter<ReadyMessage> for ReadyMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var(2);
+        // 43708
+        writer.write_u16("Mirror.ReadyMessage".get_stable_hash_code16());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct NotReadyMessage {}
+impl DataReader<NotReadyMessage> for NotReadyMessage {
+    fn read(reader: &mut Reader) -> NotReadyMessage {
+        NotReadyMessage {}
+    }
+}
+impl DataWriter<NotReadyMessage> for NotReadyMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var(2);
+        // 43378
+        writer.write_u16("Mirror.NotReadyMessage".get_stable_hash_code16());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct AddPlayerMessage {}
+impl DataReader<AddPlayerMessage> for AddPlayerMessage {
+    fn read(reader: &mut Reader) -> AddPlayerMessage {
+        AddPlayerMessage {}
+    }
+}
+impl DataWriter<AddPlayerMessage> for AddPlayerMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var(2);
+        // 49414
+        writer.write_u16("Mirror.AddPlayerMessage".get_stable_hash_code16());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum SceneOperation {
@@ -30,12 +86,47 @@ impl SceneOperation {
         *self as u8
     }
 }
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SceneMessage {
-    pub scene_name: &'static str,
+    pub scene_name: String,
     pub operation: SceneOperation,
     pub custom_handling: bool,
 }
+impl SceneMessage {
+    pub fn new(scene_name: String, operation: SceneOperation, custom_handling: bool) -> SceneMessage {
+        SceneMessage {
+            scene_name,
+            operation,
+            custom_handling,
+        }
+    }
+}
+impl DataReader<SceneMessage> for SceneMessage {
+    fn read(reader: &mut Reader) -> SceneMessage {
+        let scene_name = reader.read_string();
+        let operation = SceneOperation::from(reader.read_u8());
+        let custom_handling = reader.read_bool();
+        SceneMessage {
+            scene_name,
+            operation,
+            custom_handling,
+        }
+    }
+}
+impl DataWriter<SceneMessage> for SceneMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        let str_bytes = self.scene_name.as_bytes();
+        let total_len = 6 + str_bytes.len();
+        writer.compress_var_uz(total_len);
+        // 3552
+        writer.write_u16("Mirror.SceneMessage".get_stable_hash_code16());
+        writer.write_string(str_bytes);
+        writer.write_u8(self.operation.to_u8());
+        writer.write_bool(self.custom_handling);
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct CommandMessage {
     pub net_id: u32,
@@ -43,6 +134,46 @@ pub struct CommandMessage {
     pub function_hash: u16,
     pub payload: Vec<u8>,
 }
+impl CommandMessage {
+    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> CommandMessage {
+        CommandMessage {
+            net_id,
+            component_index,
+            function_hash,
+            payload,
+        }
+    }
+}
+impl DataReader<CommandMessage> for CommandMessage {
+    fn read(reader: &mut Reader) -> CommandMessage {
+        let net_id = reader.read_u32();
+        let component_index = reader.read_u8();
+        let function_hash = reader.read_u16();
+        let payload = reader.read_remaining();
+        CommandMessage {
+            net_id,
+            component_index,
+            function_hash,
+            payload: payload.to_vec(),
+        }
+    }
+}
+impl DataWriter<CommandMessage> for CommandMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        // 2 + 4 + 1 + 2 + 4 + self.payload.len()
+        let total_len = 13 + self.payload.len();
+        writer.compress_var_uz(total_len);
+        // 39124
+        writer.write_u16("Mirror.CommandMessage".get_stable_hash_code16());
+        writer.write_u32(self.net_id);
+        writer.write_u8(self.component_index);
+        writer.write_u16(self.function_hash);
+        writer.write_u32(self.payload.len() as u32);
+        writer.write(self.payload.as_slice());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct RpcMessage {
     pub net_id: u32,
@@ -50,6 +181,46 @@ pub struct RpcMessage {
     pub function_hash: u16,
     pub payload: Vec<u8>,
 }
+impl RpcMessage {
+    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> RpcMessage {
+        RpcMessage {
+            net_id,
+            component_index,
+            function_hash,
+            payload,
+        }
+    }
+}
+impl DataReader<RpcMessage> for RpcMessage {
+    fn read(reader: &mut Reader) -> RpcMessage {
+        let net_id = reader.read_u32();
+        let component_index = reader.read_u8();
+        let function_hash = reader.read_u16();
+        let payload = reader.read_remaining();
+        RpcMessage {
+            net_id,
+            component_index,
+            function_hash,
+            payload: payload.to_vec(),
+        }
+    }
+}
+impl DataWriter<RpcMessage> for RpcMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        // 2 + 4 + 1 + 2 + 4 + self.payload.len()
+        let total_len = 13 + self.payload.len();
+        writer.compress_var_uz(total_len);
+        // 40238
+        writer.write_u16("Mirror.RpcMessage".get_stable_hash_code16());
+        writer.write_u32(self.net_id);
+        writer.write_u8(self.component_index);
+        writer.write_u16(self.function_hash);
+        writer.write_u32(self.payload.len() as u32);
+        writer.write(self.payload.as_slice());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct SpawnMessage {
     pub net_id: u32,
@@ -62,12 +233,82 @@ pub struct SpawnMessage {
     pub scale: Vector3<f32>,
     pub payload: Vec<u8>,
 }
+impl SpawnMessage {
+    pub fn new(net_id: u32, is_local_player: bool, is_owner: bool, scene_id: u64, asset_id: u32, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>, payload: Vec<u8>) -> SpawnMessage {
+        SpawnMessage {
+            net_id,
+            is_local_player,
+            is_owner,
+            scene_id,
+            asset_id,
+            position,
+            rotation,
+            scale,
+            payload,
+        }
+    }
+}
+impl DataReader<SpawnMessage> for SpawnMessage {
+    fn read(reader: &mut Reader) -> SpawnMessage {
+        let net_id = reader.read_u32();
+        let is_local_player = reader.read_bool();
+        let is_owner = reader.read_bool();
+        let scene_id = reader.read_u64();
+        let asset_id = reader.read_u32();
+        let position = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
+        let rotation = Quaternion::new(reader.read_f32(), reader.read_f32(), reader.read_f32(), reader.read_f32());
+        let scale = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
+        let payload = reader.read_remaining();
+        SpawnMessage {
+            net_id,
+            is_local_player,
+            is_owner,
+            scene_id,
+            asset_id,
+            position,
+            rotation,
+            scale,
+            payload: payload.to_vec(),
+        }
+    }
+}
+
+impl DataWriter<SpawnMessage> for SpawnMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        // 2 + 4 + 1 + 1 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + self.payload.len()
+        let total_len = 64 + self.payload.len();
+        writer.compress_var_uz(total_len);
+        // 12504
+        writer.write_u16("Mirror.SpawnMessage".get_stable_hash_code16());
+        writer.write_u32(self.net_id);
+        writer.write_bool(self.is_local_player);
+        writer.write_bool(self.is_owner);
+        writer.write_u64(self.scene_id);
+        writer.write_u32(self.asset_id);
+        writer.write_f32(self.position.x);
+        writer.write_f32(self.position.y);
+        writer.write_f32(self.position.z);
+        writer.write_f32(self.rotation.coords.x);
+        writer.write_f32(self.rotation.coords.y);
+        writer.write_f32(self.rotation.coords.z);
+        writer.write_f32(self.rotation.coords.w);
+        writer.write_f32(self.scale.x);
+        writer.write_f32(self.scale.y);
+        writer.write_f32(self.scale.z);
+        writer.write_u32(1 + self.payload.len() as u32);
+        writer.write(self.payload.as_slice());
+    }
+}
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ChangeOwnerMessage {
     pub net_id: u32,
     pub is_owner: bool,
     pub is_local_player: bool,
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnStartedMessage {}
 impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
@@ -77,11 +318,13 @@ impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
 }
 impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
     fn write(&mut self, writer: &mut Writer) {
-        writer.compress_var_uint(2);
+        writer.compress_var(2);
         // 12504
         writer.write_u16("Mirror.ObjectSpawnStartedMessage".get_stable_hash_code16());
     }
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnFinishedMessage {}
 impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
@@ -91,29 +334,39 @@ impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
 }
 impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
     fn write(&mut self, writer: &mut Writer) {
-        writer.compress_var_uint(2);
+        writer.compress_var(2);
         // 43444
         writer.write_u16("Mirror.ObjectSpawnFinishedMessage".get_stable_hash_code16());
     }
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectDestroyMessage {
     pub net_id: u32,
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectHideMessage {
     pub net_id: u32,
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct EntityStateMessage {
     pub net_id: u32,
     pub payload: Vec<u8>,
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct NetworkPingMessage {
     pub local_time: f64,
     pub predicted_time_adjusted: f64,
 }
+
+
 impl NetworkPingMessage {
     pub fn new(local_time: f64, predicted_time_adjusted: f64) -> NetworkPingMessage {
         NetworkPingMessage {
@@ -134,13 +387,15 @@ impl DataReader<NetworkPingMessage> for NetworkPingMessage {
 }
 impl DataWriter<NetworkPingMessage> for NetworkPingMessage {
     fn write(&mut self, writer: &mut Writer) {
-        writer.compress_var_uint(18);
+        writer.compress_var(18);
         // 17487
         writer.write_u16("Mirror.NetworkPingMessage".get_stable_hash_code16());
         writer.write_f64(self.local_time);
         writer.write_f64(self.predicted_time_adjusted);
     }
 }
+
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct NetworkPongMessage {
     pub local_time: f64,
@@ -170,7 +425,7 @@ impl DataReader<NetworkPongMessage> for NetworkPongMessage {
 }
 impl DataWriter<NetworkPongMessage> for NetworkPongMessage {
     fn write(&mut self, writer: &mut Writer) {
-        writer.compress_var_uint(26);
+        writer.compress_var(26);
         // 27095
         writer.write_u16("Mirror.NetworkPongMessage".get_stable_hash_code16());
         writer.write_f64(self.local_time);
