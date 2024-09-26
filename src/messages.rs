@@ -1,4 +1,5 @@
-use crate::rwder::{DataReader, Reader};
+use crate::rwder::{DataReader, DataWriter, Reader, Writer};
+use crate::stable_hash::StableHash;
 use nalgebra::{Quaternion, Vector3};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -97,7 +98,7 @@ impl NetworkPingMessage {
         }
     }
 }
-impl DataReader<NetworkPingMessage> for Reader {
+impl DataReader<NetworkPingMessage> for NetworkPingMessage {
     fn read(reader: &mut Reader) -> NetworkPingMessage {
         let local_time = reader.read_f64();
         let predicted_time_adjusted = reader.read_f64();
@@ -105,6 +106,15 @@ impl DataReader<NetworkPingMessage> for Reader {
             local_time,
             predicted_time_adjusted,
         }
+    }
+}
+impl DataWriter<NetworkPingMessage> for NetworkPingMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var_uint(18);
+        // 17487
+        writer.write_u16("Mirror.NetworkPingMessage".get_stable_hash_code16());
+        writer.write_f64(self.local_time);
+        writer.write_f64(self.predicted_time_adjusted);
     }
 }
 #[derive(Debug, PartialEq, Clone)]
@@ -120,5 +130,27 @@ impl NetworkPongMessage {
             prediction_error_unadjusted,
             prediction_error_adjusted,
         }
+    }
+}
+impl DataReader<NetworkPongMessage> for NetworkPongMessage {
+    fn read(reader: &mut Reader) -> NetworkPongMessage {
+        let local_time = reader.read_f64();
+        let prediction_error_unadjusted = reader.read_f64();
+        let prediction_error_adjusted = reader.read_f64();
+        NetworkPongMessage {
+            local_time,
+            prediction_error_unadjusted,
+            prediction_error_adjusted,
+        }
+    }
+}
+impl DataWriter<NetworkPongMessage> for NetworkPongMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var_uint(26);
+        // 27095
+        writer.write_u16("Mirror.NetworkPongMessage".get_stable_hash_code16());
+        writer.write_f64(self.local_time);
+        writer.write_f64(self.prediction_error_unadjusted);
+        writer.write_f64(self.prediction_error_adjusted);
     }
 }
