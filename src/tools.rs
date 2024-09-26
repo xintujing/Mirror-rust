@@ -1,5 +1,16 @@
+use lazy_static::lazy_static;
 use std::thread::sleep;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+// 全局启动时间 锚点
+lazy_static! {
+    pub static ref SERV_START_INSTANT: Instant = Instant::now();
+}
+
+#[allow(dead_code)]
+pub fn get_start_elapsed_time() -> f64 {
+    get_elapsed_time_f64(*SERV_START_INSTANT)
+}
 
 #[allow(dead_code)]
 pub fn compress_var_uint(value: u64) -> Vec<u8> {
@@ -110,7 +121,7 @@ pub fn decompress_var_uint(reader: &[u8]) -> (u64, usize) {
 }
 
 #[allow(dead_code)]
-pub fn get_elapsed_time(start: Instant) -> String {
+pub fn get_elapsed_time_str(start: Instant) -> String {
     let secs = start.elapsed().as_secs();
     let millis = start.elapsed().subsec_millis();
     format!("{}.{:03}", secs, millis)

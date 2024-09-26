@@ -1,4 +1,4 @@
-use crate::rwder::Reader;
+use crate::rwder::{DataReader, Reader};
 use nalgebra::{Quaternion, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -120,34 +120,17 @@ impl SyncData {
     }
 }
 
-pub trait SyncDataReaderWriter {
-    fn write_sync_data(&mut self, data: &SyncData);
-}
-
-pub trait SyncDataReaderReader {
-    fn read_sync_data(data: &[u8]) -> SyncData;
-}
-
-// impl<W: Write> SyncDataReaderWriter for W {
-//     fn write_sync_data(&mut self, data: &SyncData) {
-//         let mut buffer = Vec::new();
-//         bincode::serialize_into(&mut buffer, data).unwrap();
-//         self.write_all(&buffer).unwrap();
-//     }
-// }
-
 impl Debug for SyncData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "SyncData {{ changed: {}, changes: {:?}, position: {:?}, quaternion: {:?}, vec_rotation: {:?}, scale: {:?} }}", self.changed, self.get_changes(), self.position, self.quaternion, self.vec_rotation, self.scale)
     }
 }
 
-
-impl SyncDataReaderReader for SyncData {
+impl DataReader<SyncData> for SyncData {
     // fn hash: 55513
-    fn read_sync_data(data: &[u8]) -> SyncData {
-        let mut reader = Reader::new_with_len(data);
-
+    fn read(reader: &mut Reader) -> SyncData {
+        // TODO 长度
+        // 长度
         let _ = reader.read_u32();
 
         // 改变的数据

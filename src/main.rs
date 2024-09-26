@@ -6,6 +6,7 @@ mod rwder;
 mod stable_hash;
 mod tools;
 mod sync_data;
+mod messages;
 
 fn main() {
     server::MirrorServer::listen();

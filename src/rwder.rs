@@ -1,3 +1,4 @@
+use crate::tools::get_start_elapsed_time;
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 
@@ -297,6 +298,18 @@ impl Reader {
         }
         0
     }
+
+    // 读取字符串
+    pub fn read_string(&mut self) -> String {
+        let len = self.read_u16();
+        let data = self.read(len as usize);
+        String::from_utf8(data.to_vec()).unwrap()
+    }
+
+    // 读取 bool
+    pub fn read_bool(&mut self) -> bool {
+        self.read_u8() != 0
+    }
 }
 
 impl Debug for Reader {
@@ -331,23 +344,27 @@ impl Writer {
     // 初始化一个 Writer 实例，指定是否为大端序
     #[allow(dead_code)]
     pub fn new_with_ben() -> Self {
-        Self {
+        let mut writer = Self {
             data: vec![],
             position: 0,
             length: 0,
             endian: Endian::Big,
-        }
+        };
+        writer.write_f64(get_start_elapsed_time());
+        writer
     }
 
     // 初始化一个 Writer 实例，指定是否为小端序
     #[allow(dead_code)]
     pub fn new_with_len() -> Self {
-        Self {
+        let mut writer = Self {
             data: vec![],
             position: 0,
             length: 0,
             endian: Endian::Little,
-        }
+        };
+        writer.write_f64(get_start_elapsed_time());
+        writer
     }
 
     // 获取数据
@@ -358,18 +375,22 @@ impl Writer {
     // 写入数据
     #[allow(dead_code)]
     pub fn write(&mut self, data: &[u8]) {
-        // 从 position 开始写入
-        if self.position < self.data.len() {
-            // self.length = self.position + data.len();
-            // self.data.reserve(self.length - self.position);  // 预留空间，避免多次扩容
-            // self.data.splice(self.position..self.position + data.len(), data.iter().cloned());
-            self.data.reserve(data.len());  // 预留空间，避免多次扩容
-            self.data.extend(data);
-        } else {
-            self.data.reserve(data.len());  // 预留空间，避免多次扩容
-            self.length += data.len();
-            self.data.extend(data);
+        let self_data_len = self.data.len();
+        let need_len = self.position + data.len();
+        if self_data_len < need_len {
+            self.data.reserve(need_len - self_data_len);
         }
+
+        // 扩展 self.data 以确保有足够的空间
+        if self_data_len < need_len {
+            self.data.resize(need_len, 0);
+        }
+
+        // 从 position 开始写入数据
+        self.data[self.position..need_len].copy_from_slice(data);
+
+        // 更新 position
+        self.position += data.len();
     }
 
     // 清空数据
@@ -550,10 +571,30 @@ impl Writer {
             self.write(&value.to_le_bytes());
         }
     }
+
+    // 写入字符串
+    pub fn write_string(&mut self, value: &str) {
+        self.write_u16(value.len() as u16);
+        self.write(value.as_bytes());
+    }
+
+    // 写入 bool
+    pub fn write_bool(&mut self, value: bool) {
+        self.write_u8(if value { 1 } else { 0 });
+    }
 }
 
 impl Debug for Writer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.data, self.position, self.length, self.endian)
     }
+}
+
+
+pub trait DataReader<T> {
+    fn read(reader: &mut Reader) -> T;
+}
+
+pub trait DataWriter<T> {
+    fn write(&mut self, writer: &mut Writer);
 }

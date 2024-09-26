@@ -1,7 +1,8 @@
-use crate::rwder::{Reader, Writer};
+use crate::messages::NetworkPingMessage;
+use crate::rwder::{DataReader, Reader, Writer};
 use crate::stable_hash::StableHash;
-use crate::sync_data::{SyncData, SyncDataReaderReader};
-use crate::tools::{get_elapsed_time_f64, to_hex_string};
+use crate::sync_data::SyncData;
+use crate::tools::{get_start_elapsed_time, to_hex_string};
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_server::Server;
@@ -9,7 +10,6 @@ use std::collections::HashMap;
 use std::mem::MaybeUninit;
 use std::sync::{Arc, Mutex, Once};
 use std::thread::spawn;
-use std::time::Instant;
 
 #[derive(Debug)]
 pub struct Connection {
@@ -27,7 +27,6 @@ pub struct Connection {
 pub struct MirrorServer {
     pub kcp_serv: Option<Arc<Mutex<Server>>>,
     pub connections: HashMap<u64, Connection>,
-    pub instant: Instant,
 }
 
 impl MirrorServer {
@@ -39,7 +38,6 @@ impl MirrorServer {
             INSTANCE.as_mut_ptr().write(Mutex::new(MirrorServer {
                 kcp_serv: None,
                 connections: Default::default(),
-                instant: Instant::now(),
             }));
         });
 
@@ -95,12 +93,9 @@ impl MirrorServer {
         self.kcp_serv = Some(Arc::new(Mutex::new(serv)));
     }
 
-    pub fn send(&self, connection_id: u64, data: Vec<u8>, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
+    pub fn send(&self, connection_id: u64, writer: Writer, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
         if let Some(serv) = &self.kcp_serv {
             let mut serv = serv.lock().unwrap();
-            let mut writer = Writer::new_with_len();
-            writer.write_f64(get_elapsed_time_f64(self.instant));
-            writer.write(data.as_slice());
             serv.send(connection_id, writer.get_data(), channel).expect("TODO: panic message");
         }
     }
@@ -162,7 +157,7 @@ impl MirrorServer {
         let mut writer = Writer::new_with_len();
         let d = vec![44, 224, 13, 39, 0, 65, 115, 115, 101, 116, 115, 47, 81, 117, 105, 99, 107, 83, 116, 97, 114, 116, 47, 83, 99, 101, 110, 101, 115, 47, 77, 121, 83, 99, 101, 110, 101, 46, 115, 99, 101, 110, 101, 0, 0];
         writer.write(d.as_slice());
-        self.send(connection.connection_id, writer.get_data(), kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
+        self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
         self.connections.insert(con_id, connection);
 
 
@@ -198,20 +193,22 @@ impl MirrorServer {
                 } else if type_ == "Mirror.NetworkPingMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
 
-                    let local_time = s_message.read_f64();
+                    let pm = NetworkPingMessage::read(&mut s_message);
+
+                    let local_time = pm.local_time;
                     // println!("local_time: {}", local_time);
 
-                    let predicted_time_adjusted = s_message.read_f64();
+                    let predicted_time_adjusted = pm.predicted_time_adjusted;
                     // println!("predicted_time_adjusted: {}", predicted_time_adjusted);
 
                     // 1 local_time
                     // 2 unadjustedError
                     // 3 adjustedError
 
-                    let lt = get_elapsed_time_f64(self.instant);
+                    let s_e_t = get_start_elapsed_time();
 
-                    let unadjusted_error = lt - local_time;
-                    let adjusted_error = lt - predicted_time_adjusted;
+                    let unadjusted_error = s_e_t - local_time;
+                    let adjusted_error = s_e_t - predicted_time_adjusted;
 
                     let mut writer = Writer::new_with_len();
                     writer.compress_var_uint(26);
@@ -220,7 +217,7 @@ impl MirrorServer {
                     writer.write_f64(unadjusted_error);
                     writer.write_f64(adjusted_error);
                     println!("data hex: {}", to_hex_string(writer.get_data().as_slice()));
-                    self.send(connection.connection_id, writer.get_data(), channel);
+                    self.send(connection.connection_id, writer, channel);
                 } else if type_ == "Mirror.NetworkPongMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
                     // let data = &data[data_start..];
@@ -237,9 +234,9 @@ impl MirrorServer {
                     let function_hash = s_message.read_u16();
                     println!("message_type: {} netId: {} componentIndex: {} functionHash: {}", type_, net_id, component_index, function_hash);
                     if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
-                        let sync = s_message.read_remaining();
-                        println!("sync_data: {:?} {}", sync, to_hex_string(sync));
-                        let sync_data = SyncData::read_sync_data(&sync);
+                        // let sync = s_message.read_remaining();
+                        // println!("sync_data: {:?} {}", sync, to_hex_string(sync));
+                        let sync_data = SyncData::read(&mut s_message);
                         println!("sync_data: {:?}\n", sync_data);
                     } else if function_hash == "System.Void QuickStart.PlayerScript::CmdShootRay()".get_fn_stable_hash_code() {
                         println!("CmdShootRay");
@@ -256,12 +253,12 @@ impl MirrorServer {
                     let mut writer = Writer::new_with_len();
                     writer.compress_var_uint(2);
                     writer.write_u16(12504);
-                    self.send(connection.connection_id, writer.get_data(), kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
+                    self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
 
                     let mut writer = Writer::new_with_len();
                     writer.compress_var_uint(2);
                     writer.write_u16(43444);
-                    self.send(connection.connection_id, writer.get_data(), kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
+                    self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
                 } else if type_ == "Mirror.AddPlayerMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
                 } else {
