@@ -70,8 +70,32 @@ pub struct ChangeOwnerMessage {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnStartedMessage {}
+impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
+    fn read(reader: &mut Reader) -> ObjectSpawnStartedMessage {
+        ObjectSpawnStartedMessage {}
+    }
+}
+impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var_uint(2);
+        // 12504
+        writer.write_u16("Mirror.ObjectSpawnStartedMessage".get_stable_hash_code16());
+    }
+}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnFinishedMessage {}
+impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
+    fn read(reader: &mut Reader) -> ObjectSpawnFinishedMessage {
+        ObjectSpawnFinishedMessage {}
+    }
+}
+impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
+    fn write(&mut self, writer: &mut Writer) {
+        writer.compress_var_uint(2);
+        // 43444
+        writer.write_u16("Mirror.ObjectSpawnFinishedMessage".get_stable_hash_code16());
+    }
+}
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectDestroyMessage {
     pub net_id: u32,

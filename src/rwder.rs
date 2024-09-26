@@ -22,44 +22,60 @@ pub struct Reader {
     position: usize,
     length: usize,
     endian: Endian,
+    elapsed_time: f64,
 }
 
 impl Reader {
     // 初始化一个 Reader 实例
     #[allow(dead_code)]
-    pub fn new(data: &[u8], endian: Endian) -> Self {
+    pub fn new(data: &[u8], endian: Endian, is_ret: bool) -> Self {
         match endian {
             Endian::Big => {
-                Self::new_with_ben(data)
+                Self::new_with_ben(data, is_ret)
             }
             Endian::Little => {
-                Self::new_with_len(data)
+                Self::new_with_len(data, is_ret)
             }
         }
     }
 
     // 初始化一个 Reader 实例，指定是否为大端序
     #[allow(dead_code)]
-    pub fn new_with_ben(data: &[u8]) -> Self {
+    pub fn new_with_ben(data: &[u8], is_ret: bool) -> Self {
         let length = data.len();
-        Self {
+        let mut reader = Self {
             data: data.to_vec(),
             position: 0,
             length,
             endian: Endian::Big,
+            elapsed_time: 0.0,
+        };
+        if is_ret {
+            reader.elapsed_time = reader.read_f64();
         }
+        reader
     }
 
     // 初始化一个 Reader 实例，指定是否为小端序
     #[allow(dead_code)]
-    pub fn new_with_len(data: &[u8]) -> Self {
+    pub fn new_with_len(data: &[u8], is_ret: bool) -> Self {
         let length = data.len();
-        Self {
+        let mut reader = Self {
             data: data.to_vec(),
             position: 0,
             length,
             endian: Endian::Little,
+            elapsed_time: 0.0,
+        };
+        if is_ret {
+            reader.elapsed_time = reader.read_f64();
         }
+        reader
+    }
+
+    #[allow(dead_code)]
+    pub fn get_elapsed_time(&self) -> f64 {
+        self.elapsed_time
     }
 
     // 读取指定长度的数据
@@ -77,14 +93,6 @@ impl Reader {
     #[allow(dead_code)]
     pub fn read_remaining(&mut self) -> &[u8] {
         self.read(self.get_remaining())
-    }
-
-    // 写入数据
-    #[allow(dead_code)]
-    pub fn write(&mut self, data: &[u8]) {
-        self.data.reserve(data.len());  // 预留空间，避免多次扩容
-        self.length += data.len();
-        self.data.extend(data);
     }
 
     // 清空数据
@@ -124,8 +132,6 @@ impl Reader {
     pub fn set_endian(&mut self, endian: Endian) {
         self.endian = endian;
     }
-
-    /// read start
 
     // 读取 u8
     #[allow(dead_code)]
@@ -243,10 +249,10 @@ impl Reader {
         let data_len = self.decompress_var_uint();
         match self.endian {
             Endian::Big => {
-                Self::new_with_ben(self.read(data_len as usize))
+                Self::new_with_ben(self.read(data_len as usize), false)
             }
             Endian::Little => {
-                Self::new_with_len(self.read(data_len as usize))
+                Self::new_with_len(self.read(data_len as usize), false)
             }
         }
     }
@@ -324,52 +330,64 @@ pub struct Writer {
     position: usize,
     length: usize,
     endian: Endian,
+    elapsed_time: f64,
 }
 
 
 impl Writer {
     // 初始化一个 Writer 实例
     #[allow(dead_code)]
-    pub fn new(endian: Endian) -> Self {
+    pub fn new(endian: Endian, is_wet: bool) -> Self {
         match endian {
             Endian::Big => {
-                Self::new_with_ben()
+                Self::new_with_ben(is_wet)
             }
             Endian::Little => {
-                Self::new_with_len()
+                Self::new_with_len(is_wet)
             }
         }
     }
 
     // 初始化一个 Writer 实例，指定是否为大端序
     #[allow(dead_code)]
-    pub fn new_with_ben() -> Self {
+    pub fn new_with_ben(is_wet: bool) -> Self {
         let mut writer = Self {
             data: vec![],
             position: 0,
             length: 0,
             endian: Endian::Big,
+            elapsed_time: get_start_elapsed_time(),
         };
-        writer.write_f64(get_start_elapsed_time());
+        if is_wet {
+            writer.write_f64(writer.elapsed_time);
+        }
         writer
     }
 
     // 初始化一个 Writer 实例，指定是否为小端序
     #[allow(dead_code)]
-    pub fn new_with_len() -> Self {
+    pub fn new_with_len(is_wet: bool) -> Self {
         let mut writer = Self {
             data: vec![],
             position: 0,
             length: 0,
             endian: Endian::Little,
+            elapsed_time: get_start_elapsed_time(),
         };
-        writer.write_f64(get_start_elapsed_time());
+        if is_wet {
+            writer.write_f64(writer.elapsed_time);
+        }
         writer
     }
 
     // 获取数据
     pub fn get_data(&self) -> Vec<u8> {
         self.data.clone()
+    }
+
+    // 获取时间戳
+    pub fn get_elapsed_time(&self) -> f64 {
+        self.elapsed_time
     }
 
     // 写入数据

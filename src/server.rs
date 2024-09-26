@@ -1,8 +1,8 @@
-use crate::messages::NetworkPingMessage;
-use crate::rwder::{DataReader, Reader, Writer};
+use crate::messages::{NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage};
+use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
-use crate::tools::{get_start_elapsed_time, to_hex_string};
+use crate::tools::get_start_elapsed_time;
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_server::Server;
@@ -154,7 +154,7 @@ impl MirrorServer {
         //
         // self.send(connection.connection_id, writer.get_data(), kcp2k_rust::kcp2k_channel::Kcp2KChannel::Unreliable);
 
-        let mut writer = Writer::new_with_len();
+        let mut writer = Writer::new_with_len(true);
         let d = vec![44, 224, 13, 39, 0, 65, 115, 115, 101, 116, 115, 47, 81, 117, 105, 99, 107, 83, 116, 97, 114, 116, 47, 83, 99, 101, 110, 101, 115, 47, 77, 121, 83, 99, 101, 110, 101, 46, 115, 99, 101, 110, 101, 0, 0];
         writer.write(d.as_slice());
         self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
@@ -172,9 +172,9 @@ impl MirrorServer {
             let mut output_first = String::new();
 
 
-            let mut t_message = Reader::new_with_len(&message);
+            let mut t_message = Reader::new_with_len(&message, true);
 
-            let time_t = t_message.read_f64();
+            let time_t = t_message.get_elapsed_time();
 
             output_first.push_str(&format!("time_t: {}\n", time_t));
 
@@ -193,30 +193,23 @@ impl MirrorServer {
                 } else if type_ == "Mirror.NetworkPingMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
 
-                    let pm = NetworkPingMessage::read(&mut s_message);
-
-                    let local_time = pm.local_time;
+                    // 读取 NetworkPingMessage 数据
+                    let network_ping_message = NetworkPingMessage::read(&mut s_message);
+                    let local_time = network_ping_message.local_time;
                     // println!("local_time: {}", local_time);
-
-                    let predicted_time_adjusted = pm.predicted_time_adjusted;
+                    let predicted_time_adjusted = network_ping_message.predicted_time_adjusted;
                     // println!("predicted_time_adjusted: {}", predicted_time_adjusted);
 
-                    // 1 local_time
-                    // 2 unadjustedError
-                    // 3 adjustedError
+                    let mut writer = Writer::new_with_len(true);
 
+                    // 准备 NetworkPongMessage 数据
                     let s_e_t = get_start_elapsed_time();
-
                     let unadjusted_error = s_e_t - local_time;
                     let adjusted_error = s_e_t - predicted_time_adjusted;
 
-                    let mut writer = Writer::new_with_len();
-                    writer.compress_var_uint(26);
-                    writer.write_u16(27095);
-                    writer.write_f64(local_time);
-                    writer.write_f64(unadjusted_error);
-                    writer.write_f64(adjusted_error);
-                    println!("data hex: {}", to_hex_string(writer.get_data().as_slice()));
+                    // 写入 NetworkPongMessage 数据
+                    NetworkPongMessage::new(local_time, unadjusted_error, adjusted_error).write(&mut writer);
+                    // 发送 NetworkPongMessage 数据
                     self.send(connection.connection_id, writer, channel);
                 } else if type_ == "Mirror.NetworkPongMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
@@ -250,14 +243,11 @@ impl MirrorServer {
                 } else if type_ == "Mirror.ReadyMessage".get_stable_hash_code16() {
                     print!("{}", output_first);
 
-                    let mut writer = Writer::new_with_len();
-                    writer.compress_var_uint(2);
-                    writer.write_u16(12504);
-                    self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
+                    let mut writer = Writer::new_with_len(true);
 
-                    let mut writer = Writer::new_with_len();
-                    writer.compress_var_uint(2);
-                    writer.write_u16(43444);
+                    ObjectSpawnStartedMessage {}.write(&mut writer);
+                    ObjectSpawnFinishedMessage {}.write(&mut writer);
+
                     self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
                 } else if type_ == "Mirror.AddPlayerMessage".get_stable_hash_code16() {
                     println!("{}", output_first);
