@@ -73,6 +73,11 @@ impl Reader {
         reader
     }
 
+    // 获取数据
+    #[allow(dead_code)]
+    pub fn get_data(&self) -> &[u8] {
+        &self.buffer
+    }
     #[allow(dead_code)]
     pub fn get_elapsed_time(&self) -> f64 {
         self.elapsed_time
@@ -385,8 +390,8 @@ impl Writer {
     }
 
     // 获取数据
-    pub fn get_data(&self) -> Vec<u8> {
-        self.buffer.clone()
+    pub fn get_data(&self) -> &[u8] {
+        &self.buffer
     }
 
     // 获取时间戳

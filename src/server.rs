@@ -1,4 +1,4 @@
-use crate::messages::{CommandMessage, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
+use crate::messages::{CommandMessage, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
@@ -97,7 +97,7 @@ impl MirrorServer {
     pub fn send(&self, connection_id: u64, writer: Writer, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
         if let Some(serv) = &self.kcp_serv {
             let mut serv = serv.lock().unwrap();
-            serv.send(connection_id, writer.get_data(), channel).expect("TODO: panic message");
+            serv.send(connection_id, writer.get_data().to_vec(), channel).expect("TODO: panic message");
         }
     }
 
@@ -143,7 +143,6 @@ impl MirrorServer {
 
         let mut writer = Writer::new_with_len(true);
         SceneMessage::new("Assets/QuickStart/Scenes/MyScene.scene".to_string(), SceneOperation::Normal, false).write(&mut writer);
-        println!("SceneMessage: {:?} {}", writer.get_data(), to_hex_string(writer.get_data().as_slice()));
         self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
         self.connections.insert(con_id, connection);
 
@@ -173,7 +172,7 @@ impl MirrorServer {
 
                 if msg_type_hash == "Mirror.TimeSnapshotMessage".get_stable_hash_code16() {
                     output_first.push_str(&"Mirror.TimeSnapshotMessage\n".to_string());
-                    print!("{}", output_first);
+                    // print!("{}", output_first);
 
                     let mut writer = Writer::new_with_len(true);
                     // 写入 TimeSnapshotMessage 数据
@@ -183,11 +182,11 @@ impl MirrorServer {
                     self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
                 } else if msg_type_hash == "Mirror.NetworkPingMessage".get_stable_hash_code16() {
                     output_first.push_str(&"Mirror.NetworkPingMessage\n".to_string());
-                    println!("{}", output_first);
+                    // println!("{}", output_first);
 
                     // 读取 NetworkPingMessage 数据
                     let network_ping_message = NetworkPingMessage::read(&mut reader);
-                    println!("network_ping_message: {:?}", network_ping_message);
+                    // println!("network_ping_message: {:?}", network_ping_message);
                     let local_time = network_ping_message.local_time;
                     // println!("local_time: {}", local_time);
                     let predicted_time_adjusted = network_ping_message.predicted_time_adjusted;
@@ -210,11 +209,11 @@ impl MirrorServer {
                     self.send(connection.connection_id, writer, channel);
                 } else if msg_type_hash == "Mirror.NetworkPongMessage".get_stable_hash_code16() {
                     output_first.push_str(&"Mirror.NetworkPongMessage\n".to_string());
-                    println!("{}", output_first);
+                    // println!("{}", output_first);
 
                     // 读取 NetworkPongMessage 数据
-                    let network_pong_message = NetworkPongMessage::read(&mut reader);
-                    println!("network_pong_message: {:?}", network_pong_message);
+                    // let network_pong_message = NetworkPongMessage::read(&mut reader);
+                    // println!("network_pong_message: {:?}", network_pong_message);
                 } else if msg_type_hash == "Mirror.CommandMessage".get_stable_hash_code16() {
                     output_first.push_str(&"Mirror.CommandMessage\n".to_string());
                     println!("{}", output_first);
@@ -224,12 +223,22 @@ impl MirrorServer {
                     let net_id = command_message.net_id;
                     let component_index = command_message.component_index;
                     let function_hash = command_message.function_hash;
+                    println!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, 0, function_hash);
 
-                    println!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, component_index, function_hash);
                     if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
                         let mut sync_writer = Reader::new_with_len(&command_message.payload, false);
                         let sync_data = SyncData::read(&mut sync_writer);
                         println!("sync_data: {:?}\n", sync_data);
+
+                        let mut rpc_writer = Writer::new_with_len(true);
+                        // println!("command_message.payload: {}", to_hex_string(&command_message.payload));
+                        println!("command_message: {}", to_hex_string(reader.get_data()));
+                        let mut rpc_message = RpcMessage::new(0, component_index, 28456, command_message.payload);
+                        rpc_message.write(&mut rpc_writer);
+                        println!("rpc_message: {}", to_hex_string(rpc_writer.get_data()));
+                        self.send(connection.connection_id, rpc_writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
+                    } else if function_hash == 20088 {
+                        println!("CmdClientRpc 20088");
                     } else if function_hash == "System.Void QuickStart.PlayerScript::CmdShootRay()".get_fn_stable_hash_code() {
                         // println!("CmdShootRay");
                     } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
@@ -248,16 +257,11 @@ impl MirrorServer {
                     // 准备 ObjectSpawnStartedMessage 数据并写入 writer
                     ObjectSpawnStartedMessage {}.write(&mut writer);
 
-                    // pub position: Vector3<f32>,
-                    // pub rotation: Quaternion<f32>,
-                    // pub scale: Vector3<f32>,
-
                     let position = Vector3::new(0.0, 0.0, 0.0);
                     let rotation = nalgebra::Quaternion::identity();
                     let scale = Vector3::new(0.0, 0.0, 0.0);
 
                     let play = hex::decode("01131200506C61796572363632206A6F696E65642E").unwrap();
-
                     let mut ss = SpawnMessage::new(1, false, false, 14585647484178997735, 0, position, rotation, scale, play);
                     ss.write(&mut writer);
 
@@ -265,15 +269,23 @@ impl MirrorServer {
                     ObjectSpawnFinishedMessage {}.write(&mut writer);
 
                     let play0 = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                    let mut ss0 = SpawnMessage::new(5, false, false, 0, 3541431626, position, rotation, scale, play0);
+                    let mut ss0 = SpawnMessage::new(5, true, true, 0, 3541431626, position, rotation, scale, play0);
                     ss0.write(&mut writer);
-
-                    println!("writer: {:?} {}", writer.get_data(), to_hex_string(writer.get_data().as_slice()));
 
                     // 发送 writer 数据
                     self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
                 } else if msg_type_hash == "Mirror.AddPlayerMessage".get_stable_hash_code16() {
+                    output_first.push_str(&"Mirror.AddPlayerMessage\n".to_string());
                     println!("{}", output_first);
+
+                    let mut writer = Writer::new_with_len(true);
+                    let play = hex::decode("01131200506C61796572363632206A6F696E65642E").unwrap();
+                    let position = Vector3::new(0.0, 0.0, 0.0);
+                    let rotation = nalgebra::Quaternion::identity();
+                    let scale = Vector3::new(0.0, 0.0, 0.0);
+                    let mut ss = SpawnMessage::new(1, false, false, 14585647484178997735, 0, position, rotation, scale, play);
+                    ss.write(&mut writer);
+                    self.send(connection.connection_id, writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable);
                 } else {
                     println!("Unknown message type: {}\n", msg_type_hash);
                 }

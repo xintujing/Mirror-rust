@@ -62,7 +62,7 @@ impl SyncData {
     }
 
     /// 解压缩四元数
-    fn decompress_quaternion(data: u32) -> Quaternion<f32> {
+    pub fn decompress_quaternion(data: u32) -> Quaternion<f32> {
         // 获取 cScaled（位 0..10）
         let c_scaled = (data & SyncData::TEN_BITS_MAX) as u16;
 

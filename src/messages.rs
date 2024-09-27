@@ -275,7 +275,7 @@ impl DataReader<SpawnMessage> for SpawnMessage {
 
 impl DataWriter<SpawnMessage> for SpawnMessage {
     fn write(&mut self, writer: &mut Writer) {
-        // 2 + 4 + 1 + 1 + 8 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + self.payload.len()
+        // 2 + 4 + 1 + 1 + 8 + 12 * 4 + self.payload.len()
         let total_len = 64 + self.payload.len();
         writer.compress_var_uz(total_len);
         // 12504
