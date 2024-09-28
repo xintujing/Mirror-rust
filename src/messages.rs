@@ -357,6 +357,29 @@ impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
 pub struct ObjectDestroyMessage {
     pub net_id: u32,
 }
+impl ObjectDestroyMessage {
+    pub fn new(net_id: u32) -> ObjectDestroyMessage {
+        ObjectDestroyMessage {
+            net_id,
+        }
+    }
+}
+impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
+    fn deserialization(reader: &mut Reader) -> ObjectDestroyMessage {
+        let net_id = reader.read_u32();
+        ObjectDestroyMessage {
+            net_id,
+        }
+    }
+}
+impl DataWriter<ObjectDestroyMessage> for ObjectDestroyMessage {
+    fn serialization(&mut self, writer: &mut Writer) {
+        writer.compress_var(6);
+        // 12504
+        writer.write_u16("Mirror.ObjectDestroyMessage".get_stable_hash_code16());
+        writer.write_u32(self.net_id);
+    }
+}
 
 
 #[derive(Debug, PartialEq, Clone)]
