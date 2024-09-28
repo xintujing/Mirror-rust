@@ -3,8 +3,6 @@ use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_server::Server;
 use std::sync::{Arc, Mutex};
 
-const MTU: usize = 1200; // Default MTU
-
 // KcpTransport struct with configurations and state
 pub struct KcpTransport {
     pub port: u16,
@@ -14,7 +12,7 @@ pub struct KcpTransport {
 
 // Implementation of KcpTransport
 impl KcpTransport {
-    pub const SCHEME: &'static str = "KCP";
+    pub const SCHEME: &'static str = "kcp";
 
     // Initialization methods
     pub fn new(port: u16) -> Self {

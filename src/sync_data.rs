@@ -118,6 +118,10 @@ impl SyncData {
         let quaternion = Quaternion::new(value.w, value.x, value.y, value.z); // nalgebra 的 Quaternion 顺序为 (w, x, y, z)
         SyncData::quaternion_normalize_safe(quaternion)
     }
+
+    fn serialization() -> Vec<u8> {
+        unimplemented!()
+    }
 }
 
 impl Debug for SyncData {
@@ -127,8 +131,7 @@ impl Debug for SyncData {
 }
 
 impl DataReader<SyncData> for SyncData {
-    // fn hash: 55513
-    fn read(reader: &mut Reader) -> SyncData {
+    fn deserialization(reader: &mut Reader) -> SyncData {
         // TODO 长度
         // 长度
         let _ = reader.read_u32();

@@ -624,9 +624,9 @@ impl Debug for Writer {
 
 
 pub trait DataReader<T> {
-    fn read(reader: &mut Reader) -> T;
+    fn deserialization(reader: &mut Reader) -> T;
 }
 
 pub trait DataWriter<T> {
-    fn write(&mut self, writer: &mut Writer);
+    fn serialization(&mut self, writer: &mut Writer);
 }

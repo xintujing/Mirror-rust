@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-kcp2k_rust = { path = "src/transports/KCP/kcp2k-rust" }
+kcp2k_rust = { path = "src/transports/kcp/kcp2k-rust" }
 tokio = { version = "1.10.0", features = ["full"] }
 bytes = "1.7.1"
 log = "0.4.22"
