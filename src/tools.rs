@@ -1,10 +1,22 @@
 use lazy_static::lazy_static;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread::sleep;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 // 全局启动时间 锚点
 lazy_static! {
     pub static ref SERV_START_INSTANT: Instant = Instant::now();
+}
+
+static GLOBAL_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
+
+pub fn generate_id() -> u32 {
+    GLOBAL_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
+    if next_id > u32::MAX - 1 {
+        return 0;
+    }
+    next_id
 }
 
 #[allow(dead_code)]

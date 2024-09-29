@@ -2,7 +2,7 @@ use crate::messages::{CommandMessage, EntityStateMessage, NetworkPingMessage, Ne
 use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
-use crate::tools::{get_start_elapsed_time, to_hex_string};
+use crate::tools::{generate_id, get_start_elapsed_time, to_hex_string};
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_server::Server;
@@ -47,8 +47,6 @@ impl Connection {
 pub struct MirrorServer {
     pub kcp_serv: Option<Arc<Mutex<Server>>>,
     pub connections_map: HashMap<u64, Connection>,
-    // pub c_id1n_id: HashMap<u64, u32>,
-    net_id_sii: u32,
 }
 
 impl MirrorServer {
@@ -60,16 +58,10 @@ impl MirrorServer {
             INSTANCE.as_mut_ptr().write(Mutex::new(MirrorServer {
                 kcp_serv: None,
                 connections_map: Default::default(),
-                net_id_sii: 1,
             }));
         });
 
         unsafe { &*INSTANCE.as_ptr() }
-    }
-
-    pub fn get_next_net_id(&mut self) -> u32 {
-        self.net_id_sii += 1;
-        self.net_id_sii
     }
 
     pub fn listen() {
@@ -167,7 +159,7 @@ impl MirrorServer {
         }
 
         let connection = Connection {
-            net_id: self.get_next_net_id(),
+            net_id: generate_id(),
             connection_id: con_id,
             address: self.get_client_address(con_id),
             is_authenticated: false,
