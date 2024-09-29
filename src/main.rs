@@ -7,15 +7,14 @@ mod stable_hash;
 mod tools;
 mod sync_data;
 mod messages;
+mod connection;
 
-fn main() {
-    println!("{:?}", sync_data::SyncData::decompress_quaternion(3758035455));
-    server::MirrorServer::listen();
-    while let Ok(m_server) = server::MirrorServer::get_instance().lock() {
-        if let Some(kcp_serv) = m_server.kcp_serv.as_ref() {
-            if let Ok(mut kcp_serv) = kcp_serv.lock() {
-                kcp_serv.tick();
-            }
+#[tokio::main]
+async fn main() {
+    server::MirrorServer::listen().await;
+    while let mut m_server = server::MirrorServer::get_instance().lock().await {
+        if let Some(kcp_serv) = m_server.kcp_serv.as_mut() {
+            kcp_serv.tick();
         }
     }
 }
