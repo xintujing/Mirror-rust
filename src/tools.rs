@@ -1,15 +1,10 @@
-use lazy_static::lazy_static;
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::LazyLock;
 use std::thread::sleep;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-// 全局启动时间 锚点
-lazy_static! {
-    pub static ref SERV_START_INSTANT: Instant = Instant::now();
-}
-
+// 全局 ID 计数器
 static GLOBAL_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
-
 pub fn generate_id() -> u32 {
     GLOBAL_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
     let next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
@@ -19,9 +14,23 @@ pub fn generate_id() -> u32 {
     next_id
 }
 
+// 全局启动时间锚点
+pub static SERV_START_INSTANT: LazyLock<Instant> = LazyLock::new(|| Instant::now());
+// 获取启动时间
 #[allow(dead_code)]
-pub fn get_start_elapsed_time() -> f64 {
-    get_elapsed_time_f64(*SERV_START_INSTANT)
+pub fn get_s_e_t() -> f64 {
+    get_e_t_f64(*SERV_START_INSTANT)
+}
+#[allow(dead_code)]
+pub fn get_e_t_str(start: Instant) -> String {
+    let secs = start.elapsed().as_secs();
+    let millis = start.elapsed().subsec_millis();
+    format!("{}.{:07}", secs, millis)
+}
+
+#[allow(dead_code)]
+pub fn get_e_t_f64(start: Instant) -> f64 {
+    start.elapsed().as_micros() as f64 / 1_000_000.0
 }
 
 #[allow(dead_code)]
@@ -130,18 +139,6 @@ pub fn decompress_var_uint(reader: &[u8]) -> (u64, usize) {
         return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48) + (u64::from(a8) << 56), 9);
     }
     (0, 0)
-}
-
-#[allow(dead_code)]
-pub fn get_elapsed_time_str(start: Instant) -> String {
-    let secs = start.elapsed().as_secs();
-    let millis = start.elapsed().subsec_millis();
-    format!("{}.{:03}", secs, millis)
-}
-
-#[allow(dead_code)]
-pub fn get_elapsed_time_f64(start: Instant) -> f64 {
-    start.elapsed().as_micros() as f64 / 1_000_000.0
 }
 
 // 获取时间戳

@@ -2,7 +2,7 @@ use crate::messages::{CommandMessage, EntityStateMessage, NetworkPingMessage, Ne
 use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
-use crate::tools::{generate_id, get_start_elapsed_time, to_hex_string};
+use crate::tools::{generate_id, get_s_e_t, to_hex_string};
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_server::Server;
@@ -216,7 +216,7 @@ impl MirrorServer {
 
                     let mut writer = Writer::new_with_len(true);
                     // 准备 NetworkPongMessage 数据
-                    let s_e_t = get_start_elapsed_time();
+                    let s_e_t = get_s_e_t();
                     let unadjusted_error = s_e_t - local_time;
                     let adjusted_error = s_e_t - predicted_time_adjusted;
 

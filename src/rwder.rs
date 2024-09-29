@@ -1,4 +1,4 @@
-use crate::tools::get_start_elapsed_time;
+use crate::tools::get_s_e_t;
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 
@@ -365,7 +365,7 @@ impl Writer {
             position: 0,
             length: 0,
             endian: Endian::Big,
-            elapsed_time: get_start_elapsed_time(),
+            elapsed_time: get_s_e_t(),
         };
         if is_wet {
             writer.write_f64(writer.elapsed_time);
@@ -381,7 +381,7 @@ impl Writer {
             position: 0,
             length: 0,
             endian: Endian::Little,
-            elapsed_time: get_start_elapsed_time(),
+            elapsed_time: get_s_e_t(),
         };
         if is_wet {
             writer.write_f64(writer.elapsed_time);
