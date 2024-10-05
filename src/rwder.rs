@@ -395,6 +395,7 @@ impl Writer {
     }
 
     // 获取时间戳
+    #[allow(dead_code)]
     pub fn get_elapsed_time(&self) -> f64 {
         self.elapsed_time
     }

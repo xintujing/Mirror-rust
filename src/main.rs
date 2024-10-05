@@ -12,7 +12,6 @@ mod connection;
 #[tokio::main]
 async fn main() {
     server::MirrorServer::listen().await;
-    if let mut m_server = server::MirrorServer::get_instance().write().await {
-        m_server.start().await;
-    }
+    let m_server = server::MirrorServer::get_instance().write().await;
+    m_server.start().await;
 }
