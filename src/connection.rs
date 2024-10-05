@@ -1,12 +1,11 @@
 use crate::tools::generate_id;
-use std::cell::RefCell;
 
 #[derive(Debug, Clone)]
 pub struct Connection {
     pub net_id: u32,
     /// 以下为 Mirror.Connection 类的属性
     pub connection_id: u64,
-    pub address: RefCell<String>,
+    pub address: String,
     pub is_authenticated: bool,
     /// TODO: Auth Data
     pub is_ready: bool,
@@ -21,7 +20,7 @@ impl Connection {
         Connection {
             net_id: generate_id(),
             connection_id,
-            address: RefCell::new(address),
+            address,
             is_authenticated: false,
             is_ready: false,
             last_message_time: 0.0,
