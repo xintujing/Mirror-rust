@@ -279,7 +279,6 @@ dependencies = [
     "serde",
     "socket2",
     "tklog",
-    "tokio",
 ]
 
 [[package]]
