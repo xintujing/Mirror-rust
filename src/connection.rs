@@ -1,10 +1,7 @@
 use crate::tools::generate_id;
 use std::collections::HashMap;
-use std::mem::MaybeUninit;
-use std::sync::Once;
-use tokio::sync::Mutex;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Connection {
     pub net_id: u32,
     /// 以下为 Mirror.Connection 类的属性
@@ -36,22 +33,15 @@ impl Connection {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConnectionsManager {
     con_map: HashMap<u64, Connection>,
 }
-impl ConnectionsManager {
-    pub fn get_instance() -> &'static Mutex<ConnectionsManager> {
-        static mut INSTANCE: MaybeUninit<Mutex<ConnectionsManager>> = MaybeUninit::uninit();
-        static ONCE: Once = Once::new();
-
-        ONCE.call_once(|| unsafe {
-            INSTANCE.as_mut_ptr().write(Mutex::new(ConnectionsManager {
-                con_map: Default::default(),
-            }));
-        });
-
-        unsafe { &*INSTANCE.as_ptr() }
+impl<'a> ConnectionsManager {
+    pub fn new() -> Self {
+        ConnectionsManager {
+            con_map: HashMap::new(),
+        }
     }
     pub fn insert_connection(&mut self, connection: Connection) {
         self.con_map.insert(connection.connection_id, connection);
@@ -68,7 +58,7 @@ impl ConnectionsManager {
     pub fn is_has_connection(&self, connection_id: u64) -> bool {
         self.con_map.contains_key(&connection_id)
     }
-    pub fn get_connections(&self) -> &HashMap<u64, Connection> {
+    pub fn get_connections(&mut self) -> &HashMap<u64, Connection> {
         &self.con_map
     }
 }
