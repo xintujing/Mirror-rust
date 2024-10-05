@@ -119,6 +119,7 @@ impl SyncData {
         SyncData::quaternion_normalize_safe(quaternion)
     }
 
+    #[allow(dead_code)]
     fn serialization() -> Vec<u8> {
         unimplemented!()
     }

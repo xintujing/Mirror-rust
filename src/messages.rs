@@ -6,6 +6,7 @@ use nalgebra::{Quaternion, Vector3};
 pub struct TimeSnapshotMessage {}
 impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
     fn deserialization(reader: &mut Reader) -> TimeSnapshotMessage {
+        let _ = reader;
         TimeSnapshotMessage {}
     }
 }
@@ -22,6 +23,7 @@ impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
 pub struct ReadyMessage {}
 impl DataReader<ReadyMessage> for ReadyMessage {
     fn deserialization(reader: &mut Reader) -> ReadyMessage {
+        let _ = reader;
         ReadyMessage {}
     }
 }
@@ -38,6 +40,7 @@ impl DataWriter<ReadyMessage> for ReadyMessage {
 pub struct NotReadyMessage {}
 impl DataReader<NotReadyMessage> for NotReadyMessage {
     fn deserialization(reader: &mut Reader) -> NotReadyMessage {
+        let _ = reader;
         NotReadyMessage {}
     }
 }
@@ -54,6 +57,7 @@ impl DataWriter<NotReadyMessage> for NotReadyMessage {
 pub struct AddPlayerMessage {}
 impl DataReader<AddPlayerMessage> for AddPlayerMessage {
     fn deserialization(reader: &mut Reader) -> AddPlayerMessage {
+        let _ = reader;
         AddPlayerMessage {}
     }
 }
@@ -135,6 +139,7 @@ pub struct CommandMessage {
     pub payload: Vec<u8>,
 }
 impl CommandMessage {
+    #[allow(dead_code)]
     pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> CommandMessage {
         CommandMessage {
             net_id,
@@ -195,6 +200,7 @@ impl RpcMessage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_payload_no_len(&self) -> Vec<u8> {
         self.payload[4..].to_vec()
     }
@@ -255,7 +261,7 @@ impl SpawnMessage {
             payload,
         }
     }
-
+    #[allow(dead_code)]
     pub fn get_payload_no_len(&self) -> Vec<u8> {
         self.payload[4..].to_vec()
     }
@@ -325,6 +331,7 @@ pub struct ChangeOwnerMessage {
 pub struct ObjectSpawnStartedMessage {}
 impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
     fn deserialization(reader: &mut Reader) -> ObjectSpawnStartedMessage {
+        let _ = reader;
         ObjectSpawnStartedMessage {}
     }
 }
@@ -341,6 +348,7 @@ impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
 pub struct ObjectSpawnFinishedMessage {}
 impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
     fn deserialization(reader: &mut Reader) -> ObjectSpawnFinishedMessage {
+        let _ = reader;
         ObjectSpawnFinishedMessage {}
     }
 }
@@ -401,6 +409,7 @@ impl EntityStateMessage {
         }
     }
 
+    #[allow(dead_code)]
     pub fn get_payload_no_len(&self) -> Vec<u8> {
         self.payload[4..].to_vec()
     }
@@ -437,6 +446,7 @@ pub struct NetworkPingMessage {
 
 
 impl NetworkPingMessage {
+    #[allow(dead_code)]
     pub fn new(local_time: f64, predicted_time_adjusted: f64) -> NetworkPingMessage {
         NetworkPingMessage {
             local_time,
