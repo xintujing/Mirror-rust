@@ -5,6 +5,10 @@ use nalgebra::{Quaternion, Vector3};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct TimeSnapshotMessage {}
+impl TimeSnapshotMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.TimeSnapshotMessage";
+}
 impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
     fn deserialization(reader: &mut Reader) -> TimeSnapshotMessage {
         let _ = reader;
@@ -22,6 +26,10 @@ impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ReadyMessage {}
+impl ReadyMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ReadyMessage";
+}
 impl DataReader<ReadyMessage> for ReadyMessage {
     fn deserialization(reader: &mut Reader) -> ReadyMessage {
         let _ = reader;
@@ -39,6 +47,10 @@ impl DataWriter<ReadyMessage> for ReadyMessage {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct NotReadyMessage {}
+impl NotReadyMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.NotReadyMessage";
+}
 impl DataReader<NotReadyMessage> for NotReadyMessage {
     fn deserialization(reader: &mut Reader) -> NotReadyMessage {
         let _ = reader;
@@ -56,6 +68,10 @@ impl DataWriter<NotReadyMessage> for NotReadyMessage {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct AddPlayerMessage {}
+impl AddPlayerMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.AddPlayerMessage";
+}
 impl DataReader<AddPlayerMessage> for AddPlayerMessage {
     fn deserialization(reader: &mut Reader) -> AddPlayerMessage {
         let _ = reader;
@@ -98,6 +114,9 @@ pub struct SceneMessage {
     pub custom_handling: bool,
 }
 impl SceneMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.SceneMessage";
+    #[allow(dead_code)]
     pub fn new(scene_name: String, operation: SceneOperation, custom_handling: bool) -> SceneMessage {
         SceneMessage {
             scene_name,
@@ -140,6 +159,8 @@ pub struct CommandMessage {
     pub payload: Bytes,
 }
 impl CommandMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.CommandMessage";
     #[allow(dead_code)]
     pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Bytes) -> CommandMessage {
         CommandMessage {
@@ -192,6 +213,9 @@ pub struct RpcMessage {
     pub payload: Bytes,
 }
 impl RpcMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.RpcMessage";
+    #[allow(dead_code)]
     pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Bytes) -> RpcMessage {
         RpcMessage {
             net_id,
@@ -249,6 +273,9 @@ pub struct SpawnMessage {
     pub payload: Bytes,
 }
 impl SpawnMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.SpawnMessage";
+    #[allow(dead_code)]
     pub fn new(net_id: u32, is_local_player: bool, is_owner: bool, scene_id: u64, asset_id: u32, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>, payload: Bytes) -> SpawnMessage {
         SpawnMessage {
             net_id,
@@ -326,10 +353,26 @@ pub struct ChangeOwnerMessage {
     pub is_owner: bool,
     pub is_local_player: bool,
 }
+impl ChangeOwnerMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ChangeOwnerMessage";
+    #[allow(dead_code)]
+    pub fn new(net_id: u32, is_owner: bool, is_local_player: bool) -> ChangeOwnerMessage {
+        ChangeOwnerMessage {
+            net_id,
+            is_owner,
+            is_local_player,
+        }
+    }
+}
 
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnStartedMessage {}
+impl ObjectSpawnStartedMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnStartedMessage";
+}
 impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
     fn deserialization(reader: &mut Reader) -> ObjectSpawnStartedMessage {
         let _ = reader;
@@ -347,6 +390,10 @@ impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnFinishedMessage {}
+impl ObjectSpawnFinishedMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnFinishedMessage";
+}
 impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
     fn deserialization(reader: &mut Reader) -> ObjectSpawnFinishedMessage {
         let _ = reader;
@@ -367,6 +414,9 @@ pub struct ObjectDestroyMessage {
     pub net_id: u32,
 }
 impl ObjectDestroyMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ObjectDestroyMessage";
+    #[allow(dead_code)]
     pub fn new(net_id: u32) -> ObjectDestroyMessage {
         ObjectDestroyMessage {
             net_id,
@@ -395,6 +445,16 @@ impl DataWriter<ObjectDestroyMessage> for ObjectDestroyMessage {
 pub struct ObjectHideMessage {
     pub net_id: u32,
 }
+impl ObjectHideMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.ObjectHideMessage";
+    #[allow(dead_code)]
+    pub fn new(net_id: u32) -> ObjectHideMessage {
+        ObjectHideMessage {
+            net_id,
+        }
+    }
+}
 
 
 #[derive(Debug, PartialEq, Clone)]
@@ -403,6 +463,9 @@ pub struct EntityStateMessage {
     pub payload: Bytes,
 }
 impl EntityStateMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.EntityStateMessage";
+    #[allow(dead_code)]
     pub fn new(net_id: u32, payload: Bytes) -> EntityStateMessage {
         EntityStateMessage {
             net_id,
@@ -444,9 +507,9 @@ pub struct NetworkPingMessage {
     pub local_time: f64,
     pub predicted_time_adjusted: f64,
 }
-
-
 impl NetworkPingMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.NetworkPingMessage";
     #[allow(dead_code)]
     pub fn new(local_time: f64, predicted_time_adjusted: f64) -> NetworkPingMessage {
         NetworkPingMessage {
@@ -483,6 +546,9 @@ pub struct NetworkPongMessage {
     pub prediction_error_adjusted: f64,
 }
 impl NetworkPongMessage {
+    #[allow(dead_code)]
+    pub const FULL_NAME: &'static str = "Mirror.NetworkPongMessage";
+    #[allow(dead_code)]
     pub fn new(local_time: f64, prediction_error_unadjusted: f64, prediction_error_adjusted: f64) -> NetworkPongMessage {
         NetworkPongMessage {
             local_time,

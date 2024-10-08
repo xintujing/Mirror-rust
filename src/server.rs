@@ -1,5 +1,5 @@
 use crate::connection::Connection;
-use crate::messages::{CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
+use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
@@ -13,6 +13,7 @@ use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::{Quaternion, Vector3};
 use std::mem::MaybeUninit;
 use std::sync::{mpsc, Once};
+use tklog::debug;
 use tokio::sync::RwLock;
 
 pub struct MirrorServer {
@@ -89,7 +90,7 @@ impl MirrorServer {
     }
     #[allow(dead_code)]
     pub async fn disconnect(&self, connection_id: u64) {
-        println!("Disconnect {}", connection_id);
+        debug!(format!("Disconnect {}", connection_id));
     }
 
     #[allow(dead_code)]
@@ -100,7 +101,7 @@ impl MirrorServer {
 
     #[allow(dead_code)]
     pub async fn on_connected(&self, con_id: u64) {
-        println!("OnConnected {}", con_id);
+        debug!(format!("OnConnected {}", con_id));
 
         if con_id == 0 || self.con_map.contains_key(&con_id) {
             return;
@@ -118,7 +119,6 @@ impl MirrorServer {
 
     #[allow(dead_code)]
     pub async fn on_data(&self, con_id: u64, message: Bytes, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
-        println!("OnData {} - {:?} {:?}", con_id, channel, message.as_ref());
         let mut t_reader = Reader::new_with_len(message, true);
         if let Some(mut connection) = self.con_map.get_mut(&con_id) {
             connection.remote_time_stamp = t_reader.get_elapsed_time()
@@ -136,8 +136,8 @@ impl MirrorServer {
 
             output_first.push_str(&format!(" - msg_type_hash: {} - msg_type: ", msg_type_hash));
 
-            if msg_type_hash == "Mirror.TimeSnapshotMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.TimeSnapshotMessage\n".to_string());
+            if msg_type_hash == TimeSnapshotMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", TimeSnapshotMessage::FULL_NAME));
                 // print!("{}", output_first);
                 if let Some(cur_connection) = self.con_map.get(&con_id) {
                     let mut writer = Writer::new_with_len(true);
@@ -146,9 +146,9 @@ impl MirrorServer {
                     // 发送 writer 数据
                     self.send(cur_connection.connection_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
                 }
-            } else if msg_type_hash == "Mirror.NetworkPingMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.NetworkPingMessage\n".to_string());
-                // println!("{}", output_first);
+            } else if msg_type_hash == NetworkPingMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", NetworkPingMessage::FULL_NAME));
+                // debug!("{}", output_first);
                 if let Some(cur_connection) = self.con_map.get(&con_id) {
                     // 读取 NetworkPingMessage 数据
                     let network_ping_message = NetworkPingMessage::deserialization(&mut reader);
@@ -170,23 +170,23 @@ impl MirrorServer {
                     // 发送 writer 数据
                     self.send(cur_connection.connection_id, &writer, channel).await;
                 }
-            } else if msg_type_hash == "Mirror.NetworkPongMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.NetworkPongMessage\n".to_string());
-                // println!("{}", output_first);
+            } else if msg_type_hash == NetworkPongMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", NetworkPongMessage::FULL_NAME));
+                // debug!("{}", output_first);
                 // 读取 NetworkPongMessage 数据
                 // let network_pong_message = NetworkPongMessage::read(&mut reader);
-                // println!("network_pong_message: {:?}", network_pong_message);
-            } else if msg_type_hash == "Mirror.ReadyMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.ReadyMessage\n".to_string());
+                // debug!("network_pong_message: {:?}", network_pong_message);
+            } else if msg_type_hash == ReadyMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", ReadyMessage::FULL_NAME));
                 print!("{}", output_first);
 
                 // 设置连接为准备状态
                 if let Some(mut cur_connection) = self.con_map.get_mut(&con_id) {
                     cur_connection.is_ready = true;
                 }
-            } else if msg_type_hash == "Mirror.AddPlayerMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.AddPlayerMessage\n".to_string());
-                println!("{}", output_first);
+            } else if msg_type_hash == AddPlayerMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", AddPlayerMessage::FULL_NAME));
+                debug!(format!("{}", output_first));
 
                 if let Some(cur_connection) = self.con_map.get(&con_id) {
                     let mut cur_writer = Writer::new_with_len(true);
@@ -249,21 +249,21 @@ impl MirrorServer {
                         self.send(connection.connection_id, &other_writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
                     }
                 }
-            } else if msg_type_hash == "Mirror.CommandMessage".get_stable_hash_code16() {
-                output_first.push_str(&"Mirror.CommandMessage\n".to_string());
-                println!("{}", output_first);
+            } else if msg_type_hash == CommandMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", CommandMessage::FULL_NAME));
+                debug!(format!("{}", output_first));
 
                 let command_message = CommandMessage::deserialization(&mut reader);
 
                 let net_id = command_message.net_id;
                 let component_index = command_message.component_index;
                 let function_hash = command_message.function_hash;
-                println!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, component_index, function_hash);
+                debug!(format!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, component_index, function_hash));
 
                 if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
                     let mut sync_writer = Reader::new_with_len(command_message.payload.clone(), false);
                     let sync_data = SyncData::deserialization(&mut sync_writer);
-                    println!("sync_data: {:?}\n", sync_data);
+                    debug!(format!("sync_data: {:?}\n", sync_data));
 
                     let mut rpc_writer = Writer::new_with_len(true);
                     let mut rpc_message = RpcMessage::new(net_id, component_index, 28456, command_message.get_payload_no_len());
@@ -281,12 +281,12 @@ impl MirrorServer {
                         self.send(connection.connection_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
                     }
                 } else if function_hash == 20088 {
-                    // println!("CmdClientRpc 20088 {}", to_hex_string(command_message.payload.as_slice()));
+                    // debug!(format!("CmdClientRpc 20088 {}", to_hex_string(command_message.payload.as_slice())));
 
                     if let Some(cur_connection) = self.con_map.get(&con_id) {
                         let mut writer = Writer::new_with_len(true);
                         let payload = hex::decode(format!("{}{}", "022b00000000000000000600000000000000", to_hex_string(&command_message.payload[4..]))).unwrap();
-                        println!("CmdClientRpc 20088 payload: {}", to_hex_string(&payload));
+                        debug!(format!("CmdClientRpc 20088 payload: {}", to_hex_string(&payload)));
                         let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, Bytes::from(payload));
                         entity_state_message.serialization(&mut writer);
                         for connection in self.con_map.iter() {
@@ -294,7 +294,7 @@ impl MirrorServer {
                         }
                     }
                 } else if function_hash == "System.Void QuickStart.PlayerScript::CmdShootRay()".get_fn_stable_hash_code() {
-                    println!("CmdShootRay {}", to_hex_string(command_message.payload.as_ref()));
+                    debug!(format!("CmdShootRay {}", to_hex_string(command_message.payload.as_ref())));
 
                     if let Some(cur_connection) = self.con_map.get(&con_id) {
                         let mut writer = Writer::new_with_len(true);
@@ -305,7 +305,7 @@ impl MirrorServer {
                         }
                     }
                 } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
-                    println!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_ref()));
+                    debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_ref())));
 
                     if let Some(cur_connection) = self.con_map.get(&con_id) {
                         let mut writer = Writer::new_with_len(true);
@@ -317,21 +317,22 @@ impl MirrorServer {
                         }
                     }
                 } else {
-                    println!("Unknown function hash: {}\n", function_hash);
+                    debug!(format!("Unknown function hash: {}\n", function_hash));
                 }
             } else {
-                println!("Unknown message type: {}\n", msg_type_hash);
+                debug!(format!("Unknown message type: {}\n", msg_type_hash));
             }
         }
     }
 
     #[allow(dead_code)]
     pub async fn on_error(&self, con_id: u64, code: ErrorCode, message: String) {
-        println!("OnError {} - {:?} {}", con_id, code, message);
+        debug!(format!("OnError {} - {:?} {}", con_id, code, message));
     }
 
     #[allow(dead_code)]
     pub async fn on_disconnected(&self, con_id: u64) {
+        debug!(format!("OnDisconnected {}", con_id));
         if let Some(connection) = self.con_map.get(&con_id) {
             let mut writer = Writer::new_with_len(true);
             let mut object_destroy_message = ObjectDestroyMessage::new(connection.net_id);

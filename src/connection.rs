@@ -1,5 +1,6 @@
 use crate::tools::generate_id;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Connection {
     pub net_id: u32,
