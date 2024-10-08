@@ -2,6 +2,7 @@ use crate::tools::get_s_e_t;
 use bytes::{Bytes, BytesMut};
 use std::cmp::PartialEq;
 use std::fmt::Debug;
+use tklog::debug;
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum Endian {
@@ -18,6 +19,7 @@ impl Debug for Endian {
     }
 }
 
+#[derive(Clone)]
 pub struct Reader {
     buffer: Bytes,
     position: usize,
@@ -156,13 +158,23 @@ impl Reader {
     // 读取 u8
     #[allow(dead_code)]
     pub fn read_u8(&mut self) -> u8 {
-        self.read(1)[0]
+        let bytes = self.read(1);
+        if bytes.len() < 1 {
+            debug!("read_u8: bytes.len() < 1");
+            return u8::MAX;
+        }
+        bytes[0]
     }
 
     // 读取 i8
     #[allow(dead_code)]
     pub fn read_i8(&mut self) -> i8 {
-        self.read(1)[0] as i8
+        let bytes = self.read(1);
+        if bytes.len() < 1 {
+            debug!("read_i8: bytes.len() < 1");
+            return i8::MAX;
+        }
+        bytes[0] as i8
     }
 
     // 读取 u16
@@ -170,6 +182,10 @@ impl Reader {
     pub fn read_u16(&mut self) -> u16 {
         let endian = self.endian;
         let data = self.read(2);
+        if data.len() < 2 {
+            debug!("read_u16: data.len() < 2");
+            return u16::MAX;
+        }
         if endian == Endian::Big {
             u16::from_be_bytes([data[0], data[1]])
         } else {
@@ -182,6 +198,10 @@ impl Reader {
     pub fn read_i16(&mut self) -> i16 {
         let endian = self.endian;
         let data = self.read(2);
+        if data.len() < 2 {
+            debug!("read_i16: data.len() < 2");
+            return i16::MAX;
+        }
         if endian == Endian::Big {
             i16::from_be_bytes([data[0], data[1]])
         } else {
@@ -194,6 +214,10 @@ impl Reader {
     pub fn read_u32(&mut self) -> u32 {
         let endian = self.endian;
         let data = self.read(4);
+        if data.len() < 4 {
+            debug!("read_u32: data.len() < 4");
+            return u32::MAX;
+        }
         if endian == Endian::Big {
             u32::from_be_bytes([data[0], data[1], data[2], data[3]])
         } else {
@@ -206,6 +230,10 @@ impl Reader {
     pub fn read_i32(&mut self) -> i32 {
         let endian = self.endian;
         let data = self.read(4);
+        if data.len() < 4 {
+            debug!("read_i32: data.len() < 4");
+            return i32::MAX;
+        }
         if endian == Endian::Big {
             i32::from_be_bytes([data[0], data[1], data[2], data[3]])
         } else {
@@ -218,6 +246,10 @@ impl Reader {
     pub fn read_u64(&mut self) -> u64 {
         let endian = self.endian;
         let data = self.read(8);
+        if data.len() < 8 {
+            debug!("read_u64: data.len() < 8");
+            return u64::MAX;
+        }
         if endian == Endian::Big {
             u64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
         } else {
@@ -230,6 +262,10 @@ impl Reader {
     pub fn read_i64(&mut self) -> i64 {
         let endian = self.endian;
         let data = self.read(8);
+        if data.len() < 8 {
+            debug!("read_i64: data.len() < 8");
+            return i64::MAX;
+        }
         if endian == Endian::Big {
             i64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
         } else {
@@ -242,6 +278,10 @@ impl Reader {
     pub fn read_f32(&mut self) -> f32 {
         let endian = self.endian;
         let data = self.read(4);
+        if data.len() < 4 {
+            debug!("read_f32: data.len() < 4");
+            return f32::MAX;
+        }
         if endian == Endian::Big {
             f32::from_be_bytes([data[0], data[1], data[2], data[3]])
         } else {
@@ -254,6 +294,10 @@ impl Reader {
     pub fn read_f64(&mut self) -> f64 {
         let endian = self.endian;
         let data = self.read(8);
+        if data.len() < 8 {
+            debug!("read_f64: data.len() < 8");
+            return f64::MAX;
+        }
         if endian == Endian::Big {
             f64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
         } else {
@@ -288,24 +332,26 @@ impl Reader {
             return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
         }
 
+        let tmp = u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
+
         let a5 = self.read_u8();
         if a0 == 252 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32);
+            return tmp + (u64::from(a5) << 32);
         }
 
         let a6 = self.read_u8();
         if a0 == 253 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40);
+            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40);
         }
 
         let a7 = self.read_u8();
         if a0 == 254 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48);
+            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48);
         }
 
         let a8 = self.read_u8();
         if a0 == 255 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48) + (u64::from(a8) << 56);
+            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48) + (u64::from(a8) << 56);
         }
         0
     }
@@ -319,7 +365,7 @@ impl Reader {
     pub fn read_string(&mut self) -> String {
         let len = self.read_u16();
         let data = self.read(len as usize);
-        String::from_utf8(data.to_vec()).unwrap_or_else(|_| String::new())
+        data.to_vec().iter().map(|&x| x as char).collect()
     }
 
     // 读取 bool
@@ -335,6 +381,7 @@ impl Debug for Reader {
 }
 
 
+#[derive(Clone)]
 pub struct Writer {
     buffer: BytesMut,
     position: usize,

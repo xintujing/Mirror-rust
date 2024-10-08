@@ -1,4 +1,5 @@
 use crate::rwder::{DataReader, Reader};
+use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -120,7 +121,7 @@ impl SyncData {
     }
 
     #[allow(dead_code)]
-    fn serialization() -> Vec<u8> {
+    fn serialization() -> Bytes {
         unimplemented!()
     }
 }

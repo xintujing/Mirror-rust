@@ -40,7 +40,7 @@ impl MirrorServer {
     pub async fn listen() {
         // 创建 kcp 服务器配置
         let config = Kcp2KConfig::default();
-        let (server, s_rx) = Kcp2K::new_server(config, "0.0.0.0:3100".to_string()).unwrap();
+        let (server, s_rx) = Kcp2K::new_server(config, "0.0.0.0:7777".to_string()).unwrap();
         let mut m_server = MirrorServer::get_instance().write().await;
         m_server.kcp_serv = Some(server);
         m_server.kcp_serv_rx = Some(s_rx);
@@ -117,8 +117,9 @@ impl MirrorServer {
     }
 
     #[allow(dead_code)]
-    pub async fn on_data(&self, con_id: u64, message: Vec<u8>, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
-        let mut t_reader = Reader::new_with_len(Bytes::from(message), true);
+    pub async fn on_data(&self, con_id: u64, message: Bytes, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
+        println!("OnData {} - {:?} {:?}", con_id, channel, message.as_ref());
+        let mut t_reader = Reader::new_with_len(message, true);
         if let Some(mut connection) = self.con_map.get_mut(&con_id) {
             connection.remote_time_stamp = t_reader.get_elapsed_time()
         }
