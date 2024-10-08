@@ -297,7 +297,6 @@ dependencies = [
     "dashmap",
     "kcp",
     "rand",
-    "serde",
     "socket2",
     "tklog",
 ]
