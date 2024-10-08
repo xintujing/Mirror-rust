@@ -1,4 +1,5 @@
 use crate::tools::get_s_e_t;
+use bytes::{Bytes, BytesMut};
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 
@@ -18,7 +19,7 @@ impl Debug for Endian {
 }
 
 pub struct Reader {
-    buffer: Vec<u8>,
+    buffer: Bytes,
     position: usize,
     length: usize,
     endian: Endian,
@@ -28,7 +29,7 @@ pub struct Reader {
 impl Reader {
     // 初始化一个 Reader 实例
     #[allow(dead_code)]
-    pub fn new(data: &[u8], endian: Endian, is_ret: bool) -> Self {
+    pub fn new(data: Bytes, endian: Endian, is_ret: bool) -> Self {
         match endian {
             Endian::Big => {
                 Self::new_with_ben(data, is_ret)
@@ -41,10 +42,10 @@ impl Reader {
 
     // 初始化一个 Reader 实例，指定是否为大端序
     #[allow(dead_code)]
-    pub fn new_with_ben(data: &[u8], is_ret: bool) -> Self {
+    pub fn new_with_ben(data: Bytes, is_ret: bool) -> Self {
         let length = data.len();
         let mut reader = Self {
-            buffer: data.to_vec(),
+            buffer: data,
             position: 0,
             length,
             endian: Endian::Big,
@@ -58,10 +59,10 @@ impl Reader {
 
     // 初始化一个 Reader 实例，指定是否为小端序
     #[allow(dead_code)]
-    pub fn new_with_len(data: &[u8], is_ret: bool) -> Self {
+    pub fn new_with_len(data: Bytes, is_ret: bool) -> Self {
         let length = data.len();
         let mut reader = Self {
-            buffer: data.to_vec(),
+            buffer: data,
             position: 0,
             length,
             endian: Endian::Little,
@@ -85,13 +86,13 @@ impl Reader {
 
     // 读取指定长度的数据
     #[allow(dead_code)]
-    pub fn read(&mut self, size: usize) -> &[u8] {
+    pub fn read(&mut self, size: usize) -> Bytes {
         if self.get_remaining() < size {
-            return &[];
+            return Bytes::new();
         }
         let start = self.position;
         self.position += size;
-        &self.buffer[start..self.position]
+        self.buffer.slice(start..self.position)
     }
 
     // 读取一个 Message
@@ -110,7 +111,7 @@ impl Reader {
 
     // 读取剩余
     #[allow(dead_code)]
-    pub fn read_remaining(&mut self) -> &[u8] {
+    pub fn read_remaining(&mut self) -> Bytes {
         self.read(self.get_remaining())
     }
 
@@ -335,7 +336,7 @@ impl Debug for Reader {
 
 
 pub struct Writer {
-    buffer: Vec<u8>,
+    buffer: BytesMut,
     position: usize,
     length: usize,
     endian: Endian,
@@ -361,7 +362,7 @@ impl Writer {
     #[allow(dead_code)]
     pub fn new_with_ben(is_wet: bool) -> Self {
         let mut writer = Self {
-            buffer: vec![],
+            buffer: BytesMut::new(),
             position: 0,
             length: 0,
             endian: Endian::Big,
@@ -377,7 +378,7 @@ impl Writer {
     #[allow(dead_code)]
     pub fn new_with_len(is_wet: bool) -> Self {
         let mut writer = Self {
-            buffer: vec![],
+            buffer: BytesMut::new(),
             position: 0,
             length: 0,
             endian: Endian::Little,

@@ -4,18 +4,19 @@ use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::sync_data::SyncData;
 use crate::tools::{get_s_e_t, to_hex_string};
+use bytes::Bytes;
 use dashmap::DashMap;
 use kcp2k_rust::error_code::ErrorCode;
+use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
-use kcp2k_rust::kcp2k_server::Server;
 use nalgebra::{Quaternion, Vector3};
 use std::mem::MaybeUninit;
 use std::sync::{mpsc, Once};
 use tokio::sync::RwLock;
 
 pub struct MirrorServer {
-    pub kcp_serv: Option<Server>,
+    pub kcp_serv: Option<Kcp2K>,
     pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
     pub con_map: DashMap<u64, Connection>,
 }
@@ -39,7 +40,7 @@ impl MirrorServer {
     pub async fn listen() {
         // 创建 kcp 服务器配置
         let config = Kcp2KConfig::default();
-        let (server, s_rx) = Server::new(config, "0.0.0.0:3100".to_string()).unwrap();
+        let (server, s_rx) = Kcp2K::new_server(config, "0.0.0.0:3100".to_string()).unwrap();
         let mut m_server = MirrorServer::get_instance().write().await;
         m_server.kcp_serv = Some(server);
         m_server.kcp_serv_rx = Some(s_rx);
@@ -72,16 +73,16 @@ impl MirrorServer {
 
     pub async fn send(&self, connection_id: u64, writer: &Writer, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
         if let Some(serv) = self.kcp_serv.as_ref() {
-            if let Err(_) = serv.send(connection_id, writer.get_data().to_vec(), channel) {
+            if let Err(_) = serv.s_send(connection_id, Bytes::copy_from_slice(writer.get_data()), channel) {
                 // TODO: 发送失败
             }
         }
     }
 
     #[allow(dead_code)]
-    pub async fn send_bytes(&self, connection_id: u64, data: Vec<u8>, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
+    pub async fn send_bytes(&self, connection_id: u64, data: Bytes, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
         if let Some(serv) = self.kcp_serv.as_ref() {
-            if let Err(_) = serv.send(connection_id, data, channel) {
+            if let Err(_) = serv.s_send(connection_id, data, channel) {
                 // TODO: 发送失败
             }
         }
@@ -117,7 +118,7 @@ impl MirrorServer {
 
     #[allow(dead_code)]
     pub async fn on_data(&self, con_id: u64, message: Vec<u8>, channel: kcp2k_rust::kcp2k_channel::Kcp2KChannel) {
-        let mut t_reader = Reader::new_with_len(&message, true);
+        let mut t_reader = Reader::new_with_len(Bytes::from(message), true);
         if let Some(mut connection) = self.con_map.get_mut(&con_id) {
             connection.remote_time_stamp = t_reader.get_elapsed_time()
         }
@@ -197,7 +198,7 @@ impl MirrorServer {
                     let scale = Vector3::new(1.0, 1.0, 1.0);
 
                     let cur_payload = hex::decode("01131200506C61796572363632206A6F696E65642E").unwrap();
-                    let mut cur_spawn_message = SpawnMessage::new(1, false, false, 14585647484178997735, 0, position, rotation, scale, cur_payload);
+                    let mut cur_spawn_message = SpawnMessage::new(1, false, false, 14585647484178997735, 0, position, rotation, scale, Bytes::from(cur_payload));
                     cur_spawn_message.serialization(&mut cur_writer);
 
 
@@ -206,13 +207,13 @@ impl MirrorServer {
                         // 自己
                         if cur_connection.connection_id == connection.connection_id {
                             let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                            let mut cur_spawn_message = SpawnMessage::new(cur_connection.net_id, true, true, 0, 3541431626, position, rotation, scale, cur_payload);
+                            let mut cur_spawn_message = SpawnMessage::new(cur_connection.net_id, true, true, 0, 3541431626, position, rotation, scale, Bytes::from(cur_payload));
                             cur_spawn_message.serialization(&mut cur_writer);
                             continue;
                         }
                         // 其它玩家
                         let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                        let mut other_spawn_message = SpawnMessage::new(connection.net_id, false, false, 0, 3541431626, position, rotation, scale, other_payload);
+                        let mut other_spawn_message = SpawnMessage::new(connection.net_id, false, false, 0, 3541431626, position, rotation, scale, Bytes::from(other_payload));
                         other_spawn_message.serialization(&mut cur_writer);
                     }
 
@@ -231,7 +232,7 @@ impl MirrorServer {
 
                     // 添加通知其他客户端有新玩家加入消息
                     let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                    let mut cur_spawn_message = SpawnMessage::new(cur_connection.net_id, false, false, 0, 3541431626, position, rotation, scale, cur_payload);
+                    let mut cur_spawn_message = SpawnMessage::new(cur_connection.net_id, false, false, 0, 3541431626, position, rotation, scale, Bytes::from(cur_payload));
                     cur_spawn_message.serialization(&mut other_writer);
 
 
@@ -242,7 +243,7 @@ impl MirrorServer {
                         }
                         let mut other_writer = Writer::new_with_len(true);
                         let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                        let mut other_spawn_message = SpawnMessage::new(cur_connection.net_id, false, false, 0, 3541431626, position, rotation, scale, other_payload);
+                        let mut other_spawn_message = SpawnMessage::new(cur_connection.net_id, false, false, 0, 3541431626, position, rotation, scale, Bytes::from(other_payload));
                         other_spawn_message.serialization(&mut other_writer);
                         self.send(connection.connection_id, &other_writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
                     }
@@ -259,7 +260,7 @@ impl MirrorServer {
                 println!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, component_index, function_hash);
 
                 if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
-                    let mut sync_writer = Reader::new_with_len(&command_message.payload, false);
+                    let mut sync_writer = Reader::new_with_len(command_message.payload.clone(), false);
                     let sync_data = SyncData::deserialization(&mut sync_writer);
                     println!("sync_data: {:?}\n", sync_data);
 
@@ -285,14 +286,14 @@ impl MirrorServer {
                         let mut writer = Writer::new_with_len(true);
                         let payload = hex::decode(format!("{}{}", "022b00000000000000000600000000000000", to_hex_string(&command_message.payload[4..]))).unwrap();
                         println!("CmdClientRpc 20088 payload: {}", to_hex_string(&payload));
-                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, payload);
+                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, Bytes::from(payload));
                         entity_state_message.serialization(&mut writer);
                         for connection in self.con_map.iter() {
                             self.send(connection.connection_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
                         }
                     }
                 } else if function_hash == "System.Void QuickStart.PlayerScript::CmdShootRay()".get_fn_stable_hash_code() {
-                    println!("CmdShootRay {}", to_hex_string(command_message.payload.as_slice()));
+                    println!("CmdShootRay {}", to_hex_string(command_message.payload.as_ref()));
 
                     if let Some(cur_connection) = self.con_map.get(&con_id) {
                         let mut writer = Writer::new_with_len(true);
@@ -303,12 +304,12 @@ impl MirrorServer {
                         }
                     }
                 } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
-                    println!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_slice()));
+                    println!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_ref()));
 
                     if let Some(cur_connection) = self.con_map.get(&con_id) {
                         let mut writer = Writer::new_with_len(true);
                         let payload = hex::decode(format!("{}{}", "021400000000000000000100000000000000", to_hex_string(&command_message.payload[4..]))).unwrap();
-                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, payload);
+                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, Bytes::from(payload));
                         entity_state_message.serialization(&mut writer);
                         for connection in self.con_map.iter() {
                             self.send(connection.connection_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;

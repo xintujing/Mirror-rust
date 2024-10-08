@@ -1,5 +1,6 @@
 use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
+use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -136,11 +137,11 @@ pub struct CommandMessage {
     pub net_id: u32,
     pub component_index: u8,
     pub function_hash: u16,
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
 }
 impl CommandMessage {
     #[allow(dead_code)]
-    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> CommandMessage {
+    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Bytes) -> CommandMessage {
         CommandMessage {
             net_id,
             component_index,
@@ -149,8 +150,8 @@ impl CommandMessage {
         }
     }
 
-    pub fn get_payload_no_len(&self) -> Vec<u8> {
-        self.payload[4..].to_vec()
+    pub fn get_payload_no_len(&self) -> Bytes {
+        self.payload.slice(4..)
     }
 }
 impl DataReader<CommandMessage> for CommandMessage {
@@ -163,7 +164,7 @@ impl DataReader<CommandMessage> for CommandMessage {
             net_id,
             component_index,
             function_hash,
-            payload: payload.to_vec(),
+            payload,
         }
     }
 }
@@ -178,7 +179,7 @@ impl DataWriter<CommandMessage> for CommandMessage {
         writer.write_u8(self.component_index);
         writer.write_u16(self.function_hash);
         writer.write_u32(1 + self.payload.len() as u32);
-        writer.write(self.payload.as_slice());
+        writer.write(self.payload.as_ref());
     }
 }
 
@@ -188,10 +189,10 @@ pub struct RpcMessage {
     pub net_id: u32,
     pub component_index: u8,
     pub function_hash: u16,
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
 }
 impl RpcMessage {
-    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> RpcMessage {
+    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Bytes) -> RpcMessage {
         RpcMessage {
             net_id,
             component_index,
@@ -201,8 +202,8 @@ impl RpcMessage {
     }
 
     #[allow(dead_code)]
-    pub fn get_payload_no_len(&self) -> Vec<u8> {
-        self.payload[4..].to_vec()
+    pub fn get_payload_no_len(&self) -> Bytes {
+        self.payload.slice(4..)
     }
 }
 impl DataReader<RpcMessage> for RpcMessage {
@@ -215,7 +216,7 @@ impl DataReader<RpcMessage> for RpcMessage {
             net_id,
             component_index,
             function_hash,
-            payload: payload.to_vec(),
+            payload,
         }
     }
 }
@@ -230,7 +231,7 @@ impl DataWriter<RpcMessage> for RpcMessage {
         writer.write_u8(self.component_index);
         writer.write_u16(self.function_hash);
         writer.write_u32(1 + self.payload.len() as u32);
-        writer.write(self.payload.as_slice());
+        writer.write(self.payload.as_ref());
     }
 }
 
@@ -245,10 +246,10 @@ pub struct SpawnMessage {
     pub position: Vector3<f32>,
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
 }
 impl SpawnMessage {
-    pub fn new(net_id: u32, is_local_player: bool, is_owner: bool, scene_id: u64, asset_id: u32, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>, payload: Vec<u8>) -> SpawnMessage {
+    pub fn new(net_id: u32, is_local_player: bool, is_owner: bool, scene_id: u64, asset_id: u32, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>, payload: Bytes) -> SpawnMessage {
         SpawnMessage {
             net_id,
             is_local_player,
@@ -286,7 +287,7 @@ impl DataReader<SpawnMessage> for SpawnMessage {
             position,
             rotation,
             scale,
-            payload: payload.to_vec(),
+            payload,
         }
     }
 }
@@ -314,7 +315,7 @@ impl DataWriter<SpawnMessage> for SpawnMessage {
         writer.write_f32(self.scale.y);
         writer.write_f32(self.scale.z);
         writer.write_u32(1 + self.payload.len() as u32);
-        writer.write(self.payload.as_slice());
+        writer.write(self.payload.as_ref());
     }
 }
 
@@ -399,10 +400,10 @@ pub struct ObjectHideMessage {
 #[derive(Debug, PartialEq, Clone)]
 pub struct EntityStateMessage {
     pub net_id: u32,
-    pub payload: Vec<u8>,
+    pub payload: Bytes,
 }
 impl EntityStateMessage {
-    pub fn new(net_id: u32, payload: Vec<u8>) -> EntityStateMessage {
+    pub fn new(net_id: u32, payload: Bytes) -> EntityStateMessage {
         EntityStateMessage {
             net_id,
             payload,
@@ -420,7 +421,7 @@ impl DataReader<EntityStateMessage> for EntityStateMessage {
         let payload = reader.read_remaining();
         EntityStateMessage {
             net_id,
-            payload: payload.to_vec(),
+            payload,
         }
     }
 }
@@ -433,7 +434,7 @@ impl DataWriter<EntityStateMessage> for EntityStateMessage {
         writer.write_u16("Mirror.EntityStateMessage".get_stable_hash_code16());
         writer.write_u32(self.net_id);
         writer.write_u32(1 + self.payload.len() as u32);
-        writer.write(self.payload.as_slice());
+        writer.write(self.payload.as_ref());
     }
 }
 
