@@ -99,6 +99,12 @@ impl MirrorServer {
         "".to_string()
     }
 
+    pub async fn switch_scene(&self, con_id: u64, scene_name: String, custom_handling: bool) {
+        let mut writer = Writer::new_with_len(true);
+        SceneMessage::new(scene_name, SceneOperation::Normal, custom_handling).serialization(&mut writer);
+        self.send(con_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
+    }
+
     #[allow(dead_code)]
     pub async fn on_connected(&self, con_id: u64) {
         debug!(format!("OnConnected {}", con_id));
@@ -107,10 +113,10 @@ impl MirrorServer {
             return;
         }
 
+        // 切换场景
+        self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false).await;
+
         let connection = Connection::new(con_id, MirrorServer::get_client_address(con_id).await);
-        let mut writer = Writer::new_with_len(true);
-        SceneMessage::new("Assets/QuickStart/Scenes/MyScene.scene".to_string(), SceneOperation::Normal, false).serialization(&mut writer);
-        self.send(connection.connection_id, &writer, kcp2k_rust::kcp2k_channel::Kcp2KChannel::Reliable).await;
         self.con_map.insert(connection.connection_id, connection);
 
         // TODO network_manager#L1177 auth class
@@ -125,16 +131,14 @@ impl MirrorServer {
         }
 
         let mut output_first = String::new();
-        output_first.push_str(&format!("Start: elapsed_time: {}\n", t_reader.get_elapsed_time()));
+        output_first.push_str(&format!("Client Started: {}\n", t_reader.get_elapsed_time()));
 
         while t_reader.get_remaining() > 0 {
             let mut reader = t_reader.read_one();
 
-            output_first.push_str(&format!("msg_len: {}", reader.get_length()));
-
             let msg_type_hash = reader.read_u16();
 
-            output_first.push_str(&format!(" - msg_type_hash: {} - msg_type: ", msg_type_hash));
+            output_first.push_str(&format!("msg_len: {} - msg_type_hash: {} - msg_type: ", reader.get_length(), msg_type_hash));
 
             if msg_type_hash == TimeSnapshotMessage::FULL_NAME.get_stable_hash_code16() {
                 output_first.push_str(&format!("{}\n", TimeSnapshotMessage::FULL_NAME));
@@ -178,7 +182,7 @@ impl MirrorServer {
                 // debug!("network_pong_message: {:?}", network_pong_message);
             } else if msg_type_hash == ReadyMessage::FULL_NAME.get_stable_hash_code16() {
                 output_first.push_str(&format!("{}\n", ReadyMessage::FULL_NAME));
-                print!("{}", output_first);
+                debug!(format!("{}", output_first));
 
                 // 设置连接为准备状态
                 if let Some(mut cur_connection) = self.con_map.get_mut(&con_id) {
@@ -250,7 +254,7 @@ impl MirrorServer {
                     }
                 }
             } else if msg_type_hash == CommandMessage::FULL_NAME.get_stable_hash_code16() {
-                output_first.push_str(&format!("{}\n", CommandMessage::FULL_NAME));
+                output_first.push_str(&format!("{}", CommandMessage::FULL_NAME));
                 debug!(format!("{}", output_first));
 
                 let command_message = CommandMessage::deserialization(&mut reader);
@@ -258,7 +262,7 @@ impl MirrorServer {
                 let net_id = command_message.net_id;
                 let component_index = command_message.component_index;
                 let function_hash = command_message.function_hash;
-                debug!(format!("message_type: {} netId: {} componentIndex: {} functionHash: {}", msg_type_hash, net_id, component_index, function_hash));
+                debug!(format!("netId: {} componentIndex: {} functionHash: {}",  net_id, component_index, function_hash));
 
                 if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
                     let mut sync_writer = Reader::new_with_len(command_message.payload.clone(), false);
