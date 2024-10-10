@@ -1,4 +1,7 @@
 extern crate kcp2k_rust;
+
+use crate::server::MirrorServer;
+
 mod transports;
 mod server;
 mod logger;
@@ -8,10 +11,9 @@ mod tools;
 mod sync_data;
 mod messages;
 mod connection;
+mod server1;
 
-#[tokio::main]
-async fn main() {
-    server::MirrorServer::listen().await;
-    let m_server = server::MirrorServer::get_instance().write().await;
-    m_server.start().await;
+fn main() {
+    let m_server = MirrorServer::new("0.0.0.0:7777".to_string());
+    m_server.start();
 }

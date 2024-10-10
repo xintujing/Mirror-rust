@@ -5,9 +5,7 @@ edition = "2021"
 
 [dependencies]
 kcp2k_rust = { path = "src/transports/kcp/kcp2k-rust" }
-tokio = { version = "1.10.0", features = ["full"] }
 bytes = "1.7.1"
-lazy_static = "1.5.0"
 byteorder = "1.5.0"
 bytemuck = "1.18.0"
 serde = { version = "1.0.210", features = ["derive"] }
@@ -16,4 +14,3 @@ encoding_rs = "0.8.34"
 hex = "0.4.3"
 dashmap = "6.1.0"
 tklog = "0.2.1"
-log = "0.4.22"

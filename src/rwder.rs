@@ -99,7 +99,7 @@ impl Reader {
 
     // 读取一个 Message
     #[allow(dead_code)]
-    pub fn read_one(&mut self) -> Self {
+    pub fn read_next(&mut self) -> Self {
         let size = self.decompress_var_uz();
         match self.endian {
             Endian::Big => {
