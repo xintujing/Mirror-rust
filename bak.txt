@@ -1,0 +1,99 @@
+while t_reader.get_remaining() > 0 {
+            let mut reader = t_reader.read_next();
+            let msg_type_hash = reader.read_u16();
+            output_first.push_str(&format!("msg_len: {} - msg_type_hash: {} - msg_type: ", reader.get_length(), msg_type_hash));
+
+
+            if msg_type_hash == TimeSnapshotMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", TimeSnapshotMessage::FULL_NAME));
+                self.handel_time_snapshot_message(con_id, &mut reader);
+            } else if msg_type_hash == NetworkPingMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", NetworkPingMessage::FULL_NAME));
+                // debug!("{}", output_first);
+                self.handel_network_ping_message(con_id, &mut reader)
+            } else if msg_type_hash == NetworkPongMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", NetworkPongMessage::FULL_NAME));
+                // debug!("{}", output_first);
+                self.handel_network_pong_message(con_id, &mut reader);
+            } else if msg_type_hash == ReadyMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", ReadyMessage::FULL_NAME));
+                // debug!(format!("{}", output_first));
+                self.handel_ready_message(con_id, &mut reader);
+            } else if msg_type_hash == AddPlayerMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}\n", AddPlayerMessage::FULL_NAME));
+                debug!(format!("{}", output_first));
+                self.handel_add_player_message(con_id, &mut reader);
+            } else if msg_type_hash == CommandMessage::FULL_NAME.get_stable_hash_code16() {
+                output_first.push_str(&format!("{}", CommandMessage::FULL_NAME));
+                debug!(format!("{}", output_first));
+
+                let command_message = CommandMessage::deserialization(&mut reader);
+
+                let net_id = command_message.net_id;
+                let component_index = command_message.component_index;
+                let function_hash = command_message.function_hash;
+                debug!(format!("netId: {} componentIndex: {} functionHash: {}",  net_id, component_index, function_hash));
+
+                if function_hash == "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)".get_fn_stable_hash_code() {
+                    let mut sync_writer = Reader::new_with_len(command_message.payload.clone(), false);
+                    let sync_data = SyncData::deserialization(&mut sync_writer);
+                    debug!(format!("sync_data: {:?}\n", sync_data));
+
+                    let mut rpc_writer = Writer::new_with_len(true);
+                    let mut rpc_message = RpcMessage::new(net_id, component_index, 28456, command_message.get_payload_no_len());
+                    rpc_message.serialization(&mut rpc_writer);
+
+
+                    // 遍历所有连接并发送消息
+                    for connection in self.con_map.iter() {
+                        if connection.connection_id == con_id {
+                            continue;
+                        }
+                        let mut writer = Writer::new_with_len(true);
+                        let mut entity_state_message = EntityStateMessage::new(connection.net_id, command_message.payload.clone());
+                        entity_state_message.serialization(&mut writer);
+                        self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
+                    }
+                } else if function_hash == 20088 {
+                    // debug!(format!("CmdClientRpc 20088 {}", to_hex_string(command_message.payload.as_slice())));
+
+                    if let Some(cur_connection) = self.con_map.get(&con_id) {
+                        let mut writer = Writer::new_with_len(true);
+                        let payload = hex::decode(format!("{}{}", "022b00000000000000000600000000000000", to_hex_string(&command_message.payload[4..]))).unwrap();
+                        debug!(format!("CmdClientRpc 20088 payload: {}", to_hex_string(&payload)));
+                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, Bytes::from(payload));
+                        entity_state_message.serialization(&mut writer);
+                        for connection in self.con_map.iter() {
+                            self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
+                        }
+                    }
+                } else if function_hash == "System.Void QuickStart.PlayerScript::CmdShootRay()".get_fn_stable_hash_code() {
+                    debug!(format!("CmdShootRay {}", to_hex_string(command_message.payload.as_ref())));
+
+                    if let Some(cur_connection) = self.con_map.get(&con_id) {
+                        let mut writer = Writer::new_with_len(true);
+                        let mut rpc_message = RpcMessage::new(cur_connection.net_id, 1, 10641, command_message.get_payload_no_len());
+                        rpc_message.serialization(&mut writer);
+                        for connection in self.con_map.iter() {
+                            self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
+                        }
+                    }
+                } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
+                    debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_ref())));
+
+                    if let Some(cur_connection) = self.con_map.get(&con_id) {
+                        let mut writer = Writer::new_with_len(true);
+                        let payload = hex::decode(format!("{}{}", "021400000000000000000100000000000000", to_hex_string(&command_message.payload[4..]))).unwrap();
+                        let mut entity_state_message = EntityStateMessage::new(cur_connection.net_id, Bytes::from(payload));
+                        entity_state_message.serialization(&mut writer);
+                        for connection in self.con_map.iter() {
+                            self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
+                        }
+                    }
+                } else {
+                    debug!(format!("Unknown function hash: {}\n", function_hash));
+                }
+            } else {
+                debug!(format!("Unknown message type: {}\n", msg_type_hash));
+            }
+        }

@@ -19,10 +19,9 @@ impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 57097
-        writer.write_u16("Mirror.TimeSnapshotMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct ReadyMessage {}
@@ -40,10 +39,9 @@ impl DataWriter<ReadyMessage> for ReadyMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 43708
-        writer.write_u16("Mirror.ReadyMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct NotReadyMessage {}
@@ -61,10 +59,9 @@ impl DataWriter<NotReadyMessage> for NotReadyMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 43378
-        writer.write_u16("Mirror.NotReadyMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct AddPlayerMessage {}
@@ -82,10 +79,9 @@ impl DataWriter<AddPlayerMessage> for AddPlayerMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 49414
-        writer.write_u16("Mirror.AddPlayerMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -117,7 +113,11 @@ impl SceneMessage {
     #[allow(dead_code)]
     pub const FULL_NAME: &'static str = "Mirror.SceneMessage";
     #[allow(dead_code)]
-    pub fn new(scene_name: String, operation: SceneOperation, custom_handling: bool) -> SceneMessage {
+    pub fn new(
+        scene_name: String,
+        operation: SceneOperation,
+        custom_handling: bool,
+    ) -> SceneMessage {
         SceneMessage {
             scene_name,
             operation,
@@ -143,13 +143,12 @@ impl DataWriter<SceneMessage> for SceneMessage {
         let total_len = 6 + str_bytes.len();
         writer.compress_var_uz(total_len);
         // 3552
-        writer.write_u16("Mirror.SceneMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_string(str_bytes);
         writer.write_u8(self.operation.to_u8());
         writer.write_bool(self.custom_handling);
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CommandMessage {
@@ -162,7 +161,12 @@ impl CommandMessage {
     #[allow(dead_code)]
     pub const FULL_NAME: &'static str = "Mirror.CommandMessage";
     #[allow(dead_code)]
-    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Bytes) -> CommandMessage {
+    pub fn new(
+        net_id: u32,
+        component_index: u8,
+        function_hash: u16,
+        payload: Bytes,
+    ) -> CommandMessage {
         CommandMessage {
             net_id,
             component_index,
@@ -195,7 +199,7 @@ impl DataWriter<CommandMessage> for CommandMessage {
         let total_len = 13 + self.payload.len();
         writer.compress_var_uz(total_len);
         // 39124
-        writer.write_u16("Mirror.CommandMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_u32(self.net_id);
         writer.write_u8(self.component_index);
         writer.write_u16(self.function_hash);
@@ -203,7 +207,6 @@ impl DataWriter<CommandMessage> for CommandMessage {
         writer.write(self.payload.as_ref());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct RpcMessage {
@@ -250,7 +253,7 @@ impl DataWriter<RpcMessage> for RpcMessage {
         let total_len = 13 + self.payload.len();
         writer.compress_var_uz(total_len);
         // 40238
-        writer.write_u16("Mirror.RpcMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_u32(self.net_id);
         writer.write_u8(self.component_index);
         writer.write_u16(self.function_hash);
@@ -258,7 +261,6 @@ impl DataWriter<RpcMessage> for RpcMessage {
         writer.write(self.payload.as_ref());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SpawnMessage {
@@ -276,7 +278,17 @@ impl SpawnMessage {
     #[allow(dead_code)]
     pub const FULL_NAME: &'static str = "Mirror.SpawnMessage";
     #[allow(dead_code)]
-    pub fn new(net_id: u32, is_local_player: bool, is_owner: bool, scene_id: u64, asset_id: u32, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>, payload: Bytes) -> SpawnMessage {
+    pub fn new(
+        net_id: u32,
+        is_local_player: bool,
+        is_owner: bool,
+        scene_id: u64,
+        asset_id: u32,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+        scale: Vector3<f32>,
+        payload: Bytes,
+    ) -> SpawnMessage {
         SpawnMessage {
             net_id,
             is_local_player,
@@ -302,7 +314,12 @@ impl DataReader<SpawnMessage> for SpawnMessage {
         let scene_id = reader.read_u64();
         let asset_id = reader.read_u32();
         let position = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
-        let rotation = Quaternion::new(reader.read_f32(), reader.read_f32(), reader.read_f32(), reader.read_f32());
+        let rotation = Quaternion::new(
+            reader.read_f32(),
+            reader.read_f32(),
+            reader.read_f32(),
+            reader.read_f32(),
+        );
         let scale = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
         let payload = reader.read_remaining();
         SpawnMessage {
@@ -325,7 +342,7 @@ impl DataWriter<SpawnMessage> for SpawnMessage {
         let total_len = 64 + self.payload.len();
         writer.compress_var_uz(total_len);
         // 12504
-        writer.write_u16("Mirror.SpawnMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_u32(self.net_id);
         writer.write_bool(self.is_local_player);
         writer.write_bool(self.is_owner);
@@ -346,7 +363,6 @@ impl DataWriter<SpawnMessage> for SpawnMessage {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct ChangeOwnerMessage {
     pub net_id: u32,
@@ -366,7 +382,6 @@ impl ChangeOwnerMessage {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnStartedMessage {}
 impl ObjectSpawnStartedMessage {
@@ -383,10 +398,9 @@ impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 12504
-        writer.write_u16("Mirror.ObjectSpawnStartedMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectSpawnFinishedMessage {}
@@ -404,10 +418,9 @@ impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(2);
         // 43444
-        writer.write_u16("Mirror.ObjectSpawnFinishedMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectDestroyMessage {
@@ -418,28 +431,23 @@ impl ObjectDestroyMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectDestroyMessage";
     #[allow(dead_code)]
     pub fn new(net_id: u32) -> ObjectDestroyMessage {
-        ObjectDestroyMessage {
-            net_id,
-        }
+        ObjectDestroyMessage { net_id }
     }
 }
 impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
     fn deserialization(reader: &mut Reader) -> ObjectDestroyMessage {
         let net_id = reader.read_u32();
-        ObjectDestroyMessage {
-            net_id,
-        }
+        ObjectDestroyMessage { net_id }
     }
 }
 impl DataWriter<ObjectDestroyMessage> for ObjectDestroyMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(6);
         // 12504
-        writer.write_u16("Mirror.ObjectDestroyMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_u32(self.net_id);
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ObjectHideMessage {
@@ -450,12 +458,9 @@ impl ObjectHideMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectHideMessage";
     #[allow(dead_code)]
     pub fn new(net_id: u32) -> ObjectHideMessage {
-        ObjectHideMessage {
-            net_id,
-        }
+        ObjectHideMessage { net_id }
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EntityStateMessage {
@@ -467,10 +472,7 @@ impl EntityStateMessage {
     pub const FULL_NAME: &'static str = "Mirror.EntityStateMessage";
     #[allow(dead_code)]
     pub fn new(net_id: u32, payload: Bytes) -> EntityStateMessage {
-        EntityStateMessage {
-            net_id,
-            payload,
-        }
+        EntityStateMessage { net_id, payload }
     }
 
     #[allow(dead_code)]
@@ -482,10 +484,7 @@ impl DataReader<EntityStateMessage> for EntityStateMessage {
     fn deserialization(reader: &mut Reader) -> EntityStateMessage {
         let net_id = reader.read_u32();
         let payload = reader.read_remaining();
-        EntityStateMessage {
-            net_id,
-            payload,
-        }
+        EntityStateMessage { net_id, payload }
     }
 }
 impl DataWriter<EntityStateMessage> for EntityStateMessage {
@@ -494,13 +493,12 @@ impl DataWriter<EntityStateMessage> for EntityStateMessage {
         let total_len = 10 + self.payload.len();
         writer.compress_var_uz(total_len);
         // 12504
-        writer.write_u16("Mirror.EntityStateMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_u32(self.net_id);
         writer.write_u32(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NetworkPingMessage {
@@ -532,12 +530,11 @@ impl DataWriter<NetworkPingMessage> for NetworkPingMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(18);
         // 17487
-        writer.write_u16("Mirror.NetworkPingMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_f64(self.local_time);
         writer.write_f64(self.predicted_time_adjusted);
     }
 }
-
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct NetworkPongMessage {
@@ -549,7 +546,11 @@ impl NetworkPongMessage {
     #[allow(dead_code)]
     pub const FULL_NAME: &'static str = "Mirror.NetworkPongMessage";
     #[allow(dead_code)]
-    pub fn new(local_time: f64, prediction_error_unadjusted: f64, prediction_error_adjusted: f64) -> NetworkPongMessage {
+    pub fn new(
+        local_time: f64,
+        prediction_error_unadjusted: f64,
+        prediction_error_adjusted: f64,
+    ) -> NetworkPongMessage {
         NetworkPongMessage {
             local_time,
             prediction_error_unadjusted,
@@ -573,7 +574,7 @@ impl DataWriter<NetworkPongMessage> for NetworkPongMessage {
     fn serialization(&mut self, writer: &mut Writer) {
         writer.compress_var(26);
         // 27095
-        writer.write_u16("Mirror.NetworkPongMessage".get_stable_hash_code16());
+        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_f64(self.local_time);
         writer.write_f64(self.prediction_error_unadjusted);
         writer.write_f64(self.prediction_error_adjusted);

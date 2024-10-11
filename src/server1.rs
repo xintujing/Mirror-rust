@@ -21,8 +21,8 @@
 // pub struct MirrorServer {
 //     pub kcp_serv: Option<Kcp2K>,
 //     pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
-//     pub uid_con_map: DashMap<UserIdType, Connection>,
-//     pub cid_user_map: DashMap<u64, UserIdType>,
+//     pub uid_con_map: DashMap<u64, Connection>,
+//     pub cid_user_map: DashMap<u64, u64>,
 // }
 //
 // impl MirrorServer {

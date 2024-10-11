@@ -24,9 +24,13 @@ impl SyncData {
     const QUATERNION_MIN_RANGE: f32 = -1.0;
     const QUATERNION_MAX_RANGE: f32 = 1.0;
 
-
     #[allow(dead_code)]
-    pub fn new(changed: u8, pos: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(
+        changed: u8,
+        pos: Vector3<f32>,
+        quaternion: Quaternion<f32>,
+        scale: Vector3<f32>,
+    ) -> Self {
         SyncData {
             changed,
             position: pos,
@@ -181,7 +185,6 @@ impl DataReader<SyncData> for SyncData {
             scale.z = reader.read_f32();
         }
 
-
         SyncData {
             changed,
             position,
@@ -249,11 +252,17 @@ impl Changed {
             changeds.push(Changed::Scale);
         }
         // Pos
-        if (byte & Changed::PosX.to_u8() > 0) && (byte & Changed::PosY.to_u8()) > 0 && (byte & Changed::PosZ.to_u8()) > 0 {
+        if (byte & Changed::PosX.to_u8() > 0)
+            && (byte & Changed::PosY.to_u8()) > 0
+            && (byte & Changed::PosZ.to_u8()) > 0
+        {
             changeds.push(Changed::Pos);
         }
         // Rot
-        if (byte & Changed::RotX.to_u8() > 0) && (byte & Changed::RotY.to_u8() > 0) && (byte & Changed::RotZ.to_u8()) > 0 {
+        if (byte & Changed::RotX.to_u8() > 0)
+            && (byte & Changed::RotY.to_u8() > 0)
+            && (byte & Changed::RotZ.to_u8()) > 0
+        {
             changeds.push(Changed::Rot);
         }
         changeds

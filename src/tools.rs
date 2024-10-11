@@ -56,7 +56,7 @@ pub fn compress_var_uint(value: u64) -> Vec<u8> {
         let b = value as u32;
         let bytes = b.to_le_bytes();
         buffer.push(a);
-        buffer.extend_from_slice(&bytes[0..3]);  // 只写入低 3 字节
+        buffer.extend_from_slice(&bytes[0..3]); // 只写入低 3 字节
     } else if value <= 4_294_967_295 {
         let a = 251;
         let b = value as u32;
@@ -83,7 +83,7 @@ pub fn compress_var_uint(value: u64) -> Vec<u8> {
         let b = value;
         let bytes = b.to_le_bytes();
         buffer.push(a);
-        buffer.extend_from_slice(&bytes[0..7]);  // 只写入低 7 字节
+        buffer.extend_from_slice(&bytes[0..7]); // 只写入低 7 字节
     } else {
         buffer.push(255);
         buffer.extend_from_slice(&value.to_le_bytes());
@@ -111,32 +111,72 @@ pub fn decompress_var_uint(reader: &[u8]) -> (u64, usize) {
 
     let a3 = reader[3];
     if a0 == 250 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16), 4);
+        return (
+            u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16),
+            4,
+        );
     }
 
     let a4 = reader[4];
     if a0 == 251 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24), 5);
+        return (
+            u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24),
+            5,
+        );
     }
 
     let a5 = reader[5];
     if a0 == 252 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32), 6);
+        return (
+            u64::from(a1)
+                + (u64::from(a2) << 8)
+                + (u64::from(a3) << 16)
+                + (u64::from(a4) << 24)
+                + (u64::from(a5) << 32),
+            6,
+        );
     }
 
     let a6 = reader[6];
     if a0 == 253 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40), 7);
+        return (
+            u64::from(a1)
+                + (u64::from(a2) << 8)
+                + (u64::from(a3) << 16)
+                + (u64::from(a4) << 24)
+                + (u64::from(a5) << 32)
+                + (u64::from(a6) << 40),
+            7,
+        );
     }
 
     let a7 = reader[7];
     if a0 == 254 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48), 8);
+        return (
+            u64::from(a1)
+                + (u64::from(a2) << 8)
+                + (u64::from(a3) << 16)
+                + (u64::from(a4) << 24)
+                + (u64::from(a5) << 32)
+                + (u64::from(a6) << 40)
+                + (u64::from(a7) << 48),
+            8,
+        );
     }
 
     let a8 = reader[8];
     if a0 == 255 {
-        return (u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24) + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48) + (u64::from(a8) << 56), 9);
+        return (
+            u64::from(a1)
+                + (u64::from(a2) << 8)
+                + (u64::from(a3) << 16)
+                + (u64::from(a4) << 24)
+                + (u64::from(a5) << 32)
+                + (u64::from(a6) << 40)
+                + (u64::from(a7) << 48)
+                + (u64::from(a8) << 56),
+            9,
+        );
     }
     (0, 0)
 }
@@ -199,7 +239,11 @@ pub fn hex_string_to_f64(hex_string: &str) -> f64 {
     let bytes = hex_string.as_bytes();
     let mut f64_bytes = [0u8; 8];
     for i in 0..8 {
-        f64_bytes[i] = u8::from_str_radix(&format!("{}{}", bytes[i * 2] as char, bytes[i * 2 + 1] as char), 16).unwrap();
+        f64_bytes[i] = u8::from_str_radix(
+            &format!("{}{}", bytes[i * 2] as char, bytes[i * 2 + 1] as char),
+            16,
+        )
+            .unwrap();
     }
     f64::from_be_bytes(f64_bytes)
 }
@@ -245,8 +289,9 @@ pub fn bytes_to_u32(bytes: &[u8]) -> u32 {
 
 #[allow(dead_code)]
 pub fn string_to_ascii(input: &str) -> Vec<u8> {
-    input.chars()
-        .filter(|&c| c.is_ascii())  // 过滤非 ASCII 字符
-        .map(|c| c as u8)           // 将字符转换为 ASCII 值
-        .collect()                  // 收集到 Vec<u8> 中
+    input
+        .chars()
+        .filter(|&c| c.is_ascii()) // 过滤非 ASCII 字符
+        .map(|c| c as u8) // 将字符转换为 ASCII 值
+        .collect() // 收集到 Vec<u8> 中
 }

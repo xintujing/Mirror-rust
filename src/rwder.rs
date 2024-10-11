@@ -33,12 +33,8 @@ impl Reader {
     #[allow(dead_code)]
     pub fn new(data: Bytes, endian: Endian, is_ret: bool) -> Self {
         match endian {
-            Endian::Big => {
-                Self::new_with_ben(data, is_ret)
-            }
-            Endian::Little => {
-                Self::new_with_len(data, is_ret)
-            }
+            Endian::Big => Self::new_with_ben(data, is_ret),
+            Endian::Little => Self::new_with_len(data, is_ret),
         }
     }
 
@@ -102,12 +98,8 @@ impl Reader {
     pub fn read_next(&mut self) -> Self {
         let size = self.decompress_var_uz();
         match self.endian {
-            Endian::Big => {
-                Self::new_with_ben(self.read(size), false)
-            }
-            Endian::Little => {
-                Self::new_with_len(self.read(size), false)
-            }
+            Endian::Big => Self::new_with_ben(self.read(size), false),
+            Endian::Little => Self::new_with_len(self.read(size), false),
         }
     }
 
@@ -251,9 +243,13 @@ impl Reader {
             return u64::MAX;
         }
         if endian == Endian::Big {
-            u64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            u64::from_be_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         } else {
-            u64::from_le_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            u64::from_le_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         }
     }
 
@@ -267,9 +263,13 @@ impl Reader {
             return i64::MAX;
         }
         if endian == Endian::Big {
-            i64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            i64::from_be_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         } else {
-            i64::from_le_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            i64::from_le_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         }
     }
 
@@ -299,9 +299,13 @@ impl Reader {
             return f64::MAX;
         }
         if endian == Endian::Big {
-            f64::from_be_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            f64::from_be_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         } else {
-            f64::from_le_bytes([data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7]])
+            f64::from_le_bytes([
+                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
+            ])
         }
     }
 
@@ -329,10 +333,14 @@ impl Reader {
 
         let a4 = self.read_u8();
         if a0 == 251 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
+            return u64::from(a1)
+                + (u64::from(a2) << 8)
+                + (u64::from(a3) << 16)
+                + (u64::from(a4) << 24);
         }
 
-        let tmp = u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
+        let tmp =
+            u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
 
         let a5 = self.read_u8();
         if a0 == 252 {
@@ -351,7 +359,11 @@ impl Reader {
 
         let a8 = self.read_u8();
         if a0 == 255 {
-            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48) + (u64::from(a8) << 56);
+            return tmp
+                + (u64::from(a5) << 32)
+                + (u64::from(a6) << 40)
+                + (u64::from(a7) << 48)
+                + (u64::from(a8) << 56);
         }
         0
     }
@@ -376,10 +388,13 @@ impl Reader {
 
 impl Debug for Reader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Reader {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.buffer, self.position, self.length, self.endian)
+        write!(
+            f,
+            "Reader {{ data: {:?}, position: {}, length: {}, endian: {:?} }}",
+            self.buffer, self.position, self.length, self.endian
+        )
     }
 }
-
 
 #[derive(Clone)]
 pub struct Writer {
@@ -390,18 +405,13 @@ pub struct Writer {
     elapsed_time: f64,
 }
 
-
 impl Writer {
     // 初始化一个 Writer 实例
     #[allow(dead_code)]
     pub fn new(endian: Endian, is_wet: bool) -> Self {
         match endian {
-            Endian::Big => {
-                Self::new_with_ben(is_wet)
-            }
-            Endian::Little => {
-                Self::new_with_len(is_wet)
-            }
+            Endian::Big => Self::new_with_ben(is_wet),
+            Endian::Little => Self::new_with_len(is_wet),
         }
     }
 
@@ -667,10 +677,13 @@ impl Writer {
 
 impl Debug for Writer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}", self.buffer, self.position, self.length, self.endian)
+        write!(
+            f,
+            "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}",
+            self.buffer, self.position, self.length, self.endian
+        )
     }
 }
-
 
 pub trait DataReader<T> {
     fn deserialization(reader: &mut Reader) -> T;
