@@ -24,6 +24,15 @@ impl MethodType {
 }
 
 #[derive(Debug)]
+pub struct FileData {
+    pub r#type: String,
+    pub namespace: String,
+    pub sub_class: String,
+    pub name: String,
+    pub full_name: String,
+}
+
+#[derive(Debug)]
 pub struct MethodData {
     pub sub_class: String,
     pub name: String,
@@ -31,21 +40,22 @@ pub struct MethodData {
     pub method_type: MethodType,
     pub parameters: HashMap<String, String>,
     pub rpcs: Vec<String>,
-    pub sync_vars: HashMap<u8, String>,
+    pub sync_vars: HashMap<u8, FileData>,
 }
 
 #[derive(Debug)]
 pub struct SyncVarData {
     pub sub_class: String,
     pub name: String,
-    pub type_: String,
+    pub r#type: String,
+    pub dirty_bit: u32,
 }
 
 #[derive(Debug, Default)]
 pub struct BackendData {
     pub version: u16,
     pub dirty_bits: HashMap<String, u32>,
-    pub sync_vars: Vec<SyncVarData>,
+    pub sync_var_datas: Vec<SyncVarData>,
     pub methods: Vec<MethodData>,
     pub assets: HashMap<u32, String>,
     pub scenes: HashMap<u64, String>,
@@ -83,12 +93,24 @@ fn read_sync_vars<T: Read>(reader: &mut T, data: &mut BackendData) {
     for _ in 0..length {
         let sub_class = read_string(reader);
         let name = read_string(reader);
-        let type_ = read_string(reader);
-        data.sync_vars.push(SyncVarData {
+        let r#type = read_string(reader);
+        let dirty_bit = reader.read_u32::<LittleEndian>().unwrap();
+        data.sync_var_datas.push(SyncVarData {
             sub_class,
             name,
-            type_,
+            r#type,
+            dirty_bit,
         });
+    }
+}
+
+fn read_file_data<T: Read>(reader: &mut T) -> FileData {
+    FileData {
+        r#type: read_string(reader),
+        namespace: read_string(reader),
+        sub_class: read_string(reader),
+        name: read_string(reader),
+        full_name: read_string(reader),
     }
 }
 
@@ -118,7 +140,7 @@ fn read_methods<T: Read>(reader: &mut T, data: &mut BackendData) {
             let sync_vars_length = reader.read_u16::<LittleEndian>().unwrap();
             for _ in 0..sync_vars_length {
                 let key = reader.read_u8().unwrap();
-                let value = read_string(reader);
+                let value = read_file_data(reader);
                 sync_vars.insert(key, value);
             }
         }
@@ -136,20 +158,17 @@ fn read_methods<T: Read>(reader: &mut T, data: &mut BackendData) {
 
 fn read_assets<T: Read>(reader: &mut T, data: &mut BackendData) {
     let length = reader.read_u16::<LittleEndian>().unwrap();
-    for i in 0..length {
+    for _ in 0..length {
         let key = reader.read_u32::<LittleEndian>().unwrap();
         let value = read_string(reader);
-        println!("read_assets {} {} {}", i, key, value);
         data.assets.insert(key, value);
     }
 }
 
 fn read_scenes<T: Read>(reader: &mut T, data: &mut BackendData) {
     let length = reader.read_u16::<LittleEndian>().unwrap();
-    println!("read_scenes {}", length);
-    for i in 0..length {
+    for _ in 0..length {
         let key = reader.read_u64::<LittleEndian>().unwrap();
-        println!("read_scenes {} {}", i, key);
         let value = read_string(reader);
         data.scenes.insert(key, value);
     }
@@ -168,15 +187,15 @@ pub fn import() -> BackendData {
     let mut data = BackendData {
         version,
         dirty_bits: HashMap::new(),
-        sync_vars: Vec::new(),
+        sync_var_datas: Vec::new(),
         methods: Vec::new(),
         assets: HashMap::new(),
         scenes: HashMap::new(),
     };
 
     while binary_reader.position() < binary_reader.get_ref().len() as u64 {
-        let type_ = binary_reader.read_u16::<LittleEndian>().unwrap();
-        match type_ {
+        let r#type = binary_reader.read_u16::<LittleEndian>().unwrap();
+        match r#type {
             1 => read_dirty_bits(&mut binary_reader, &mut data),
             2 => read_sync_vars(&mut binary_reader, &mut data),
             3 => read_methods(&mut binary_reader, &mut data),

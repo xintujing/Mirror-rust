@@ -1,3 +1,4 @@
+use crate::backend_data::SyncVarData;
 use crate::tools::get_s_e_t;
 use bytes::{Bytes, BytesMut};
 use std::cmp::PartialEq;
@@ -376,7 +377,7 @@ impl Reader {
     // 读取字符串
     pub fn read_string(&mut self) -> String {
         let len = self.read_u16();
-        let data = self.read(len as usize);
+        let data = self.read(len as usize - 1);
         data.to_vec().iter().map(|&x| x as char).collect()
     }
 
@@ -384,6 +385,20 @@ impl Reader {
     pub fn read_bool(&mut self) -> bool {
         self.read_u8() != 0
     }
+
+    // 读取 SyncVarData
+    pub fn read_sync_var_data(&mut self, svd: SyncVarData) -> SyncVarDataType {
+        match svd.r#type.as_str() {
+            "Integer" => SyncVarDataType::Integer(self.decompress_var_uz() as u32),
+            "Text" => SyncVarDataType::Text(self.read_string()),
+            _ => SyncVarDataType::Text("".to_string()),
+        }
+    }
+}
+
+pub enum SyncVarDataType {
+    Integer(u32),
+    Text(String),
 }
 
 impl Debug for Reader {

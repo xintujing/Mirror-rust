@@ -1,24 +1,25 @@
 use crate::tools::generate_id;
+use bytes::Bytes;
+use dashmap::DashMap;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
-pub struct Connection {
+pub struct Component {
+    pub name: String,
     pub net_id: u32,
-    /// 以下为 Mirror.Connection 类的属性
     pub connection_id: u64,
     pub address: String,
     pub is_authenticated: bool,
-    /// TODO: Auth Data
     pub is_ready: bool,
     pub last_message_time: f32,
-    /// TODO netid
-    /// TODO 附属 netid
     pub remote_time_stamp: f64,
+    pub sync_var_map: DashMap<String, Bytes>,
 }
 
-impl Connection {
+impl Component {
     pub fn new(connection_id: u64, address: String) -> Self {
-        Connection {
+        Component {
+            name: "".to_string(),
             net_id: generate_id(),
             connection_id,
             address,
@@ -26,6 +27,7 @@ impl Connection {
             is_ready: false,
             last_message_time: 0.0,
             remote_time_stamp: 0.0,
+            sync_var_map: Default::default(),
         }
     }
 }
