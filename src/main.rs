@@ -6,14 +6,16 @@ mod backend_data;
 mod component;
 mod logger;
 mod messages;
-mod rwder;
+mod batcher;
 mod server;
-mod server1;
 mod stable_hash;
 mod sync_data;
 mod tools;
 mod transports;
-mod quickstart_playerscript;
+mod network_behaviours;
+mod room;
+mod connect;
+mod network_identity;
 
 fn main() {
     let m_server = MirrorServer::new("0.0.0.0:7777".to_string());

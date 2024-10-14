@@ -1,9 +1,10 @@
-use crate::backend_data::SyncVarData;
 use crate::tools::get_s_e_t;
+use byteorder::ReadBytesExt;
 use bytes::{Bytes, BytesMut};
 use std::cmp::PartialEq;
 use std::fmt::Debug;
-use tklog::debug;
+use std::io;
+use std::io::{Cursor, Read};
 
 #[derive(PartialEq, Copy, Clone)]
 pub enum Endian {
@@ -21,392 +22,279 @@ impl Debug for Endian {
 }
 
 #[derive(Clone)]
-pub struct Reader {
-    buffer: Bytes,
-    position: usize,
-    length: usize,
-    endian: Endian,
-    elapsed_time: f64,
+pub struct UnBatch {
+    bytes: Cursor<Bytes>,
 }
 
-impl Reader {
-    // 初始化一个 Reader 实例
+impl UnBatch {
+    // 创建一个新的 UnBatch 实例
     #[allow(dead_code)]
-    pub fn new(data: Bytes, endian: Endian, is_ret: bool) -> Self {
-        match endian {
-            Endian::Big => Self::new_with_ben(data, is_ret),
-            Endian::Little => Self::new_with_len(data, is_ret),
+    pub fn new(bytes: Bytes) -> Self {
+        UnBatch {
+            bytes: Cursor::new(bytes),
         }
     }
 
-    // 初始化一个 Reader 实例，指定是否为大端序
+    // 获取总长度
     #[allow(dead_code)]
-    pub fn new_with_ben(data: Bytes, is_ret: bool) -> Self {
-        let length = data.len();
-        let mut reader = Self {
-            buffer: data,
-            position: 0,
-            length,
-            endian: Endian::Big,
-            elapsed_time: 0.0,
-        };
-        if is_ret {
-            reader.elapsed_time = reader.read_f64();
-        }
-        reader
+    pub fn len(&self) -> usize {
+        self.bytes.get_ref().len()
     }
 
-    // 初始化一个 Reader 实例，指定是否为小端序
+    // 获取剩余长度
     #[allow(dead_code)]
-    pub fn new_with_len(data: Bytes, is_ret: bool) -> Self {
-        let length = data.len();
-        let mut reader = Self {
-            buffer: data,
-            position: 0,
-            length,
-            endian: Endian::Little,
-            elapsed_time: 0.0,
-        };
-        if is_ret {
-            reader.elapsed_time = reader.read_f64();
-        }
-        reader
+    pub fn remaining(&self) -> usize {
+        self.bytes.get_ref().len() - self.bytes.position() as usize
     }
 
-    // 获取数据
+    // 获取当前读取位置
     #[allow(dead_code)]
-    pub fn get_data(&self) -> &[u8] {
-        &self.buffer
+    pub fn position(&self) -> u64 {
+        self.bytes.position()
     }
+
+    // 设置读取位置
     #[allow(dead_code)]
-    pub fn get_elapsed_time(&self) -> f64 {
-        self.elapsed_time
+    pub fn set_position(&mut self, position: u64) {
+        self.bytes.set_position(position);
     }
 
     // 读取指定长度的数据
     #[allow(dead_code)]
-    pub fn read(&mut self, size: usize) -> Bytes {
-        if self.get_remaining() < size {
-            return Bytes::new();
-        }
-        let start = self.position;
-        self.position += size;
-        self.buffer.slice(start..self.position)
+    pub fn read(&mut self, buffer: &mut [u8]) -> io::Result<()> {
+        self.bytes.read_exact(buffer)
     }
 
-    // 读取一个 Message
+    // 读取剩余的数据
     #[allow(dead_code)]
-    pub fn read_next(&mut self) -> Self {
-        let size = self.decompress_var_uz();
-        match self.endian {
-            Endian::Big => Self::new_with_ben(self.read(size), false),
-            Endian::Little => Self::new_with_len(self.read(size), false),
-        }
+    pub fn read_remaining(&mut self) -> io::Result<Bytes> {
+        let mut buffer = vec![0; self.remaining()];
+        self.bytes.read_exact(&mut buffer)?;
+        Ok(Bytes::from(buffer))
     }
 
-    // 读取剩余
+    // 读取一个 bool 类型的数据
     #[allow(dead_code)]
-    pub fn read_remaining(&mut self) -> Bytes {
-        self.read(self.get_remaining())
+    pub fn read_bool(&mut self) -> io::Result<bool> {
+        self.bytes.read_u8().map(|v| v != 0)
     }
 
-    // 清空数据
+    // 读取一个 u8 类型的数据
     #[allow(dead_code)]
-    pub fn clear(&mut self) {
-        self.position = 0;
-        self.length = 0;
-        self.buffer.clear();
+    pub fn read_u8(&mut self) -> io::Result<u8> {
+        self.bytes.read_u8()
     }
 
-    // 获取当前位置
+    // 读取一个 i8 类型的数据
     #[allow(dead_code)]
-    pub fn get_position(&self) -> usize {
-        self.position
+    pub fn read_i8(&mut self) -> io::Result<i8> {
+        self.bytes.read_i8()
     }
 
-    // 设置当前位置
+    // 大端序 读取一个 u16 类型的数据
     #[allow(dead_code)]
-    pub fn set_position(&mut self, position: usize) {
-        self.position = position;
+    pub fn read_u16_be(&mut self) -> io::Result<u16> {
+        self.bytes.read_u16::<byteorder::BigEndian>()
     }
 
-    // 获取数据长度
+    // 大端序 读取一个 i16 类型的数据
     #[allow(dead_code)]
-    pub fn get_length(&self) -> usize {
-        self.length
+    pub fn read_i16_be(&mut self) -> io::Result<i16> {
+        self.bytes.read_i16::<byteorder::BigEndian>()
     }
 
-    // 获取剩余数据长度
+    // 小端序 读取一个 u16 类型的数据
     #[allow(dead_code)]
-    pub fn get_remaining(&self) -> usize {
-        self.length - self.position
+    pub fn read_u16_le(&mut self) -> io::Result<u16> {
+        self.bytes.read_u16::<byteorder::LittleEndian>()
     }
 
-    // 设置端序
+    // 小端序 读取一个 i16 类型的数据
     #[allow(dead_code)]
-    pub fn set_endian(&mut self, endian: Endian) {
-        self.endian = endian;
+    pub fn read_i16_le(&mut self) -> io::Result<i16> {
+        self.bytes.read_i16::<byteorder::LittleEndian>()
     }
 
-    // 读取 u8
+    // 大端序 读取一个 u32 类型的数据
     #[allow(dead_code)]
-    pub fn read_u8(&mut self) -> u8 {
-        let bytes = self.read(1);
-        if bytes.len() < 1 {
-            debug!("read_u8: bytes.len() < 1");
-            return u8::MAX;
-        }
-        bytes[0]
+    pub fn read_u32_be(&mut self) -> io::Result<u32> {
+        self.bytes.read_u32::<byteorder::BigEndian>()
     }
 
-    // 读取 i8
+    // 大端序 读取一个 i32 类型的数据
     #[allow(dead_code)]
-    pub fn read_i8(&mut self) -> i8 {
-        let bytes = self.read(1);
-        if bytes.len() < 1 {
-            debug!("read_i8: bytes.len() < 1");
-            return i8::MAX;
-        }
-        bytes[0] as i8
+    pub fn read_i32_be(&mut self) -> io::Result<i32> {
+        self.bytes.read_i32::<byteorder::BigEndian>()
     }
 
-    // 读取 u16
+    // 小端序 读取一个 u32 类型的数据
     #[allow(dead_code)]
-    pub fn read_u16(&mut self) -> u16 {
-        let endian = self.endian;
-        let data = self.read(2);
-        if data.len() < 2 {
-            debug!("read_u16: data.len() < 2");
-            return u16::MAX;
-        }
-        if endian == Endian::Big {
-            u16::from_be_bytes([data[0], data[1]])
-        } else {
-            u16::from_le_bytes([data[0], data[1]])
-        }
+    pub fn read_u32_le(&mut self) -> io::Result<u32> {
+        self.bytes.read_u32::<byteorder::LittleEndian>()
     }
 
-    // 读取 i16
+    // 小端序 读取一个 i32 类型的数据
     #[allow(dead_code)]
-    pub fn read_i16(&mut self) -> i16 {
-        let endian = self.endian;
-        let data = self.read(2);
-        if data.len() < 2 {
-            debug!("read_i16: data.len() < 2");
-            return i16::MAX;
-        }
-        if endian == Endian::Big {
-            i16::from_be_bytes([data[0], data[1]])
-        } else {
-            i16::from_le_bytes([data[0], data[1]])
-        }
+    pub fn read_i32_le(&mut self) -> io::Result<i32> {
+        self.bytes.read_i32::<byteorder::LittleEndian>()
     }
 
-    // 读取 u32
+    // 大端序 读取一个 u64 类型的数据
     #[allow(dead_code)]
-    pub fn read_u32(&mut self) -> u32 {
-        let endian = self.endian;
-        let data = self.read(4);
-        if data.len() < 4 {
-            debug!("read_u32: data.len() < 4");
-            return u32::MAX;
-        }
-        if endian == Endian::Big {
-            u32::from_be_bytes([data[0], data[1], data[2], data[3]])
-        } else {
-            u32::from_le_bytes([data[0], data[1], data[2], data[3]])
-        }
+    pub fn read_u64_be(&mut self) -> io::Result<u64> {
+        self.bytes.read_u64::<byteorder::BigEndian>()
     }
 
-    // 读取 i32
+    // 大端序 读取一个 i64 类型的数据
     #[allow(dead_code)]
-    pub fn read_i32(&mut self) -> i32 {
-        let endian = self.endian;
-        let data = self.read(4);
-        if data.len() < 4 {
-            debug!("read_i32: data.len() < 4");
-            return i32::MAX;
-        }
-        if endian == Endian::Big {
-            i32::from_be_bytes([data[0], data[1], data[2], data[3]])
-        } else {
-            i32::from_le_bytes([data[0], data[1], data[2], data[3]])
-        }
+    pub fn read_i64_be(&mut self) -> io::Result<i64> {
+        self.bytes.read_i64::<byteorder::BigEndian>()
     }
 
-    // 读取 u64
+    // 小端序 读取一个 u64 类型的数据
     #[allow(dead_code)]
-    pub fn read_u64(&mut self) -> u64 {
-        let endian = self.endian;
-        let data = self.read(8);
-        if data.len() < 8 {
-            debug!("read_u64: data.len() < 8");
-            return u64::MAX;
-        }
-        if endian == Endian::Big {
-            u64::from_be_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        } else {
-            u64::from_le_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        }
+    pub fn read_u64_le(&mut self) -> io::Result<u64> {
+        self.bytes.read_u64::<byteorder::LittleEndian>()
     }
 
-    // 读取 i64
+    // 小端序 读取一个 i64 类型的数据
     #[allow(dead_code)]
-    pub fn read_i64(&mut self) -> i64 {
-        let endian = self.endian;
-        let data = self.read(8);
-        if data.len() < 8 {
-            debug!("read_i64: data.len() < 8");
-            return i64::MAX;
-        }
-        if endian == Endian::Big {
-            i64::from_be_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        } else {
-            i64::from_le_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        }
+    pub fn read_i64_le(&mut self) -> io::Result<i64> {
+        self.bytes.read_i64::<byteorder::LittleEndian>()
     }
 
-    // 读取 f32
+    // 大端序 读取一个 u128 类型的数据
     #[allow(dead_code)]
-    pub fn read_f32(&mut self) -> f32 {
-        let endian = self.endian;
-        let data = self.read(4);
-        if data.len() < 4 {
-            debug!("read_f32: data.len() < 4");
-            return f32::MAX;
-        }
-        if endian == Endian::Big {
-            f32::from_be_bytes([data[0], data[1], data[2], data[3]])
-        } else {
-            f32::from_le_bytes([data[0], data[1], data[2], data[3]])
-        }
+    pub fn read_u128_be(&mut self) -> io::Result<u128> {
+        self.bytes.read_u128::<byteorder::BigEndian>()
     }
 
-    // 读取 f64
+    // 大端序 读取一个 i128 类型的数据
     #[allow(dead_code)]
-    pub fn read_f64(&mut self) -> f64 {
-        let endian = self.endian;
-        let data = self.read(8);
-        if data.len() < 8 {
-            debug!("read_f64: data.len() < 8");
-            return f64::MAX;
-        }
-        if endian == Endian::Big {
-            f64::from_be_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        } else {
-            f64::from_le_bytes([
-                data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
-            ])
-        }
+    pub fn read_i128_be(&mut self) -> io::Result<i128> {
+        self.bytes.read_i128::<byteorder::BigEndian>()
     }
 
+    // 小端序 读取一个 u128 类型的数据
     #[allow(dead_code)]
-    pub fn decompress_var(&mut self) -> u64 {
-        let a0 = self.read_u8();
+    pub fn read_u128_le(&mut self) -> io::Result<u128> {
+        self.bytes.read_u128::<byteorder::LittleEndian>()
+    }
+
+    // 小端序 读取一个 i128 类型的数据
+    #[allow(dead_code)]
+    pub fn read_i128_le(&mut self) -> io::Result<i128> {
+        self.bytes.read_i128::<byteorder::LittleEndian>()
+    }
+
+    // 大端序 读取一个 f32 类型的数据
+    #[allow(dead_code)]
+    pub fn read_f32_be(&mut self) -> io::Result<f32> {
+        self.bytes.read_f32::<byteorder::BigEndian>()
+    }
+
+    // 小端序 读取一个 f32 类型的数据
+    #[allow(dead_code)]
+    pub fn read_f32_le(&mut self) -> io::Result<f32> {
+        self.bytes.read_f32::<byteorder::LittleEndian>()
+    }
+
+    // 大端序 读取一个 f64 类型的数据
+    #[allow(dead_code)]
+    pub fn read_f64_be(&mut self) -> io::Result<f64> {
+        self.bytes.read_f64::<byteorder::BigEndian>()
+    }
+
+    // 小端序 读取一个 f64 类型的数据
+    #[allow(dead_code)]
+    pub fn read_f64_le(&mut self) -> io::Result<f64> {
+        self.bytes.read_f64::<byteorder::LittleEndian>()
+    }
+
+    // 读取一个压缩的 u64 类型的数据
+    #[allow(dead_code)]
+    pub fn decompress_var(&mut self) -> io::Result<u64> {
+        let a0 = self.read_u8()?;
         if a0 < 241 {
-            return u64::from(a0);
+            return Ok(u64::from(a0));
         }
 
-        let a1 = self.read_u8();
+        let a1 = self.read_u8()?;
         if a0 <= 248 {
-            return 240 + ((u64::from(a0) - 241) << 8) + u64::from(a1);
+            return Ok(240 + ((u64::from(a0) - 241) << 8) + u64::from(a1));
         }
 
-        let a2 = self.read_u8();
+        let a2 = self.read_u8()?;
         if a0 == 249 {
-            return 2288 + (u64::from(a1) << 8) + u64::from(a2);
+            return Ok(2288 + (u64::from(a1) << 8) + u64::from(a2));
         }
 
-        let a3 = self.read_u8();
+        let a3 = self.read_u8()?;
         if a0 == 250 {
-            return u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16);
+            return Ok(u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16));
         }
 
-        let a4 = self.read_u8();
+        let a4 = self.read_u8()?;
         if a0 == 251 {
-            return u64::from(a1)
+            return Ok(u64::from(a1)
                 + (u64::from(a2) << 8)
                 + (u64::from(a3) << 16)
-                + (u64::from(a4) << 24);
+                + (u64::from(a4) << 24));
         }
 
-        let tmp =
-            u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
+        let tmp = u64::from(a1) + (u64::from(a2) << 8) + (u64::from(a3) << 16) + (u64::from(a4) << 24);
 
-        let a5 = self.read_u8();
+        let a5 = self.read_u8()?;
         if a0 == 252 {
-            return tmp + (u64::from(a5) << 32);
+            return Ok(tmp + (u64::from(a5) << 32));
         }
 
-        let a6 = self.read_u8();
+        let a6 = self.read_u8()?;
         if a0 == 253 {
-            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40);
+            return Ok(tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40));
         }
 
-        let a7 = self.read_u8();
+        let a7 = self.read_u8()?;
         if a0 == 254 {
-            return tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48);
+            return Ok(tmp + (u64::from(a5) << 32) + (u64::from(a6) << 40) + (u64::from(a7) << 48));
         }
 
-        let a8 = self.read_u8();
+        let a8 = self.read_u8()?;
         if a0 == 255 {
-            return tmp
+            return Ok(tmp
                 + (u64::from(a5) << 32)
                 + (u64::from(a6) << 40)
                 + (u64::from(a7) << 48)
-                + (u64::from(a8) << 56);
+                + (u64::from(a8) << 56));
         }
-        0
+        Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"))
     }
 
+    // 大端序 读取一个 str 类型的数据
     #[allow(dead_code)]
-    pub fn decompress_var_uz(&mut self) -> usize {
-        self.decompress_var() as usize
+    pub fn read_string_be(&mut self) -> io::Result<String> {
+        let length = self.read_u16_be()? as usize - 1;
+        let mut buffer = vec![0; length];
+        self.bytes.read_exact(&mut buffer)?;
+        Ok(String::from_utf8_lossy(&buffer).to_string())
     }
 
-    // 读取字符串
-    pub fn read_string(&mut self) -> String {
-        let len = self.read_u16();
-        let data = self.read(len as usize - 1);
-        data.to_vec().iter().map(|&x| x as char).collect()
-    }
-
-    // 读取 bool
-    pub fn read_bool(&mut self) -> bool {
-        self.read_u8() != 0
-    }
-
-    // 读取 SyncVarData
-    pub fn read_sync_var_data(&mut self, svd: SyncVarData) -> SyncVarDataType {
-        match svd.r#type.as_str() {
-            "Integer" => SyncVarDataType::Integer(self.decompress_var_uz() as u32),
-            "Text" => SyncVarDataType::Text(self.read_string()),
-            _ => SyncVarDataType::Text("".to_string()),
-        }
+    // 小端序 读取一个 String 类型的数据
+    #[allow(dead_code)]
+    pub fn read_string_le(&mut self) -> io::Result<String> {
+        let length = self.read_u16_le()? as usize - 1;
+        let mut buffer = vec![0; length];
+        self.bytes.read_exact(&mut buffer)?;
+        Ok(String::from_utf8_lossy(&buffer).to_string())
     }
 }
 
-pub enum SyncVarDataType {
-    Integer(u32),
-    Text(String),
-}
-
-impl Debug for Reader {
+impl Debug for UnBatch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Reader {{ data: {:?}, position: {}, length: {}, endian: {:?} }}",
-            self.buffer, self.position, self.length, self.endian
+            "UnBatch {{ bytes: {:?}, position: {}, len: {} }}",
+            self.bytes, self.position(), self.len()
         )
     }
 }
@@ -701,7 +589,7 @@ impl Debug for Writer {
 }
 
 pub trait DataReader<T> {
-    fn deserialization(reader: &mut Reader) -> T;
+    fn deserialization(reader: &mut UnBatch) -> T;
 }
 
 pub trait DataWriter<T> {

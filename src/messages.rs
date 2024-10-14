@@ -1,4 +1,4 @@
-use crate::rwder::{DataReader, DataWriter, Reader, Writer};
+use crate::batcher::{DataReader, DataWriter, UnBatch, Writer};
 use crate::stable_hash::StableHash;
 use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3};
@@ -10,7 +10,7 @@ impl TimeSnapshotMessage {
     pub const FULL_NAME: &'static str = "Mirror.TimeSnapshotMessage";
 }
 impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
-    fn deserialization(reader: &mut Reader) -> TimeSnapshotMessage {
+    fn deserialization(reader: &mut UnBatch) -> TimeSnapshotMessage {
         let _ = reader;
         TimeSnapshotMessage {}
     }
@@ -30,7 +30,7 @@ impl ReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.ReadyMessage";
 }
 impl DataReader<ReadyMessage> for ReadyMessage {
-    fn deserialization(reader: &mut Reader) -> ReadyMessage {
+    fn deserialization(reader: &mut UnBatch) -> ReadyMessage {
         let _ = reader;
         ReadyMessage {}
     }
@@ -50,7 +50,7 @@ impl NotReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.NotReadyMessage";
 }
 impl DataReader<NotReadyMessage> for NotReadyMessage {
-    fn deserialization(reader: &mut Reader) -> NotReadyMessage {
+    fn deserialization(reader: &mut UnBatch) -> NotReadyMessage {
         let _ = reader;
         NotReadyMessage {}
     }
@@ -70,7 +70,7 @@ impl AddPlayerMessage {
     pub const FULL_NAME: &'static str = "Mirror.AddPlayerMessage";
 }
 impl DataReader<AddPlayerMessage> for AddPlayerMessage {
-    fn deserialization(reader: &mut Reader) -> AddPlayerMessage {
+    fn deserialization(reader: &mut UnBatch) -> AddPlayerMessage {
         let _ = reader;
         AddPlayerMessage {}
     }
@@ -126,10 +126,10 @@ impl SceneMessage {
     }
 }
 impl DataReader<SceneMessage> for SceneMessage {
-    fn deserialization(reader: &mut Reader) -> SceneMessage {
-        let scene_name = reader.read_string();
-        let operation = SceneOperation::from(reader.read_u8());
-        let custom_handling = reader.read_bool();
+    fn deserialization(reader: &mut UnBatch) -> SceneMessage {
+        let scene_name = reader.read_string_le().unwrap();
+        let operation = SceneOperation::from(reader.read_u8().unwrap());
+        let custom_handling = reader.read_bool().unwrap();
         SceneMessage {
             scene_name,
             operation,
@@ -180,11 +180,11 @@ impl CommandMessage {
     }
 }
 impl DataReader<CommandMessage> for CommandMessage {
-    fn deserialization(reader: &mut Reader) -> CommandMessage {
-        let net_id = reader.read_u32();
-        let component_index = reader.read_u8();
-        let function_hash = reader.read_u16();
-        let payload = reader.read_remaining();
+    fn deserialization(reader: &mut UnBatch) -> CommandMessage {
+        let net_id = reader.read_u32_le().unwrap();
+        let component_index = reader.read_u8().unwrap();
+        let function_hash = reader.read_u16_le().unwrap();
+        let payload = reader.read_remaining().unwrap();
         CommandMessage {
             net_id,
             component_index,
@@ -234,11 +234,11 @@ impl RpcMessage {
     }
 }
 impl DataReader<RpcMessage> for RpcMessage {
-    fn deserialization(reader: &mut Reader) -> RpcMessage {
-        let net_id = reader.read_u32();
-        let component_index = reader.read_u8();
-        let function_hash = reader.read_u16();
-        let payload = reader.read_remaining();
+    fn deserialization(reader: &mut UnBatch) -> RpcMessage {
+        let net_id = reader.read_u32_le().unwrap();
+        let component_index = reader.read_u8().unwrap();
+        let function_hash = reader.read_u16_le().unwrap();
+        let payload = reader.read_remaining().unwrap();
         RpcMessage {
             net_id,
             component_index,
@@ -307,21 +307,21 @@ impl SpawnMessage {
     }
 }
 impl DataReader<SpawnMessage> for SpawnMessage {
-    fn deserialization(reader: &mut Reader) -> SpawnMessage {
-        let net_id = reader.read_u32();
-        let is_local_player = reader.read_bool();
-        let is_owner = reader.read_bool();
-        let scene_id = reader.read_u64();
-        let asset_id = reader.read_u32();
-        let position = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
+    fn deserialization(reader: &mut UnBatch) -> SpawnMessage {
+        let net_id = reader.read_u32_le().unwrap();
+        let is_local_player = reader.read_bool().unwrap();
+        let is_owner = reader.read_bool().unwrap();
+        let scene_id = reader.read_u64_le().unwrap();
+        let asset_id = reader.read_u32_le().unwrap();
+        let position = Vector3::new(reader.read_f32_le().unwrap(), reader.read_f32_le().unwrap(), reader.read_f32_le().unwrap());
         let rotation = Quaternion::new(
-            reader.read_f32(),
-            reader.read_f32(),
-            reader.read_f32(),
-            reader.read_f32(),
+            reader.read_f32_le().unwrap(),
+            reader.read_f32_le().unwrap(),
+            reader.read_f32_le().unwrap(),
+            reader.read_f32_le().unwrap(),
         );
-        let scale = Vector3::new(reader.read_f32(), reader.read_f32(), reader.read_f32());
-        let payload = reader.read_remaining();
+        let scale = Vector3::new(reader.read_f32_le().unwrap(), reader.read_f32_le().unwrap(), reader.read_f32_le().unwrap());
+        let payload = reader.read_remaining().unwrap();
         SpawnMessage {
             net_id,
             is_local_player,
@@ -389,7 +389,7 @@ impl ObjectSpawnStartedMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnStartedMessage";
 }
 impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
-    fn deserialization(reader: &mut Reader) -> ObjectSpawnStartedMessage {
+    fn deserialization(reader: &mut UnBatch) -> ObjectSpawnStartedMessage {
         let _ = reader;
         ObjectSpawnStartedMessage {}
     }
@@ -409,7 +409,7 @@ impl ObjectSpawnFinishedMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnFinishedMessage";
 }
 impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
-    fn deserialization(reader: &mut Reader) -> ObjectSpawnFinishedMessage {
+    fn deserialization(reader: &mut UnBatch) -> ObjectSpawnFinishedMessage {
         let _ = reader;
         ObjectSpawnFinishedMessage {}
     }
@@ -435,8 +435,8 @@ impl ObjectDestroyMessage {
     }
 }
 impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
-    fn deserialization(reader: &mut Reader) -> ObjectDestroyMessage {
-        let net_id = reader.read_u32();
+    fn deserialization(reader: &mut UnBatch) -> ObjectDestroyMessage {
+        let net_id = reader.read_u32_le().unwrap();
         ObjectDestroyMessage { net_id }
     }
 }
@@ -481,9 +481,9 @@ impl EntityStateMessage {
     }
 }
 impl DataReader<EntityStateMessage> for EntityStateMessage {
-    fn deserialization(reader: &mut Reader) -> EntityStateMessage {
-        let net_id = reader.read_u32();
-        let payload = reader.read_remaining();
+    fn deserialization(reader: &mut UnBatch) -> EntityStateMessage {
+        let net_id = reader.read_u32_le().unwrap();
+        let payload = reader.read_remaining().unwrap();
         EntityStateMessage { net_id, payload }
     }
 }
@@ -517,9 +517,9 @@ impl NetworkPingMessage {
     }
 }
 impl DataReader<NetworkPingMessage> for NetworkPingMessage {
-    fn deserialization(reader: &mut Reader) -> NetworkPingMessage {
-        let local_time = reader.read_f64();
-        let predicted_time_adjusted = reader.read_f64();
+    fn deserialization(reader: &mut UnBatch) -> NetworkPingMessage {
+        let local_time = reader.read_f64_le().unwrap();
+        let predicted_time_adjusted = reader.read_f64_le().unwrap();
         NetworkPingMessage {
             local_time,
             predicted_time_adjusted,
@@ -559,10 +559,10 @@ impl NetworkPongMessage {
     }
 }
 impl DataReader<NetworkPongMessage> for NetworkPongMessage {
-    fn deserialization(reader: &mut Reader) -> NetworkPongMessage {
-        let local_time = reader.read_f64();
-        let prediction_error_unadjusted = reader.read_f64();
-        let prediction_error_adjusted = reader.read_f64();
+    fn deserialization(reader: &mut UnBatch) -> NetworkPongMessage {
+        let local_time = reader.read_f64_le().unwrap();
+        let prediction_error_unadjusted = reader.read_f64_le().unwrap();
+        let prediction_error_adjusted = reader.read_f64_le().unwrap();
         NetworkPongMessage {
             local_time,
             prediction_error_unadjusted,

@@ -1,7 +1,7 @@
 use crate::backend_data::{import, BackendData, MethodType};
+use crate::batcher::{DataReader, DataWriter, UnBatch, Writer};
 use crate::component::Component;
 use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
-use crate::rwder::{DataReader, DataWriter, Reader, Writer};
 use crate::stable_hash::StableHash;
 use crate::tools::{get_s_e_t, to_hex_string};
 use bytes::Bytes;
@@ -116,28 +116,26 @@ impl MirrorServer {
     pub fn on_data(&self, con_id: u64, message: Bytes, channel: Kcp2KChannel) {
         let _ = channel;
 
-        let mut data_reader = Reader::new_with_len(message, true);
+        let mut data_reader = UnBatch::new(message);
         if let Some(mut connection) = self.uid_con_map.get_mut(&con_id) {
-            connection.remote_time_stamp = data_reader.get_elapsed_time()
+            connection.remote_time_stamp = data_reader.read_f64_le().unwrap()
         }
 
-        while data_reader.get_remaining() > 0 {
-            let mut reader = data_reader.read_next();
-            let msg_type_hash = reader.read_u16();
-
+        while data_reader.remaining() > 0 {
+            let len = data_reader.decompress_var();
+            let msg_type_hash = data_reader.read_u16_le().unwrap();
             if msg_type_hash == TimeSnapshotMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_time_snapshot_message(con_id, &mut reader);
+                self.handel_time_snapshot_message(con_id, &mut data_reader);
             } else if msg_type_hash == NetworkPingMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_network_ping_message(con_id, &mut reader)
+                self.handel_network_ping_message(con_id, &mut data_reader)
             } else if msg_type_hash == NetworkPongMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_network_pong_message(con_id, &mut reader);
+                self.handel_network_pong_message(con_id, &mut data_reader);
             } else if msg_type_hash == ReadyMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_ready_message(con_id, &mut reader);
+                self.handel_ready_message(con_id, &mut data_reader);
             } else if msg_type_hash == AddPlayerMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_add_player_message(con_id, &mut reader);
+                self.handel_add_player_message(con_id, &mut data_reader);
             } else if msg_type_hash == CommandMessage::FULL_NAME.get_stable_hash_code16() {
-
-                let command_message = CommandMessage::deserialization(&mut reader);
+                let command_message = CommandMessage::deserialization(&mut data_reader);
                 let net_id = command_message.net_id;
                 let component_idx = command_message.component_index;
                 let function_hash = command_message.function_hash;
@@ -146,7 +144,6 @@ impl MirrorServer {
                 if let Some(method_data) = self.backend_data.get_method(function_hash) {
                     // 创建 writer
                     let mut writer = Writer::new_with_len(true);
-
 
 
                     match method_data.method_type {
@@ -166,19 +163,19 @@ impl MirrorServer {
                             if method_data.sync_vars.len() > 0 {
                                 debug!(format!("method_data: {} {} {} {}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,method_data.sync_vars.len()));
 
-                                let mut sync_vars_reader = Reader::new_with_len(command_message.get_payload_no_len(), false);
-                                println!("sync_vars_reader: {}", to_hex_string(sync_vars_reader.get_data()));
+                                let mut sync_vars_reader = UnBatch::new(command_message.get_payload_no_len());
+                                // println!("sync_vars_reader: {}", to_hex_string(sync_vars_reader.get_data()));
                                 for i in 1..method_data.sync_vars.len() + 1 {
                                     match i {
                                         1 => {
-                                            let name = sync_vars_reader.read_string();
+                                            let name = sync_vars_reader.read_string_le().unwrap();
                                             println!("name: {}", name);
                                         }
                                         2 => {
-                                            let a = sync_vars_reader.read_f32();
-                                            let b = sync_vars_reader.read_f32();
-                                            let c = sync_vars_reader.read_f32();
-                                            let d = sync_vars_reader.read_f32();
+                                            let a = sync_vars_reader.read_f32_le().unwrap();
+                                            let b = sync_vars_reader.read_f32_le().unwrap();
+                                            let c = sync_vars_reader.read_f32_le().unwrap();
+                                            let d = sync_vars_reader.read_f32_le().unwrap();
                                             println!("a: {}, b: {}, c: {}, d: {}", a, b, c, d);
                                         }
                                         _ => {}
@@ -237,7 +234,7 @@ impl MirrorServer {
                 }
             } else if msg_type_hash == 4296 {
                 // println!("{:?}\n{}", reader.get_data().to_vec(), to_hex_string(reader.get_data()));
-                self.handel_network_auth_message(con_id, &mut reader);
+                self.handel_network_auth_message(con_id, &mut data_reader);
             } else {
                 debug!(format!("Unknown message type: {}\n", msg_type_hash));
             }
@@ -264,7 +261,7 @@ impl MirrorServer {
 
     // 处理 TimeSnapshotMessage 消息
     #[allow(dead_code)]
-    pub fn handel_time_snapshot_message(&self, con_id: u64, reader: &mut Reader) {
+    pub fn handel_time_snapshot_message(&self, con_id: u64, reader: &mut UnBatch) {
         let _ = reader;
         if let Some(cur_connection) = self.uid_con_map.get(&con_id) {
             let mut writer = Writer::new_with_len(true);
@@ -277,7 +274,7 @@ impl MirrorServer {
 
     // 处理 NetworkPingMessage 消息
     #[allow(dead_code)]
-    pub fn handel_network_ping_message(&self, con_id: u64, reader: &mut Reader) {
+    pub fn handel_network_ping_message(&self, con_id: u64, reader: &mut UnBatch) {
         if let Some(cur_connection) = self.uid_con_map.get(&con_id) {
             // 读取 NetworkPingMessage 数据
             let network_ping_message = NetworkPingMessage::deserialization(reader);
@@ -299,9 +296,9 @@ impl MirrorServer {
     }
 
     #[allow(dead_code)]
-    pub fn handel_network_auth_message(&self, con_id: u64, reader: &mut Reader) {
-        let username = reader.read_string();
-        let password = reader.read_string();
+    pub fn handel_network_auth_message(&self, con_id: u64, reader: &mut UnBatch) {
+        let username = reader.read_string_le().unwrap();
+        let password = reader.read_string_le().unwrap();
         println!("username: {}, password: {}", username, password);
 
         let mut writer = Writer::new_with_len(true);
@@ -319,7 +316,7 @@ impl MirrorServer {
 
     // 处理 NetworkPongMessage 消息
     #[allow(dead_code)]
-    pub fn handel_network_pong_message(&self, con_id: u64, reader: &mut Reader) {
+    pub fn handel_network_pong_message(&self, con_id: u64, reader: &mut UnBatch) {
         if let Some(cur_connection) = self.uid_con_map.get(&con_id) {
             let _ = cur_connection;
             // 读取 NetworkPongMessage 数据
@@ -331,7 +328,7 @@ impl MirrorServer {
 
     // 处理 ReadyMessage 消息
     #[allow(dead_code)]
-    pub fn handel_ready_message(&self, con_id: u64, reader: &mut Reader) {
+    pub fn handel_ready_message(&self, con_id: u64, reader: &mut UnBatch) {
         let _ = reader;
         // 设置连接为准备状态
         if let Some(mut cur_connection) = self.uid_con_map.get_mut(&con_id) {
@@ -341,7 +338,7 @@ impl MirrorServer {
 
     // 处理 AddPlayerMessage 消息
     #[allow(dead_code)]
-    pub fn handel_add_player_message(&self, con_id: u64, reader: &mut Reader) {
+    pub fn handel_add_player_message(&self, con_id: u64, reader: &mut UnBatch) {
         let _ = reader;
 
         if let Some(cur_connection) = self.uid_con_map.get(&con_id) {

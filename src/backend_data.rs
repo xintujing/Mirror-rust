@@ -1,7 +1,7 @@
 use crate::stable_hash::StableHash;
 use byteorder::{LittleEndian, ReadBytesExt};
+use dashmap::DashMap;
 use std::cmp::PartialEq;
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::vec::Vec;
@@ -38,9 +38,9 @@ pub struct MethodData {
     pub name: String,
     pub requires_authority: bool,
     pub method_type: MethodType,
-    pub parameters: HashMap<String, String>,
+    pub parameters: DashMap<String, String>,
     pub rpcs: Vec<String>,
-    pub sync_vars: HashMap<u8, FileData>,
+    pub sync_vars: DashMap<u8, FileData>,
 }
 
 #[derive(Debug)]
@@ -54,11 +54,11 @@ pub struct SyncVarData {
 #[derive(Debug, Default)]
 pub struct BackendData {
     pub version: u16,
-    pub dirty_bits: HashMap<String, u32>,
+    pub dirty_bits: DashMap<String, u32>,
     pub sync_var_datas: Vec<SyncVarData>,
     pub methods: Vec<MethodData>,
-    pub assets: HashMap<u32, String>,
-    pub scenes: HashMap<u64, String>,
+    pub assets: DashMap<u32, String>,
+    pub scenes: DashMap<u64, String>,
 }
 
 impl BackendData {
@@ -122,14 +122,14 @@ fn read_methods<T: Read>(reader: &mut T, data: &mut BackendData) {
         let requires_authority = reader.read_u8().unwrap() != 0;
         let method_type = MethodType::from_u8(reader.read_u8().unwrap()).unwrap();
         let parameters_length = reader.read_u16::<LittleEndian>().unwrap();
-        let mut parameters = HashMap::new();
+        let mut parameters = DashMap::new();
         for _ in 0..parameters_length {
             let key = read_string(reader);
             let value = read_string(reader);
             parameters.insert(key, value);
         }
         let mut rpcs = Vec::new();
-        let mut sync_vars = HashMap::new();
+        let mut sync_vars = DashMap::new();
 
         if method_type == MethodType::Command {
             let rpc_length = reader.read_u16::<LittleEndian>().unwrap();
@@ -186,11 +186,11 @@ pub fn import() -> BackendData {
 
     let mut data = BackendData {
         version,
-        dirty_bits: HashMap::new(),
+        dirty_bits: DashMap::new(),
         sync_var_datas: Vec::new(),
         methods: Vec::new(),
-        assets: HashMap::new(),
-        scenes: HashMap::new(),
+        assets: DashMap::new(),
+        scenes: DashMap::new(),
     };
 
     while binary_reader.position() < binary_reader.get_ref().len() as u64 {
@@ -204,7 +204,7 @@ pub fn import() -> BackendData {
             _ => (),
         }
     }
-    println!("VERSION:{}\n{:?}", version, data);
+    // println!("VERSION:{}\n{:?}", version, data);
 
     data
 }

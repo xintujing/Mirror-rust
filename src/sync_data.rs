@@ -1,4 +1,4 @@
-use crate::rwder::{DataReader, Reader};
+use crate::batcher::{DataReader, UnBatch};
 use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
@@ -137,24 +137,24 @@ impl Debug for SyncData {
 }
 
 impl DataReader<SyncData> for SyncData {
-    fn deserialization(reader: &mut Reader) -> SyncData {
+    fn deserialization(reader: &mut UnBatch) -> SyncData {
         // TODO 长度
         // 长度
-        let _ = reader.read_u32();
+        let _ = reader.read_u32_le().unwrap();
 
         // 改变的数据
-        let changed = reader.read_u8();
+        let changed = reader.read_u8().unwrap();
 
         // 位置
         let mut position = Vector3::new(0.0, 0.0, 0.0);
         if (changed & Changed::PosX.to_u8()) > 0 {
-            position.x = reader.read_f32();
+            position.x = reader.read_f32_le().unwrap();
         }
         if changed & Changed::PosY.to_u8() > 0 {
-            position.y = reader.read_f32();
+            position.y = reader.read_f32_le().unwrap();
         }
         if changed & Changed::PosZ.to_u8() > 0 {
-            position.z = reader.read_f32();
+            position.z = reader.read_f32_le().unwrap();
         }
 
         // 四元数
@@ -163,26 +163,26 @@ impl DataReader<SyncData> for SyncData {
         let mut vec_rotation = Vector3::new(0.0, 0.0, 0.0);
         if (changed & Changed::CompressRot.to_u8()) > 0 {
             if (changed & Changed::RotX.to_u8()) > 0 {
-                quaternion = SyncData::decompress_quaternion(reader.read_u32());
+                quaternion = SyncData::decompress_quaternion(reader.read_u32_le().unwrap());
             }
         } else {
             if changed & Changed::RotX.to_u8() > 0 {
-                vec_rotation.x = reader.read_f32();
+                vec_rotation.x = reader.read_f32_le().unwrap();
             }
             if changed & Changed::RotY.to_u8() > 0 {
-                vec_rotation.y = reader.read_f32();
+                vec_rotation.y = reader.read_f32_le().unwrap();
             }
             if changed & Changed::RotZ.to_u8() > 0 {
-                vec_rotation.z = reader.read_f32();
+                vec_rotation.z = reader.read_f32_le().unwrap();
             }
         }
 
         // 缩放
         let mut scale = Vector3::new(0.0, 0.0, 0.0);
         if changed & Changed::Scale.to_u8() == Changed::Scale.to_u8() {
-            scale.x = reader.read_f32();
-            scale.y = reader.read_f32();
-            scale.z = reader.read_f32();
+            scale.x = reader.read_f32_le().unwrap();
+            scale.y = reader.read_f32_le().unwrap();
+            scale.z = reader.read_f32_le().unwrap();
         }
 
         SyncData {
