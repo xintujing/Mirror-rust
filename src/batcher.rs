@@ -600,7 +600,7 @@ impl Debug for Writer {
 }
 
 pub trait DataReader<T> {
-    fn deserialization(reader: &mut UnBatch) -> T;
+    fn deserialization(batch: &mut UnBatch) -> T;
 }
 
 pub trait DataWriter<T> {
