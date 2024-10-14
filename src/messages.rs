@@ -1,4 +1,4 @@
-use crate::batcher::{DataReader, DataWriter, UnBatch, Writer};
+use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::stable_hash::StableHash;
 use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3};
@@ -16,10 +16,10 @@ impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
     }
 }
 impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 57097
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -36,10 +36,10 @@ impl DataReader<ReadyMessage> for ReadyMessage {
     }
 }
 impl DataWriter<ReadyMessage> for ReadyMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 43708
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -56,10 +56,10 @@ impl DataReader<NotReadyMessage> for NotReadyMessage {
     }
 }
 impl DataWriter<NotReadyMessage> for NotReadyMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 43378
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -76,10 +76,10 @@ impl DataReader<AddPlayerMessage> for AddPlayerMessage {
     }
 }
 impl DataWriter<AddPlayerMessage> for AddPlayerMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 49414
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -138,13 +138,13 @@ impl DataReader<SceneMessage> for SceneMessage {
     }
 }
 impl DataWriter<SceneMessage> for SceneMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
+    fn serialization(&mut self, writer: &mut Batch) {
         let str_bytes = self.scene_name.as_bytes();
-        let total_len = 6 + str_bytes.len();
-        writer.compress_var_uz(total_len);
+        let total_len = 6 + str_bytes.len() as u64;
+        writer.compress_var_u64_le(total_len);
         // 3552
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_string(str_bytes);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_string_le(self.scene_name.as_str());
         writer.write_u8(self.operation.to_u8());
         writer.write_bool(self.custom_handling);
     }
@@ -194,16 +194,16 @@ impl DataReader<CommandMessage> for CommandMessage {
     }
 }
 impl DataWriter<CommandMessage> for CommandMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
+    fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
-        let total_len = 13 + self.payload.len();
-        writer.compress_var_uz(total_len);
+        let total_len = 13 + self.payload.len() as u64;
+        writer.compress_var_u64_le(total_len);
         // 39124
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_u32(self.net_id);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u32_le(self.net_id);
         writer.write_u8(self.component_index);
-        writer.write_u16(self.function_hash);
-        writer.write_u32(1 + self.payload.len() as u32);
+        writer.write_u16_le(self.function_hash);
+        writer.write_u32_be(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }
 }
@@ -248,16 +248,16 @@ impl DataReader<RpcMessage> for RpcMessage {
     }
 }
 impl DataWriter<RpcMessage> for RpcMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
+    fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
-        let total_len = 13 + self.payload.len();
-        writer.compress_var_uz(total_len);
+        let total_len = 13 + self.payload.len() as u64;
+        writer.compress_var_u64_le(total_len);
         // 40238
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_u32(self.net_id);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u32_le(self.net_id);
         writer.write_u8(self.component_index);
-        writer.write_u16(self.function_hash);
-        writer.write_u32(1 + self.payload.len() as u32);
+        writer.write_u16_le(self.function_hash);
+        writer.write_u32_le(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }
 }
@@ -337,28 +337,28 @@ impl DataReader<SpawnMessage> for SpawnMessage {
 }
 
 impl DataWriter<SpawnMessage> for SpawnMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
+    fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 1 + 8 + 12 * 4 + self.payload.len()
-        let total_len = 64 + self.payload.len();
-        writer.compress_var_uz(total_len);
+        let total_len = 64 + self.payload.len() as u64;
+        writer.compress_var_u64_le(total_len);
         // 12504
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_u32(self.net_id);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u32_le(self.net_id);
         writer.write_bool(self.is_local_player);
         writer.write_bool(self.is_owner);
-        writer.write_u64(self.scene_id);
-        writer.write_u32(self.asset_id);
-        writer.write_f32(self.position.x);
-        writer.write_f32(self.position.y);
-        writer.write_f32(self.position.z);
-        writer.write_f32(self.rotation.coords.x);
-        writer.write_f32(self.rotation.coords.y);
-        writer.write_f32(self.rotation.coords.z);
-        writer.write_f32(self.rotation.coords.w);
-        writer.write_f32(self.scale.x);
-        writer.write_f32(self.scale.y);
-        writer.write_f32(self.scale.z);
-        writer.write_u32(1 + self.payload.len() as u32);
+        writer.write_u64_le(self.scene_id);
+        writer.write_u32_le(self.asset_id);
+        writer.write_f32_le(self.position.x);
+        writer.write_f32_le(self.position.y);
+        writer.write_f32_le(self.position.z);
+        writer.write_f32_le(self.rotation.coords.x);
+        writer.write_f32_le(self.rotation.coords.y);
+        writer.write_f32_le(self.rotation.coords.z);
+        writer.write_f32_le(self.rotation.coords.w);
+        writer.write_f32_le(self.scale.x);
+        writer.write_f32_le(self.scale.y);
+        writer.write_f32_le(self.scale.z);
+        writer.write_u32_le(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }
 }
@@ -395,10 +395,10 @@ impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
     }
 }
 impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 12504
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -415,10 +415,10 @@ impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
     }
 }
 impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(2);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(2);
         // 43444
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
     }
 }
 
@@ -441,11 +441,11 @@ impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
     }
 }
 impl DataWriter<ObjectDestroyMessage> for ObjectDestroyMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(6);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(6);
         // 12504
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_u32(self.net_id);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u32_le(self.net_id);
     }
 }
 
@@ -488,14 +488,14 @@ impl DataReader<EntityStateMessage> for EntityStateMessage {
     }
 }
 impl DataWriter<EntityStateMessage> for EntityStateMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
+    fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 4 + self.payload.len()
-        let total_len = 10 + self.payload.len();
-        writer.compress_var_uz(total_len);
+        let total_len = 10 + self.payload.len() as u64;
+        writer.compress_var_u64_le(total_len);
         // 12504
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_u32(self.net_id);
-        writer.write_u32(1 + self.payload.len() as u32);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_u32_le(self.net_id);
+        writer.write_u32_le(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }
 }
@@ -527,12 +527,12 @@ impl DataReader<NetworkPingMessage> for NetworkPingMessage {
     }
 }
 impl DataWriter<NetworkPingMessage> for NetworkPingMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(18);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(18);
         // 17487
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_f64(self.local_time);
-        writer.write_f64(self.predicted_time_adjusted);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_f64_le(self.local_time);
+        writer.write_f64_le(self.predicted_time_adjusted);
     }
 }
 
@@ -571,12 +571,12 @@ impl DataReader<NetworkPongMessage> for NetworkPongMessage {
     }
 }
 impl DataWriter<NetworkPongMessage> for NetworkPongMessage {
-    fn serialization(&mut self, writer: &mut Writer) {
-        writer.compress_var(26);
+    fn serialization(&mut self, writer: &mut Batch) {
+        writer.compress_var_u64_le(26);
         // 27095
-        writer.write_u16(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_f64(self.local_time);
-        writer.write_f64(self.prediction_error_unadjusted);
-        writer.write_f64(self.prediction_error_adjusted);
+        writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_f64_le(self.local_time);
+        writer.write_f64_le(self.prediction_error_unadjusted);
+        writer.write_f64_le(self.prediction_error_adjusted);
     }
 }

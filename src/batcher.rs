@@ -1,6 +1,5 @@
-use crate::tools::get_s_e_t;
 use byteorder::ReadBytesExt;
-use bytes::{Bytes, BytesMut};
+use bytes::{BufMut, Bytes, BytesMut};
 use std::cmp::PartialEq;
 use std::fmt::Debug;
 use std::io;
@@ -67,12 +66,12 @@ impl UnBatch {
 
     #[allow(dead_code)]
     pub fn read_next(&mut self) -> io::Result<Self> {
-        let len = self.decompress_var()?;
+        let len = self.decompress_var_u64_le()?;
         if len > self.remaining() as u64 {
             return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"));
         }
         let mut buffer = vec![0; len as usize];
-        self.bytes.read_exact(&mut buffer).unwrap();
+        self.bytes.read_exact(&mut buffer)?;
         Ok(UnBatch::new(Bytes::from(buffer)))
     }
 
@@ -224,7 +223,7 @@ impl UnBatch {
 
     // 读取一个压缩的 u64 类型的数据
     #[allow(dead_code)]
-    pub fn decompress_var(&mut self) -> io::Result<u64> {
+    pub fn decompress_var_u64_le(&mut self) -> io::Result<u64> {
         let a0 = self.read_u8()?;
         if a0 < 241 {
             return Ok(u64::from(a0));
@@ -311,290 +310,266 @@ impl Debug for UnBatch {
 }
 
 #[derive(Clone)]
-pub struct Writer {
-    buffer: BytesMut,
-    position: usize,
-    length: usize,
-    endian: Endian,
-    elapsed_time: f64,
+pub struct Batch {
+    bytes: BytesMut,
 }
 
-impl Writer {
-    // 初始化一个 Writer 实例
+impl Batch {
+    // 初始化一个 Batch 实例
     #[allow(dead_code)]
-    pub fn new(endian: Endian, is_wet: bool) -> Self {
-        match endian {
-            Endian::Big => Self::new_with_ben(is_wet),
-            Endian::Little => Self::new_with_len(is_wet),
+    pub fn new() -> Self {
+        Batch {
+            bytes: BytesMut::new(),
         }
     }
 
-    // 初始化一个 Writer 实例，指定是否为大端序
     #[allow(dead_code)]
-    pub fn new_with_ben(is_wet: bool) -> Self {
-        let mut writer = Self {
-            buffer: BytesMut::new(),
-            position: 0,
-            length: 0,
-            endian: Endian::Big,
-            elapsed_time: get_s_e_t(),
-        };
-        if is_wet {
-            writer.write_f64(writer.elapsed_time);
-        }
-        writer
+    pub fn get_bytes(&self) -> &BytesMut {
+        &self.bytes
     }
 
-    // 初始化一个 Writer 实例，指定是否为小端序
+    // 获取总长度
     #[allow(dead_code)]
-    pub fn new_with_len(is_wet: bool) -> Self {
-        let mut writer = Self {
-            buffer: BytesMut::new(),
-            position: 0,
-            length: 0,
-            endian: Endian::Little,
-            elapsed_time: get_s_e_t(),
-        };
-        if is_wet {
-            writer.write_f64(writer.elapsed_time);
-        }
-        writer
+    pub fn len(&self) -> usize {
+        self.bytes.len()
     }
 
-    // 获取数据
-    pub fn get_data(&self) -> &[u8] {
-        &self.buffer
-    }
-
-    // 获取时间戳
+    // 写入 [u8] 类型的数据
     #[allow(dead_code)]
-    pub fn get_elapsed_time(&self) -> f64 {
-        self.elapsed_time
+    pub fn write(&mut self, buffer: &[u8]) {
+        self.bytes.put(buffer);
     }
 
-    // 写入数据
+    // 写入一个 bool 类型的数据
     #[allow(dead_code)]
-    pub fn write(&mut self, data: &[u8]) {
-        let self_data_len = self.buffer.len();
-        let need_len = self.position + data.len();
-        if self_data_len < need_len {
-            self.buffer.reserve(need_len - self_data_len);
-        }
-
-        // 扩展 self.data 以确保有足够的空间
-        if self_data_len < need_len {
-            self.buffer.resize(need_len, 0);
-        }
-
-        // 从 position 开始写入数据
-        self.buffer[self.position..need_len].copy_from_slice(data);
-
-        // 更新 position
-        self.position += data.len();
+    pub fn write_bool(&mut self, value: bool) {
+        self.bytes.put_u8(if value { 1 } else { 0 });
     }
 
-    // 清空数据
-    #[allow(dead_code)]
-    pub fn clear(&mut self) {
-        self.position = 0;
-        self.length = 0;
-        self.buffer.clear();
-    }
-
-    // 获取当前位置
-    #[allow(dead_code)]
-    pub fn get_position(&self) -> usize {
-        self.position
-    }
-
-    // 设置当前位置
-    #[allow(dead_code)]
-    pub fn set_position(&mut self, position: usize) {
-        self.position = position;
-    }
-
-    // 获取数据长度
-    #[allow(dead_code)]
-    pub fn get_length(&self) -> usize {
-        self.length
-    }
-
-    // 设置端序
-    #[allow(dead_code)]
-    pub fn set_endian(&mut self, endian: Endian) {
-        self.endian = endian;
-    }
-
-    // 写入 u8
+    // 写入一个 u8 类型的数据
     #[allow(dead_code)]
     pub fn write_u8(&mut self, value: u8) {
-        self.write(&value.to_be_bytes());
+        self.bytes.put_u8(value);
     }
 
-    // 写入 i8
+    // 写入一个 i8 类型的数据
     #[allow(dead_code)]
     pub fn write_i8(&mut self, value: i8) {
+        self.bytes.put_i8(value);
+    }
+
+    // 大端序 写入一个 u16 类型的数据
+    #[allow(dead_code)]
+    pub fn write_u16_be(&mut self, value: u16) {
         self.write(&value.to_be_bytes());
     }
 
-    // 写入 u16
+    // 大端序 写入一个 i16 类型的数据
     #[allow(dead_code)]
-    pub fn write_u16(&mut self, value: u16) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_i16_be(&mut self, value: i16) {
+        self.write(&value.to_be_bytes());
     }
 
-    // 写入 i16
+    // 小端序 写入一个 u16 类型的数据
     #[allow(dead_code)]
-    pub fn write_i16(&mut self, value: i16) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_u16_le(&mut self, value: u16) {
+        self.write(&value.to_le_bytes());
     }
 
-    // 写入 u32
+    // 小端序 写入一个 i16 类型的数据
     #[allow(dead_code)]
-    pub fn write_u32(&mut self, value: u32) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_i16_le(&mut self, value: i16) {
+        self.write(&value.to_le_bytes());
     }
 
-    // 写入 i32
+    // 大端序 写入一个 u32 类型的数据
     #[allow(dead_code)]
-    pub fn write_i32(&mut self, value: i32) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_u32_be(&mut self, value: u32) {
+        self.write(&value.to_be_bytes());
     }
 
-    // 写入 u64
+    // 大端序 写入一个 i32 类型的数据
     #[allow(dead_code)]
-    pub fn write_u64(&mut self, value: u64) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_i32_be(&mut self, value: i32) {
+        self.write(&value.to_be_bytes());
     }
 
-    // 写入 i64
+    // 小端序 写入一个 u32 类型的数据
     #[allow(dead_code)]
-    pub fn write_i64(&mut self, value: i64) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_u32_le(&mut self, value: u32) {
+        self.write(&value.to_le_bytes());
     }
 
-    // 写入 f32
+    // 小端序 写入一个 i32 类型的数据
     #[allow(dead_code)]
-    pub fn write_f32(&mut self, value: f32) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_i32_le(&mut self, value: i32) {
+        self.write(&value.to_le_bytes());
     }
 
-    // 写入 f64
+    // 大端序 写入一个 u64 类型的数据
     #[allow(dead_code)]
-    pub fn write_f64(&mut self, value: f64) {
-        if self.endian == Endian::Big {
-            self.write(&value.to_be_bytes());
-        } else {
-            self.write(&value.to_le_bytes());
-        }
+    pub fn write_u64_be(&mut self, value: u64) {
+        self.write(&value.to_be_bytes());
     }
 
+    // 大端序 写入一个 i64 类型的数据
     #[allow(dead_code)]
-    pub fn compress_var(&mut self, value: u64) {
+    pub fn write_i64_be(&mut self, value: i64) {
+        self.write(&value.to_be_bytes());
+    }
+
+    // 小端序 写入一个 u64 类型的数据
+    #[allow(dead_code)]
+    pub fn write_u64_le(&mut self, value: u64) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 小端序 写入一个 i64 类型的数据
+    #[allow(dead_code)]
+    pub fn write_i64_le(&mut self, value: i64) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 大端序 写入一个 u128 类型的数据
+    #[allow(dead_code)]
+    pub fn write_u128_be(&mut self, value: u128) {
+        self.write(&value.to_be_bytes());
+    }
+
+    // 大端序 写入一个 i128 类型的数据
+    #[allow(dead_code)]
+    pub fn write_i128_be(&mut self, value: i128) {
+        self.write(&value.to_be_bytes());
+    }
+
+    // 小端序 写入一个 u128 类型的数据
+    #[allow(dead_code)]
+    pub fn write_u128_le(&mut self, value: u128) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 小端序 写入一个 i128 类型的数据
+    #[allow(dead_code)]
+    pub fn write_i128_le(&mut self, value: i128) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 大端序 写入一个 f32 类型的数据
+    #[allow(dead_code)]
+    pub fn write_f32_be(&mut self, value: f32) {
+        self.write(&value.to_be_bytes());
+    }
+
+    // 小端序 写入一个 f32 类型的数据
+    #[allow(dead_code)]
+    pub fn write_f32_le(&mut self, value: f32) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 大端序 写入一个 f64 类型的数据
+    #[allow(dead_code)]
+    pub fn write_f64_be(&mut self, value: f64) {
+        self.write(&value.to_be_bytes());
+    }
+
+    // 小端序 写入一个 f64 类型的数据
+    #[allow(dead_code)]
+    pub fn write_f64_le(&mut self, value: f64) {
+        self.write(&value.to_le_bytes());
+    }
+
+    // 写入一个压缩的 u64 类型的数据
+    #[allow(dead_code)]
+    pub fn compress_var_u64_le(&mut self, value: u64) {
         if value <= 240 {
             self.write_u8(value as u8);
-        } else if value <= 2287 {
+            return;
+        }
+        if value <= 2287 {
             let a = ((value - 240) >> 8) as u8 + 241;
             let b = (value - 240) as u8;
             self.write_u8(a);
             self.write_u8(b);
-        } else if value <= 67823 {
+            return;
+        }
+        if value <= 67823 {
             let a = 249;
             let b = ((value - 2288) >> 8) as u8;
             let c = (value - 2288) as u8;
             self.write_u8(a);
             self.write_u8(b);
             self.write_u8(c);
-        } else if value <= 16_777_215 {
+            return;
+        }
+        if value <= 16777215 {
             let a = 250;
-            let b = value as u32;
-            let bytes = b.to_le_bytes();
+            let b = (value << 8) as u32;
             self.write_u8(a);
-            self.write(&bytes[0..3]); // 只写入低 3 字节
-        } else if value <= 4_294_967_295 {
+            self.write_u32_le(b | a as u32);
+            return;
+        }
+        if value <= 4294967295 {
             let a = 251;
             let b = value as u32;
             self.write_u8(a);
-            self.write(&b.to_le_bytes());
-        } else if value <= 1_099_511_627_775 {
+            self.write_u32_le(b);
+            return;
+        }
+        if value <= 1099511627775 {
             let a = 252;
-            let b = (value & 0xFF) as u8;
+            let b = (value & 0xFF) as u16;
             let c = (value >> 8) as u32;
-            self.write_u8(a);
-            self.write_u8(b);
-            self.write(&c.to_le_bytes());
-        } else if value <= 281_474_976_710_655 {
+            self.write_u16_le(b << 8 | a);
+            self.write_u32_le(c);
+            return;
+        }
+        if value <= 281474976710655 {
             let a = 253;
-            let b = (value & 0xFF) as u8;
-            let c = ((value >> 8) & 0xFF) as u8;
+            let b = (value & 0xFF) as u16;
+            let c = ((value >> 8) & 0xFF) as u16;
             let d = (value >> 16) as u32;
             self.write_u8(a);
-            self.write_u8(b);
-            self.write_u8(c);
-            self.write(&d.to_le_bytes());
-        } else if value <= 72_057_594_037_927_935 {
+            self.write_u16_le(c << 8 | b);
+            self.write_u32_le(d);
+            return;
+        }
+        if value <= 72057594037927935 {
             let a = 254;
-            let b = value;
-            let bytes = b.to_le_bytes();
-            self.write_u8(a);
-            self.write(&bytes[0..7]); // 只写入低 7 字节
-        } else {
+            let b = value << 8;
+            self.write_u64_le(b | a);
+            return;
+        }
+
+        // all others
+        {
             self.write_u8(255);
             self.write(&value.to_le_bytes());
         }
     }
 
+    // 大端序 写入一个 string 类型的数据
     #[allow(dead_code)]
-    pub fn compress_var_uz(&mut self, value: usize) {
-        self.compress_var(value as u64);
+    pub fn write_string_be(&mut self, value: &str) {
+        let length = value.len() as u16 + 1;
+        self.write_u16_be(length);
+        self.write(value.as_bytes());
     }
 
-    // 写入字符串
-    pub fn write_string(&mut self, value: &[u8]) {
-        self.write_u16(1 + value.len() as u16);
-        self.write(value);
-    }
-
-    // 写入 bool
-    pub fn write_bool(&mut self, value: bool) {
-        self.write_u8(if value { 1 } else { 0 });
+    // 小端序 写入一个 string 类型的数据
+    #[allow(dead_code)]
+    pub fn write_string_le(&mut self, value: &str) {
+        let length = value.len() as u16 + 1;
+        self.write_u16_le(length);
+        self.write(value.as_bytes());
     }
 }
 
-impl Debug for Writer {
+impl Debug for Batch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Writer {{ data: {:?}, position: {}, length: {}, endian: {:?} }}",
-            self.buffer, self.position, self.length, self.endian
+            "Batch {{ bytes: {:?},  length: {} }}",
+            self.bytes, self.len()
         )
     }
 }
@@ -604,5 +579,5 @@ pub trait DataReader<T> {
 }
 
 pub trait DataWriter<T> {
-    fn serialization(&mut self, writer: &mut Writer);
+    fn serialization(&mut self, batch: &mut Batch);
 }
