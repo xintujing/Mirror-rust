@@ -117,25 +117,32 @@ impl MirrorServer {
         let _ = channel;
 
         let mut data_reader = UnBatch::new(message);
+
+        let remote_time_stamp = data_reader.read_f64_le().unwrap();
+
         if let Some(mut connection) = self.uid_con_map.get_mut(&con_id) {
-            connection.remote_time_stamp = data_reader.read_f64_le().unwrap()
+            connection.remote_time_stamp = remote_time_stamp;
         }
 
         while data_reader.remaining() > 0 {
-            let len = data_reader.decompress_var();
-            let msg_type_hash = data_reader.read_u16_le().unwrap();
+            let mut reader = match data_reader.read_next() {
+                Ok(batch) => batch,
+                Err(_) => break,
+            };
+
+            let msg_type_hash = reader.read_u16_le().unwrap();
             if msg_type_hash == TimeSnapshotMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_time_snapshot_message(con_id, &mut data_reader);
+                self.handel_time_snapshot_message(con_id, &mut reader);
             } else if msg_type_hash == NetworkPingMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_network_ping_message(con_id, &mut data_reader)
+                self.handel_network_ping_message(con_id, &mut reader)
             } else if msg_type_hash == NetworkPongMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_network_pong_message(con_id, &mut data_reader);
+                self.handel_network_pong_message(con_id, &mut reader);
             } else if msg_type_hash == ReadyMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_ready_message(con_id, &mut data_reader);
+                self.handel_ready_message(con_id, &mut reader);
             } else if msg_type_hash == AddPlayerMessage::FULL_NAME.get_stable_hash_code16() {
-                self.handel_add_player_message(con_id, &mut data_reader);
+                self.handel_add_player_message(con_id, &mut reader);
             } else if msg_type_hash == CommandMessage::FULL_NAME.get_stable_hash_code16() {
-                let command_message = CommandMessage::deserialization(&mut data_reader);
+                let command_message = CommandMessage::deserialization(&mut reader);
                 let net_id = command_message.net_id;
                 let component_idx = command_message.component_index;
                 let function_hash = command_message.function_hash;
@@ -234,7 +241,7 @@ impl MirrorServer {
                 }
             } else if msg_type_hash == 4296 {
                 // println!("{:?}\n{}", reader.get_data().to_vec(), to_hex_string(reader.get_data()));
-                self.handel_network_auth_message(con_id, &mut data_reader);
+                self.handel_network_auth_message(con_id, &mut reader);
             } else {
                 debug!(format!("Unknown message type: {}\n", msg_type_hash));
             }

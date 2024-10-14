@@ -65,6 +65,17 @@ impl UnBatch {
         self.bytes.read_exact(buffer)
     }
 
+    #[allow(dead_code)]
+    pub fn read_next(&mut self) -> io::Result<Self> {
+        let len = self.decompress_var()?;
+        if len > self.remaining() as u64 {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"));
+        }
+        let mut buffer = vec![0; len as usize];
+        self.bytes.read_exact(&mut buffer).unwrap();
+        Ok(UnBatch::new(Bytes::from(buffer)))
+    }
+
     // 读取剩余的数据
     #[allow(dead_code)]
     pub fn read_remaining(&mut self) -> io::Result<Bytes> {
