@@ -575,7 +575,7 @@ impl Debug for Batch {
 }
 
 pub trait DataReader<T> {
-    fn deserialization(batch: &mut UnBatch) -> T;
+    fn deserialization(batch: &mut UnBatch) -> io::Result<T>;
 }
 
 pub trait DataWriter<T> {
