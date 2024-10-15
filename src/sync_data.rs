@@ -134,9 +134,6 @@ impl Debug for SyncData {
 
 impl DataReader<SyncData> for SyncData {
     fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
-        // TODO 长度
-        // 长度
-        let _ = reader.read_u32_le()?;
 
         // 改变的数据
         let changed = reader.read_u8()?;

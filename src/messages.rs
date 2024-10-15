@@ -176,8 +176,8 @@ impl CommandMessage {
         }
     }
 
-    pub fn get_payload_no_len(&self) -> Bytes {
-        self.payload.slice(4..)
+    pub fn get_payload(&self) -> Bytes {
+        self.payload.clone()
     }
 }
 impl DataReader<CommandMessage> for CommandMessage {

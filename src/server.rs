@@ -4,6 +4,7 @@ use crate::connect::Connect;
 use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::network_identity::{NetworkIdentity, SyncVar};
 use crate::stable_hash::StableHash;
+use crate::sync_data::SyncData;
 use crate::tools::{generate_id, get_s_e_t, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
@@ -236,10 +237,11 @@ impl MirrorServer {
 
     // 处理 TimeSnapshotMessage 消息
     #[allow(dead_code)]
-    pub fn handel_time_snapshot_message(&self, con_id: u64, reader: &mut UnBatch, channel: Kcp2KChannel) {
-        let _ = reader;
-        let _ = channel;
-        // debug!("handel_time_snapshot_message");
+    pub fn handel_time_snapshot_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+        let mut batch = Batch::new();
+        batch.write_f64_le(get_s_e_t());
+        TimeSnapshotMessage {}.serialization(&mut batch);
+        self.send(con_id, &batch, Kcp2KChannel::Reliable);
     }
 
     // 处理 NetworkPingMessage 消息
@@ -275,40 +277,41 @@ impl MirrorServer {
     }
 
     #[allow(dead_code)]
-    pub fn handel_network_auth_message(&self, con_id: u64, reader: &mut UnBatch, channel: Kcp2KChannel) {
-        let username = reader.read_string_le().unwrap();
-        let password = reader.read_string_le().unwrap();
+    pub fn handel_network_auth_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+        let username = un_batch.read_string_le().unwrap();
+        let password = un_batch.read_string_le().unwrap();
+
         println!("username: {}, password: {}", username, password);
 
-        let mut writer = Batch::new();
-        writer.write_f64_le(get_s_e_t());
-        writer.compress_var_u64_le(5);
-        writer.write_u16_le(26160);
-        writer.write_u8(100);
-        writer.write_u16_le(0);
-        self.send(con_id, &writer, Kcp2KChannel::Reliable);
+        let mut batch = Batch::new();
+        batch.write_f64_le(get_s_e_t());
+        batch.compress_var_u64_le(5);
+        batch.write_u16_le(26160);
+        batch.write_u8(100);
+        batch.write_u16_le(0);
+        self.send(con_id, &batch, Kcp2KChannel::Reliable);
 
         // 认证成功
         self.cid_user_map.insert(con_id, username.clone());
 
-        if let Err(_) = self.handel_connect(con_id, |cur_connection| {
-            cur_connection.connect_id = con_id;
-            cur_connection.is_authenticated = true;
+        if let Err(_) = self.handel_connect(con_id, |cur_connect| {
+            cur_connect.connect_id = con_id;
+            cur_connect.is_authenticated = true;
 
             /// TODO: 断线重连
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
-            Ok(cur_connection.clone())
+            Ok(cur_connect.clone())
         }) {
             // 切换场景
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
-            let mut connection = Connect::new();
-            connection.connect_id = con_id;
-            connection.identity.net_id = generate_id();
-            connection.is_authenticated = true;
+            let mut connect = Connect::new();
+            connect.identity.net_id = generate_id();
+            connect.connect_id = con_id;
+            connect.is_authenticated = true;
 
-            self.uid_con_map.insert(username.clone(), connection);
+            self.uid_con_map.insert(username.clone(), connect);
         }
     }
 
@@ -342,73 +345,61 @@ impl MirrorServer {
     pub fn handel_add_player_message(&self, con_id: u64, reader: &mut UnBatch, channel: Kcp2KChannel) {
         let _ = reader;
 
-        let connects = self.uid_con_map.iter().map(|x| x.value().clone()).collect::<Vec<Connect>>();
+        let set = get_s_e_t();
 
-        let mut cur_writer = Batch::new();
-        cur_writer.write_f64_le(get_s_e_t());
+        let mut cur_batch = Batch::new();
+        cur_batch.write_f64_le(set);
 
-        let mut other_writer = Batch::new();
-        other_writer.write_f64_le(get_s_e_t());
+        let mut other_batch = Batch::new();
+        other_batch.write_f64_le(set);
 
         let scale = Vector3::new(1.0, 1.0, 1.0);
 
         if let Ok(cur_connect) = self.handel_connect(con_id, |cur_connect| {
-
-            // 添加 ObjectSpawnStartedMessage 数据
-            ObjectSpawnStartedMessage {}.serialization(&mut cur_writer);
-
             let scale = Vector3::new(1.0, 1.0, 1.0);
 
-            //  通知当前玩家生成自己和生成已经连接的玩家
-            for connection in connects.iter() {
-                // 生成自己
-                if cur_connect.connect_id == connection.connect_id {
-                    let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                    let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(cur_payload));
-                    cur_spawn_message.serialization(&mut cur_writer);
-                    continue;
-                }
-                // 生成其它玩家
-                let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                let mut other_spawn_message = SpawnMessage::new(connection.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
-                other_spawn_message.serialization(&mut cur_writer);
-            }
-
             // 添加 ObjectSpawnStartedMessage 数据
-            ObjectSpawnFinishedMessage {}.serialization(&mut cur_writer);
+            ObjectSpawnStartedMessage {}.serialization(&mut cur_batch);
+            // 生成自己
+            let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
+            let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::copy_from_slice(cur_payload.as_slice()));
+            cur_spawn_message.serialization(&mut cur_batch);
 
             //  *****************************************************************************
 
+            // 添加 ObjectSpawnStartedMessage 数据
+            ObjectSpawnStartedMessage {}.serialization(&mut other_batch);
             // 添加通知其他客户端有新玩家加入消息
-            let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-            let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, false, false, 0, 3541431626, Default::default(), Default::default(), scale, Bytes::from(cur_payload));
-            cur_spawn_message.serialization(&mut other_writer);
+            cur_spawn_message.is_owner = false;
+            cur_spawn_message.is_local_player = false;
+            cur_spawn_message.serialization(&mut other_batch);
+            ObjectSpawnFinishedMessage {}.serialization(&mut other_batch);
 
             Ok(cur_connect.clone())
         }) {
-            // 发送给当前玩家
-            self.send(con_id, &cur_writer, Kcp2KChannel::Reliable);
-
-            // 通知其他玩家生成新加入的玩家
-            for connection in connects.iter() {
-                if con_id == connection.connect_id {
+            //  通知当前玩家生成已经连接的玩家
+            for connect in self.uid_con_map.iter() {
+                if connect.connect_id == cur_connect.connect_id {
                     continue;
                 }
-                let mut other_writer = Batch::new();
-                other_writer.write_f64_le(get_s_e_t());
+                // 添加已经连接的玩家信息
                 let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-                let mut other_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, false, false, 0, 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
-                other_spawn_message.serialization(&mut other_writer);
-                self.send(connection.connect_id, &other_writer, Kcp2KChannel::Reliable);
+                let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
+                other_spawn_message.serialization(&mut cur_batch);
+                // 发送给其它玩家
+                self.send(connect.connect_id, &other_batch, Kcp2KChannel::Reliable);
             }
+            ObjectSpawnFinishedMessage {}.serialization(&mut cur_batch);
+            // 发送给当前玩家
+            self.send(cur_connect.connect_id, &cur_batch, Kcp2KChannel::Reliable);
         }
     }
 
     // 处理 CommandMessage 消息
     #[allow(dead_code)]
-    pub fn handel_command_message(&self, con_id: u64, batch: &mut UnBatch, channel: Kcp2KChannel) {
+    pub fn handel_command_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
         // 读取 CommandMessage 数据
-        let command_message = match CommandMessage::deserialization(batch) {
+        let command_message = match CommandMessage::deserialization(un_batch) {
             Ok(cm) => cm,
             Err(err) => {
                 error!(format!("handel_command_message: {:?}", err));
@@ -422,23 +413,36 @@ impl MirrorServer {
 
         // 找到 MethodData
         if let Some(method_data) = self.backend_data.get_method(function_hash) {
-            // 创建 writer
-            let mut writer = Batch::new();
-            writer.write_f64_le(get_s_e_t());
-
             match method_data.method_type {
                 // Command 类型
                 MethodType::Command => {
+                    // 创建 writer
+                    let mut batch = Batch::new();
+                    batch.write_f64_le(get_s_e_t());
                     // 如果有 rpc
                     if method_data.rpcs.len() > 0 {
                         // 遍历所有 rpc
                         for rpc in &method_data.rpcs {
                             debug!(format!("method_data: {} {} {} {}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,rpc.get_fn_stable_hash_code()));
-                            let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc.get_fn_stable_hash_code(), command_message.get_payload_no_len());
-                            rpc_message.serialization(&mut writer);
+                            // let mut un_batch = UnBatch::new(command_message.get_payload());
+                            // let len = un_batch.read_u32_le().unwrap();
+                            // println!("len: {}", len);
+                            // match SyncData::deserialization(&mut un_batch) {
+                            //     Ok(sync_data) => {
+                            //         println!("sync_data: {:?}", sync_data);
+                            //     }
+                            //     Err(e) => {
+                            //         println!("error: {:?}", e);
+                            //     }
+                            // }
+                            let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc.get_fn_stable_hash_code(), command_message.get_payload().slice(4..));
+                            rpc_message.serialization(&mut batch);
                         }
                     }
-
+                    // 遍历所有连接并发送消息
+                    for connect in self.uid_con_map.iter() {
+                        self.send(connect.connect_id, &batch, Kcp2KChannel::Reliable);
+                    }
                     // 如果 parameters 不为空
                     // if method_data.parameters.len() > 0 {
                     //     debug!(format!("method_data: {} {} {} {:?}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,method_data.parameters));
@@ -448,10 +452,6 @@ impl MirrorServer {
                     //         println!("parameter: {} {}", parameter.key(), parameter.value());
                     //     }
                     // }
-                    // 遍历所有连接并发送消息
-                    for component in self.uid_con_map.iter() {
-                        self.send(component.connect_id, &writer, Kcp2KChannel::Reliable);
-                    }
                 }
                 MethodType::TargetRpc => {}
                 MethodType::ClientRpc => {}
@@ -459,19 +459,20 @@ impl MirrorServer {
         }
 
         if function_hash == "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code() {
-            debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.payload.as_ref())));
-
             let mut writer = Batch::new();
             writer.write_f64_le(get_s_e_t());
 
-            if let Ok(_) = self.handel_connect(con_id, |cur_connection| {
+            if let Ok(_) = self.handel_connect(con_id, |cur_connect| {
+                debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.get_payload().slice(4..).as_ref())));
 
                 // 名字 颜色
-                let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload_no_len()))).unwrap();
+                // let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload().slice(4..)))).unwrap();
 
-                let mut un_batch = UnBatch::new(Bytes::from(command_message.get_payload_no_len()));
+                let mut un_batch = UnBatch::new(command_message.get_payload());
+                let _ = un_batch.read_u32_le().unwrap();
 
                 let name = un_batch.read_string_le().unwrap();
+
                 let a = un_batch.read_f32_le().unwrap();
                 let b = un_batch.read_f32_le().unwrap();
                 let c = un_batch.read_f32_le().unwrap();
@@ -480,7 +481,6 @@ impl MirrorServer {
                 let mut batch = Batch::new();
 
                 batch.write_u8(0x02);
-
                 batch.write_u8(0x2c);
 
                 batch.write_u64_le(0);
@@ -492,43 +492,45 @@ impl MirrorServer {
                 batch.write_f32_le(c);
                 batch.write_f32_le(d);
 
-                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch.get_bytes());
+                let mut entity_state_message = EntityStateMessage::new(cur_connect.identity.net_id, batch.get_bytes());
                 entity_state_message.serialization(&mut writer);
 
-
-                // 2 截取
-                let tmp = &to_hex_string(&command_message.get_payload_no_len())[4..22];
                 // 场景右上角
-                let cur_payload = hex::decode(format!("01131100{}6A6F696E65642E", tmp)).unwrap();
-
                 let mut batch = Batch::new();
                 batch.write_u8(0x01);
                 batch.write_u8(0x13);
                 batch.write_string_le(format!("{} joined.", name).as_str());
 
-                println!("{}", to_hex_string(&cur_payload));
-
-                println!("{}", to_hex_string(&batch.get_bytes()));
-
                 let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch.get_bytes());
                 cur_spawn_message.serialization(&mut writer);
 
-                Ok(cur_connection.clone())
+                Ok(cur_connect.clone())
             }) {
-                for connection in self.uid_con_map.iter() {
-                    self.send(connection.connect_id, &writer, Kcp2KChannel::Reliable);
+                for connect in self.uid_con_map.iter() {
+                    self.send(connect.connect_id, &writer, Kcp2KChannel::Reliable);
                 }
             }
         } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
-            debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.payload.as_ref())));
-
             let mut writer = Batch::new();
             writer.write_f64_le(get_s_e_t());
 
             if let Ok(_) = self.handel_connect(con_id, |cur_connection| {
-                let payload = hex::decode(format!("{}{}", "021400000000000000000100000000000000", to_hex_string(&command_message.get_payload_no_len()))).unwrap();
+                debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.get_payload().slice(4..).as_ref())));
 
-                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, Bytes::from(payload));
+
+                let mut un_batch = UnBatch::new(command_message.get_payload());
+                let _ = un_batch.read_u32_le().unwrap();
+
+                let weapon_index = un_batch.read_i32_le().unwrap();
+
+                let mut batch = Batch::new();
+                batch.write_u8(0x02);
+                batch.write_u8(0x14);
+                batch.write_u64_le(0);
+                batch.write_u64_le(1);
+                batch.write_i32_le(weapon_index);
+
+                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch.get_bytes());
                 entity_state_message.serialization(&mut writer);
 
                 Ok(cur_connection.clone())
