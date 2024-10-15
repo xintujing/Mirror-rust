@@ -324,8 +324,8 @@ impl Batch {
     }
 
     #[allow(dead_code)]
-    pub fn get_bytes(&self) -> &BytesMut {
-        &self.bytes
+    pub fn get_bytes(&self) -> Bytes {
+        self.bytes.clone().freeze()
     }
 
     // 获取总长度

@@ -1,3 +1,5 @@
+use crate::network_identity::NetworkIdentity;
+
 #[derive(Debug, Clone)]
 pub struct Connect {
     pub connect_id: u64,
@@ -5,9 +7,9 @@ pub struct Connect {
     pub is_authenticated: bool,
     pub authentication_data: Vec<u8>,
     pub address: &'static str,
-    pub identity: u32,
-    pub owned: Vec<u32>,
-    pub observers: Vec<i32>,
+    pub identity: NetworkIdentity,
+    pub owned_identity: Vec<NetworkIdentity>,
+    pub observers: Vec<NetworkIdentity>,
     pub last_message_time: f64,
     pub last_ping_time: f64,
     pub rtt: f64,
@@ -22,8 +24,8 @@ impl Connect {
             is_authenticated: false,
             authentication_data: Vec::new(),
             address: "",
-            identity: 0,
-            owned: Vec::new(),
+            identity: NetworkIdentity::new(),
+            owned_identity: Vec::new(),
             observers: Vec::new(),
             last_message_time: 0.0,
             last_ping_time: 0.0,

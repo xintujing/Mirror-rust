@@ -14,7 +14,18 @@ pub struct SyncVar {
     pub dirty_bit: u32,
 }
 
-#[derive(Debug)]
+impl SyncVar {
+    pub fn new() -> Self {
+        SyncVar {
+            r#type: "",
+            data: Vec::new(),
+            is_dirty: false,
+            dirty_bit: 0,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct NetworkIdentity {
     pub net_id: u32,
     pub scene_id: u64,
@@ -24,6 +35,23 @@ pub struct NetworkIdentity {
     pub observers: Vec<i32>,
     pub is_destroy: bool,
     pub visibility: Visibility,
-    pub objects: DashMap<String, Vec<u8>>,
+    pub sync_objs: DashMap<String, Vec<u8>>,
     pub sync_vars: DashMap<String, SyncVar>,
+}
+
+impl NetworkIdentity {
+    pub fn new() -> Self {
+        NetworkIdentity {
+            net_id: 0,
+            scene_id: 0,
+            asset_id: 0,
+            owned_type: OwnedType::Client,
+            owned: 0,
+            observers: Vec::new(),
+            is_destroy: false,
+            visibility: Visibility::Default,
+            sync_objs: DashMap::new(),
+            sync_vars: DashMap::new(),
+        }
+    }
 }
