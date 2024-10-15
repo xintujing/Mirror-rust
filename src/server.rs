@@ -331,13 +331,14 @@ impl MirrorServer {
 
     // 处理 ReadyMessage 消息
     #[allow(dead_code)]
-    pub fn handel_ready_message(&self, con_id: u64, reader: &mut UnBatch, channel: Kcp2KChannel) {
-        let _ = reader;
+    pub fn handel_ready_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
         // 设置连接为准备状态
-        let _ = self.handel_connect(con_id, |connection| {
+        if let Err(e) = self.handel_connect(con_id, |connection| {
             connection.is_ready = true;
             Ok(connection.clone())
-        });
+        }) {
+            error!(format!("handel_ready_message: {:?}", e));
+        }
     }
 
     // 处理 AddPlayerMessage 消息
