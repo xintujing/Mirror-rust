@@ -241,7 +241,8 @@ impl MirrorServer {
         let mut batch = Batch::new();
         batch.write_f64_le(get_s_e_t());
         TimeSnapshotMessage {}.serialization(&mut batch);
-        self.send(con_id, &batch, Kcp2KChannel::Reliable);
+        println!("handel_time_snapshot_message: {}", get_s_e_t());
+        self.send(con_id, &batch, channel);
     }
 
     // 处理 NetworkPingMessage 消息
@@ -374,7 +375,6 @@ impl MirrorServer {
             cur_spawn_message.is_owner = false;
             cur_spawn_message.is_local_player = false;
             cur_spawn_message.serialization(&mut other_batch);
-            ObjectSpawnFinishedMessage {}.serialization(&mut other_batch);
 
             Ok(cur_connect.clone())
         }) {
@@ -388,10 +388,11 @@ impl MirrorServer {
                 let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
                 other_spawn_message.serialization(&mut cur_batch);
                 // 发送给其它玩家
+                ObjectSpawnFinishedMessage {}.serialization(&mut other_batch);
                 self.send(connect.connect_id, &other_batch, Kcp2KChannel::Reliable);
             }
-            ObjectSpawnFinishedMessage {}.serialization(&mut cur_batch);
             // 发送给当前玩家
+            ObjectSpawnFinishedMessage {}.serialization(&mut cur_batch);
             self.send(cur_connect.connect_id, &cur_batch, Kcp2KChannel::Reliable);
         }
     }
@@ -425,17 +426,7 @@ impl MirrorServer {
                         // 遍历所有 rpc
                         for rpc in &method_data.rpcs {
                             debug!(format!("method_data: {} {} {} {}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,rpc.get_fn_stable_hash_code()));
-                            // let mut un_batch = UnBatch::new(command_message.get_payload());
-                            // let len = un_batch.read_u32_le().unwrap();
-                            // println!("len: {}", len);
-                            // match SyncData::deserialization(&mut un_batch) {
-                            //     Ok(sync_data) => {
-                            //         println!("sync_data: {:?}", sync_data);
-                            //     }
-                            //     Err(e) => {
-                            //         println!("error: {:?}", e);
-                            //     }
-                            // }
+
                             let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc.get_fn_stable_hash_code(), command_message.get_payload().slice(4..));
                             rpc_message.serialization(&mut batch);
                         }

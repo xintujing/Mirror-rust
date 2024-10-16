@@ -9,7 +9,7 @@ pub struct Connect {
     pub address: &'static str,
     pub identity: NetworkIdentity,
     pub owned_identity: Vec<NetworkIdentity>,
-    pub observers: Vec<NetworkIdentity>,
+    pub observers: Vec<u64>,
     pub last_message_time: f64,
     pub last_ping_time: f64,
     pub rtt: f64,
