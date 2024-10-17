@@ -306,8 +306,6 @@ impl SpawnMessage {
     pub fn get_payload(&self) -> Bytes {
         self.payload.clone()
     }
-
-    pub fn create_spawn_message_payload() {}
 }
 impl DataReader<SpawnMessage> for SpawnMessage {
     fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {

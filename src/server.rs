@@ -15,17 +15,22 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::Vector3;
 use std::process::exit;
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc};
 use tklog::{debug, error};
 
 type MapBridge = String;
+pub enum HandleConnectResult {
+    Ok,                 // 处理成功但不需要返回值
+    Value(Connect),     // 处理成功并返回值
+    Err(&'static str),  // 处理失败
+}
 
 pub struct MirrorServer {
     pub kcp_serv: Option<Kcp2K>,
     pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
     pub uid_con_map: DashMap<MapBridge, Connect>,
     pub cid_user_map: DashMap<u64, MapBridge>,
-    pub backend_data: BackendData,
+    pub backend_data: Arc<BackendData>,
 }
 
 impl MirrorServer {
@@ -39,7 +44,7 @@ impl MirrorServer {
                     kcp_serv_rx: Some(s_rx),
                     uid_con_map: Default::default(),
                     cid_user_map: Default::default(),
-                    backend_data: import(),
+                    backend_data: Arc::new(import()),
                 }
             }
             Err(err) => {
@@ -127,7 +132,7 @@ impl MirrorServer {
         // 更新连接时间
         let _ = self.handel_connect(con_id, |connect| {
             connect.last_message_time = remote_time_stamp;
-            Ok(connect.clone())
+            HandleConnectResult::Ok
         });
 
         while let Ok(mut batch) = batch.read_next() {
@@ -186,12 +191,17 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn on_disconnected(&self, con_id: u64) {
         debug!(format!("OnDisconnected {}", con_id));
-        self.cid_user_map.remove(&con_id);
-        let _ = self.handel_connect(con_id, |connect| {
+        // 更改连接状态
+        if let HandleConnectResult::Value(cur_connect) = self.handel_connect(con_id, |connect| {
             connect.is_ready = false;
             connect.is_authenticated = false;
-            Ok(connect.clone())
-        });
+            HandleConnectResult::Value(connect.clone())
+        }) {
+            // 删除连接
+            if let Some((_, v)) = self.cid_user_map.remove(&cur_connect.connect_id) {
+                self.uid_con_map.remove(&v);
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -202,18 +212,23 @@ impl MirrorServer {
         self.send(con_id, &writer, Kcp2KChannel::Reliable);
     }
 
+
     #[allow(dead_code)]
-    pub fn handel_connect<F>(&self, con_id: u64, func: F) -> Result<Connect, String>
+    pub fn handel_connect<F>(&self, con_id: u64, func: F) -> HandleConnectResult
     where
-        F: FnOnce(&mut Connect) -> Result<Connect, String>,
+        F: FnOnce(&mut Connect) -> HandleConnectResult,
     {
         let user_name = match self.cid_user_map.get(&con_id) {
-            None => { return Err("can't find in cid_user_map".to_string()) }
-            Some(user) => user.clone()
+            None => {
+                return HandleConnectResult::Err("can't find user in cid_user_map")
+            }
+            Some(user_name) => user_name.to_string()
         };
 
-        match self.uid_con_map.get_mut(&user_name) {
-            None => { Err("can't find in uid_con_map".to_string()) }
+        match self.uid_con_map.get_mut(user_name.as_str()) {
+            None => {
+                HandleConnectResult::Err("can't find connect in uid_con_map")
+            }
             Some(mut connect) => func(connect.value_mut())
         }
     }
@@ -273,7 +288,7 @@ impl MirrorServer {
 
             // 发送 writer 数据
             self.send(cur_connect.connect_id, &writer, Kcp2KChannel::Reliable);
-            Ok(cur_connect.clone())
+            HandleConnectResult::Ok
         });
     }
 
@@ -297,22 +312,20 @@ impl MirrorServer {
         // 认证成功
         self.cid_user_map.insert(con_id, username.clone());
 
-        if let Err(_) = self.handel_connect(con_id, |cur_connect| {
+        if let HandleConnectResult::Err(_) = self.handel_connect(con_id, |cur_connect| {
             cur_connect.connect_id = con_id;
             cur_connect.is_authenticated = true;
-
             /// TODO: 断线重连
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
-
-            Ok(cur_connect.clone())
+            HandleConnectResult::Err("can't find connect in uid_con_map")
         }) {
             // 切换场景
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
-            let mut connect = Connect::new();
-            connect.identity.net_id = generate_id();
+            let mut connect = Connect::new(Arc::clone(&self.backend_data));
             connect.connect_id = con_id;
             connect.is_authenticated = true;
+            connect.identity.asset_id = 3541431626;
 
             self.uid_con_map.insert(username.clone(), connect);
         }
@@ -327,7 +340,7 @@ impl MirrorServer {
         let _ = self.handel_connect(con_id, |cur_connect| {
             let _ = cur_connect;
             let _ = network_pong_message;
-            Ok(cur_connect.clone())
+            HandleConnectResult::Ok
             // debug!("network_pong_message: {:?}", network_pong_message);
         });
     }
@@ -336,9 +349,9 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn handel_ready_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
         // 设置连接为准备状态
-        if let Err(e) = self.handel_connect(con_id, |connection| {
+        if let HandleConnectResult::Err(e) = self.handel_connect(con_id, |connection| {
             connection.is_ready = true;
-            Ok(connection.clone())
+            HandleConnectResult::Err("can't find connect in uid_con_map")
         }) {
             error!(format!("handel_ready_message: {:?}", e));
         }
@@ -348,6 +361,17 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn handel_add_player_message(&self, con_id: u64, reader: &mut UnBatch, channel: Kcp2KChannel) {
         let _ = reader;
+
+        if let HandleConnectResult::Value(cur_connect) = self.handel_connect(con_id, |cur_connect| {
+            if cur_connect.identity.net_id == 0 {
+                // If the object has not been spawned, then do a full spawn and update observers
+                cur_connect.identity.net_id = generate_id();
+                cur_connect.identity.create_spawn_message_payload()
+            } else {
+                // otherwise just replace his data
+            }
+            HandleConnectResult::Value(cur_connect.clone())
+        }) {}
 
         let set = get_s_e_t();
 
@@ -359,7 +383,7 @@ impl MirrorServer {
 
         let scale = Vector3::new(1.0, 1.0, 1.0);
 
-        if let Ok(cur_connect) = self.handel_connect(con_id, |cur_connect| {
+        if let HandleConnectResult::Value(cur_connect) = self.handel_connect(con_id, |cur_connect| {
             let scale = Vector3::new(1.0, 1.0, 1.0);
 
             // 添加 ObjectSpawnStartedMessage 数据
@@ -378,7 +402,7 @@ impl MirrorServer {
             cur_spawn_message.is_local_player = false;
             cur_spawn_message.serialization(&mut other_batch);
 
-            Ok(cur_connect.clone())
+            HandleConnectResult::Value(cur_connect.clone())
         }) {
             //  通知当前玩家生成已经连接的玩家
             for connect in self.uid_con_map.iter() {
@@ -456,7 +480,7 @@ impl MirrorServer {
             let mut writer = Batch::new();
             writer.write_f64_le(get_s_e_t());
 
-            if let Ok(_) = self.handel_connect(con_id, |cur_connect| {
+            if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connect| {
                 debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.get_payload().slice(4..).as_ref())));
 
                 // 名字 颜色
@@ -498,7 +522,7 @@ impl MirrorServer {
                 let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch.get_bytes());
                 cur_spawn_message.serialization(&mut writer);
 
-                Ok(cur_connect.clone())
+                HandleConnectResult::Ok
             }) {
                 for connect in self.uid_con_map.iter() {
                     self.send(connect.connect_id, &writer, Kcp2KChannel::Reliable);
@@ -508,9 +532,8 @@ impl MirrorServer {
             let mut writer = Batch::new();
             writer.write_f64_le(get_s_e_t());
 
-            if let Ok(_) = self.handel_connect(con_id, |cur_connection| {
+            if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connection| {
                 debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.get_payload().slice(4..).as_ref())));
-
 
                 let mut un_batch = UnBatch::new(command_message.get_payload());
                 let _ = un_batch.read_u32_le().unwrap();
@@ -527,7 +550,7 @@ impl MirrorServer {
                 let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch.get_bytes());
                 entity_state_message.serialization(&mut writer);
 
-                Ok(cur_connection.clone())
+                HandleConnectResult::Ok
             }) {
                 for connection in self.uid_con_map.iter() {
                     self.send(connection.connect_id, &writer, Kcp2KChannel::Reliable);
