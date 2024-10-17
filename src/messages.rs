@@ -303,9 +303,11 @@ impl SpawnMessage {
         }
     }
     #[allow(dead_code)]
-    pub fn get_payload_no_len(&self) -> Vec<u8> {
-        self.payload[4..].to_vec()
+    pub fn get_payload(&self) -> Bytes {
+        self.payload.clone()
     }
+
+    pub fn create_spawn_message_payload() {}
 }
 impl DataReader<SpawnMessage> for SpawnMessage {
     fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {

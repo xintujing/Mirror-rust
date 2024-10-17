@@ -169,7 +169,7 @@ impl MirrorServer {
                 continue;
             }
             // NetworkAuthMessage
-            if msg_type_hash == 4296 {
+            if msg_type_hash == 38882 {
                 self.handel_network_auth_message(con_id, &mut batch, channel);
                 continue;
             }
@@ -241,7 +241,7 @@ impl MirrorServer {
         let mut batch = Batch::new();
         batch.write_f64_le(get_s_e_t());
         TimeSnapshotMessage {}.serialization(&mut batch);
-        println!("handel_time_snapshot_message: {}", get_s_e_t());
+        // println!("handel_time_snapshot_message: {}", get_s_e_t());
         self.send(con_id, &batch, channel);
     }
 
@@ -279,18 +279,20 @@ impl MirrorServer {
 
     #[allow(dead_code)]
     pub fn handel_network_auth_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
-        let username = un_batch.read_string_le().unwrap();
-        let password = un_batch.read_string_le().unwrap();
+        let username = un_batch.read(8).unwrap();
+        // let password = un_batch.read_string_le().unwrap();
+        let username = String::from_utf8(Vec::from(username)).unwrap();
 
-        println!("username: {}, password: {}", username, password);
+        // println!("username: {}, password: {}", username, password);
+        println!("username: {}", username);
 
         let mut batch = Batch::new();
         batch.write_f64_le(get_s_e_t());
         batch.compress_var_u64_le(5);
-        batch.write_u16_le(26160);
+        batch.write_u16_le(56082);
         batch.write_u8(100);
         batch.write_u16_le(0);
-        self.send(con_id, &batch, Kcp2KChannel::Reliable);
+        self.send(con_id, &batch, channel);
 
         // 认证成功
         self.cid_user_map.insert(con_id, username.clone());

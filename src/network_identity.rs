@@ -32,7 +32,6 @@ pub struct NetworkIdentity {
     pub asset_id: u32,
     pub owned_type: OwnedType,
     pub owned: u32,
-    pub observers: Vec<i32>,
     pub is_destroy: bool,
     pub visibility: Visibility,
     pub sync_objs: DashMap<String, Vec<u8>>,
@@ -47,11 +46,12 @@ impl NetworkIdentity {
             asset_id: 0,
             owned_type: OwnedType::Client,
             owned: 0,
-            observers: Vec::new(),
             is_destroy: false,
             visibility: Visibility::Default,
             sync_objs: DashMap::new(),
             sync_vars: DashMap::new(),
         }
     }
+
+    pub fn serialize_server() {}
 }

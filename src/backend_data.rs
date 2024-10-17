@@ -49,12 +49,13 @@ pub struct SyncVarData {
     pub name: String,
     pub r#type: String,
     pub dirty_bit: u32,
+    pub initial_value: Vec<u8>,
 }
 
 #[derive(Debug, Default)]
 pub struct BackendData {
     pub version: u16,
-    pub dirty_bits: DashMap<String, u32>,
+    pub components: DashMap<String, DashMap<u8, String>>,
     pub sync_var_datas: Vec<SyncVarData>,
     pub methods: Vec<MethodData>,
     pub assets: DashMap<u32, String>,
@@ -79,12 +80,21 @@ fn read_string<T: Read>(reader: &mut T) -> String {
     String::from_utf8_lossy(&buffer).to_string()
 }
 
-fn read_dirty_bits<T: Read>(reader: &mut T, data: &mut BackendData) {
+fn read_components<T: Read>(reader: &mut T, data: &mut BackendData) {
     let length = reader.read_u16::<LittleEndian>().unwrap();
     for _ in 0..length {
+        //  key
         let key = read_string(reader);
-        let value = reader.read_u32::<LittleEndian>().unwrap();
-        data.dirty_bits.insert(key, value);
+        // value
+        let len = reader.read_u16::<LittleEndian>().unwrap();
+        let mut value = DashMap::new();
+        for _ in 0..len {
+            let k = reader.read_u8().unwrap();
+            let v = read_string(reader);
+            value.insert(k, v);
+        }
+        // insert
+        data.components.insert(key, value);
     }
 }
 
@@ -95,11 +105,18 @@ fn read_sync_vars<T: Read>(reader: &mut T, data: &mut BackendData) {
         let name = read_string(reader);
         let r#type = read_string(reader);
         let dirty_bit = reader.read_u32::<LittleEndian>().unwrap();
+        let len = reader.read_u16::<LittleEndian>().unwrap();
+        let mut initial_value = Vec::new();
+        for _ in 0..len {
+            initial_value.push(reader.read_u8().unwrap());
+        }
+        println!("initial_value:{:?}", initial_value);
         data.sync_var_datas.push(SyncVarData {
             sub_class,
             name,
             r#type,
             dirty_bit,
+            initial_value,
         });
     }
 }
@@ -186,7 +203,7 @@ pub fn import() -> BackendData {
 
     let mut data = BackendData {
         version,
-        dirty_bits: DashMap::new(),
+        components: DashMap::new(),
         sync_var_datas: Vec::new(),
         methods: Vec::new(),
         assets: DashMap::new(),
@@ -196,11 +213,16 @@ pub fn import() -> BackendData {
     while binary_reader.position() < binary_reader.get_ref().len() as u64 {
         let r#type = binary_reader.read_u16::<LittleEndian>().unwrap();
         match r#type {
-            1 => read_dirty_bits(&mut binary_reader, &mut data),
-            2 => read_sync_vars(&mut binary_reader, &mut data),
+            // 1 => read_components(&mut binary_reader, &mut data),
+            2 => {
+                println!("st read_sync_vars");
+                read_sync_vars(&mut binary_reader, &mut data);
+                println!("ed read_sync_vars");
+            }
             3 => read_methods(&mut binary_reader, &mut data),
-            4 => read_assets(&mut binary_reader, &mut data),
-            5 => read_scenes(&mut binary_reader, &mut data),
+            4 => read_components(&mut binary_reader, &mut data),
+            5 => read_assets(&mut binary_reader, &mut data),
+            6 => read_scenes(&mut binary_reader, &mut data),
             _ => (),
         }
     }

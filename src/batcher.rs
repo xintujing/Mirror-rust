@@ -60,8 +60,10 @@ impl UnBatch {
 
     // 读取指定长度的数据
     #[allow(dead_code)]
-    pub fn read(&mut self, buffer: &mut [u8]) -> io::Result<()> {
-        self.bytes.read_exact(buffer)
+    pub fn read(&mut self, len: usize) -> io::Result<Bytes> {
+        let mut buffer = vec![0; len];
+        self.bytes.read_exact(&mut buffer)?;
+        Ok(Bytes::from(buffer))
     }
 
     #[allow(dead_code)]
