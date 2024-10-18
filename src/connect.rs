@@ -2,7 +2,7 @@ use crate::backend_data::BackendData;
 use crate::network_identity::NetworkIdentity;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Connect {
     pub connect_id: u64,
     pub is_ready: bool,
@@ -20,14 +20,14 @@ pub struct Connect {
 }
 
 impl Connect {
-    pub fn new(backend_data: Arc<BackendData>) -> Self {
+    pub fn new(backend_data: Arc<BackendData>, scene_id: u64, asset_id: u32) -> Self {
         Connect {
             connect_id: 0,
             is_ready: false,
             is_authenticated: false,
             authentication_data: Vec::new(),
             address: "",
-            identity: NetworkIdentity::new(Arc::clone(&backend_data)),
+            identity: NetworkIdentity::new(Arc::clone(&backend_data), scene_id, asset_id),
             owned_identity: Vec::new(),
             ob_connects_id: Vec::new(),
             last_message_time: 0.0,

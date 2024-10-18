@@ -1,6 +1,5 @@
 use crate::connect::Connect;
 
-#[derive(Debug, Clone)]
 pub struct Room {
     pub id: [u8; 3],
     pub r#type: u8,

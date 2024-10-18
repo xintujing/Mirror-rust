@@ -56,9 +56,11 @@ pub struct SyncVarData {
 pub struct BackendData {
     pub version: u16,
     pub components: DashMap<String, DashMap<u8, String>>,
-    pub sync_var_datas: Vec<SyncVarData>,
+    pub sync_vars: Vec<SyncVarData>,
     pub methods: Vec<MethodData>,
+    // id - path
     pub assets: DashMap<u32, String>,
+    // id - path
     pub scenes: DashMap<u64, String>,
 }
 
@@ -111,7 +113,7 @@ fn read_sync_vars<T: Read>(reader: &mut T, data: &mut BackendData) {
             initial_value.push(reader.read_u8().unwrap());
         }
         println!("initial_value:{:?}", initial_value);
-        data.sync_var_datas.push(SyncVarData {
+        data.sync_vars.push(SyncVarData {
             sub_class,
             name,
             r#type,
@@ -204,7 +206,7 @@ pub fn import() -> BackendData {
     let mut data = BackendData {
         version,
         components: DashMap::new(),
-        sync_var_datas: Vec::new(),
+        sync_vars: Vec::new(),
         methods: Vec::new(),
         assets: DashMap::new(),
         scenes: DashMap::new(),

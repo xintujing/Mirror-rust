@@ -16,7 +16,7 @@ impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
         Ok(TimeSnapshotMessage {})
     }
 }
-impl DataWriter<TimeSnapshotMessage> for TimeSnapshotMessage {
+impl DataWriter for TimeSnapshotMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 57097
@@ -36,7 +36,7 @@ impl DataReader<ReadyMessage> for ReadyMessage {
         Ok(ReadyMessage {})
     }
 }
-impl DataWriter<ReadyMessage> for ReadyMessage {
+impl DataWriter for ReadyMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43708
@@ -56,7 +56,7 @@ impl DataReader<NotReadyMessage> for NotReadyMessage {
         Ok(NotReadyMessage {})
     }
 }
-impl DataWriter<NotReadyMessage> for NotReadyMessage {
+impl DataWriter for NotReadyMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43378
@@ -76,7 +76,7 @@ impl DataReader<AddPlayerMessage> for AddPlayerMessage {
         Ok(AddPlayerMessage {})
     }
 }
-impl DataWriter<AddPlayerMessage> for AddPlayerMessage {
+impl DataWriter for AddPlayerMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 49414
@@ -138,7 +138,7 @@ impl DataReader<SceneMessage> for SceneMessage {
         })
     }
 }
-impl DataWriter<SceneMessage> for SceneMessage {
+impl DataWriter for SceneMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         let str_bytes = self.scene_name.as_bytes();
         let total_len = 6 + str_bytes.len() as u64;
@@ -194,7 +194,7 @@ impl DataReader<CommandMessage> for CommandMessage {
         })
     }
 }
-impl DataWriter<CommandMessage> for CommandMessage {
+impl DataWriter for CommandMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
         let total_len = 13 + self.payload.len() as u64;
@@ -248,7 +248,7 @@ impl DataReader<RpcMessage> for RpcMessage {
         })
     }
 }
-impl DataWriter<RpcMessage> for RpcMessage {
+impl DataWriter for RpcMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
         let total_len = 13 + self.payload.len() as u64;
@@ -337,7 +337,7 @@ impl DataReader<SpawnMessage> for SpawnMessage {
     }
 }
 
-impl DataWriter<SpawnMessage> for SpawnMessage {
+impl DataWriter for SpawnMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 1 + 8 + 12 * 4 + self.payload.len()
         let total_len = 64 + self.payload.len() as u64;
@@ -395,7 +395,7 @@ impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
         Ok(ObjectSpawnStartedMessage {})
     }
 }
-impl DataWriter<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
+impl DataWriter for ObjectSpawnStartedMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 12504
@@ -415,7 +415,7 @@ impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
         Ok(ObjectSpawnFinishedMessage {})
     }
 }
-impl DataWriter<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
+impl DataWriter for ObjectSpawnFinishedMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43444
@@ -441,7 +441,7 @@ impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
         Ok(ObjectDestroyMessage { net_id })
     }
 }
-impl DataWriter<ObjectDestroyMessage> for ObjectDestroyMessage {
+impl DataWriter for ObjectDestroyMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(6);
         // 12504
@@ -488,7 +488,7 @@ impl DataReader<EntityStateMessage> for EntityStateMessage {
         Ok(EntityStateMessage { net_id, payload })
     }
 }
-impl DataWriter<EntityStateMessage> for EntityStateMessage {
+impl DataWriter for EntityStateMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         // 2 + 4 + 4 + self.payload.len()
         let total_len = 10 + self.payload.len() as u64;
@@ -527,7 +527,7 @@ impl DataReader<NetworkPingMessage> for NetworkPingMessage {
         })
     }
 }
-impl DataWriter<NetworkPingMessage> for NetworkPingMessage {
+impl DataWriter for NetworkPingMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(18);
         // 17487
@@ -571,7 +571,7 @@ impl DataReader<NetworkPongMessage> for NetworkPongMessage {
         })
     }
 }
-impl DataWriter<NetworkPongMessage> for NetworkPongMessage {
+impl DataWriter for NetworkPongMessage {
     fn serialization(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(26);
         // 27095

@@ -1,24 +1,9 @@
 use byteorder::ReadBytesExt;
 use bytes::{BufMut, Bytes, BytesMut};
-use std::cmp::PartialEq;
+use nalgebra::{Quaternion, Vector3};
 use std::fmt::Debug;
 use std::io;
 use std::io::{Cursor, Read};
-
-#[derive(PartialEq, Copy, Clone)]
-pub enum Endian {
-    Big,
-    Little,
-}
-
-impl Debug for Endian {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Endian::Big => write!(f, "Big"),
-            Endian::Little => write!(f, "Little"),
-        }
-    }
-}
 
 #[derive(Clone)]
 pub struct UnBatch {
@@ -299,6 +284,48 @@ impl UnBatch {
         self.bytes.read_exact(&mut buffer)?;
         Ok(String::from_utf8_lossy(&buffer).to_string())
     }
+
+    // 大端序 读取一个 Vector3 类型的数据
+    #[allow(dead_code)]
+    pub fn read_vector3_f32_be(&mut self) -> io::Result<Vector3<f32>>
+    {
+        let x = self.read_f32_be()?;
+        let y = self.read_f32_be()?;
+        let z = self.read_f32_be()?;
+        Ok(Vector3::new(x, y, z))
+    }
+
+    // 小端序 读取一个 Vector3 类型的数据
+    #[allow(dead_code)]
+    pub fn read_vector3_f32_le(&mut self) -> io::Result<Vector3<f32>>
+    {
+        let x = self.read_f32_le()?;
+        let y = self.read_f32_le()?;
+        let z = self.read_f32_le()?;
+        Ok(Vector3::new(x, y, z))
+    }
+
+    // 大端序 读取一个 Quaternion 类型的数据
+    #[allow(dead_code)]
+    pub fn read_quaternion_f32_be(&mut self) -> io::Result<Quaternion<f32>>
+    {
+        let i = self.read_f32_be()?;
+        let j = self.read_f32_be()?;
+        let k = self.read_f32_be()?;
+        let w = self.read_f32_be()?;
+        Ok(Quaternion::new(i, j, k, w))
+    }
+
+    // 小端序 读取一个 Quaternion 类型的数据
+    #[allow(dead_code)]
+    pub fn read_quaternion_f32_le(&mut self) -> io::Result<Quaternion<f32>>
+    {
+        let i = self.read_f32_le()?;
+        let j = self.read_f32_le()?;
+        let k = self.read_f32_le()?;
+        let w = self.read_f32_le()?;
+        Ok(Quaternion::new(i, j, k, w))
+    }
 }
 
 impl Debug for UnBatch {
@@ -340,6 +367,18 @@ impl Batch {
     #[allow(dead_code)]
     pub fn write(&mut self, buffer: &[u8]) {
         self.bytes.put(buffer);
+    }
+
+    // 写入一个 UnBatch 类型的数据
+    #[allow(dead_code)]
+    pub fn write_unbatch(&mut self, unbatch: &UnBatch) {
+        self.write(&unbatch.bytes.get_ref());
+    }
+
+    // 写入一个 Batch 类型的数据
+    #[allow(dead_code)]
+    pub fn write_batch(&mut self, batch: &Batch) {
+        self.write(&batch.bytes);
     }
 
     // 写入一个 bool 类型的数据
@@ -564,6 +603,40 @@ impl Batch {
         self.write_u16_le(length);
         self.write(value.as_bytes());
     }
+
+    // 大端序 写入一个 Vector3 类型的数据
+    #[allow(dead_code)]
+    pub fn write_vector3_f32_be(&mut self, value: Vector3<f32>) {
+        self.write_f32_be(value.x);
+        self.write_f32_be(value.y);
+        self.write_f32_be(value.z);
+    }
+
+    // 小端序 写入一个 Vector3 类型的数据
+    #[allow(dead_code)]
+    pub fn write_vector3_f32_le(&mut self, value: Vector3<f32>) {
+        self.write_f32_le(value.x);
+        self.write_f32_le(value.y);
+        self.write_f32_le(value.z);
+    }
+
+    // 大端序 写入一个 Quaternion 类型的数据
+    #[allow(dead_code)]
+    pub fn write_quaternion_f32_be(&mut self, value: Quaternion<f32>) {
+        self.write_f32_be(value.i);
+        self.write_f32_be(value.j);
+        self.write_f32_be(value.k);
+        self.write_f32_be(value.w);
+    }
+
+    // 小端序 写入一个 Quaternion 类型的数据
+    #[allow(dead_code)]
+    pub fn write_quaternion_f32_le(&mut self, value: Quaternion<f32>) {
+        self.write_f32_le(value.i);
+        self.write_f32_le(value.j);
+        self.write_f32_le(value.k);
+        self.write_f32_le(value.w);
+    }
 }
 
 impl Debug for Batch {
@@ -580,6 +653,7 @@ pub trait DataReader<T> {
     fn deserialization(batch: &mut UnBatch) -> io::Result<T>;
 }
 
-pub trait DataWriter<T> {
+
+pub trait DataWriter {
     fn serialization(&mut self, batch: &mut Batch);
 }

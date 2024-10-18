@@ -11,10 +11,10 @@ mod stable_hash;
 mod sync_data;
 mod tools;
 mod transports;
-mod network_behaviours;
 mod room;
 mod connect;
 mod network_identity;
+mod components;
 
 fn main() {
     let m_server = MirrorServer::new("0.0.0.0:7777".to_string());

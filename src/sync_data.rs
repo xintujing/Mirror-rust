@@ -1,5 +1,4 @@
-use crate::batcher::{DataReader, UnBatch};
-use bytes::Bytes;
+use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use nalgebra::{Quaternion, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -8,15 +7,15 @@ use std::io;
 #[derive(Clone, Copy)]
 pub struct SyncData {
     // 改变的数据
-    changed: u8,
+    pub changed_data_bytes: u8,
     // 位置
-    position: Vector3<f32>,
+    pub position: Vector3<f32>,
     // 四元数
-    quaternion: Quaternion<f32>,
+    pub quat_rotation: Quaternion<f32>,
     // 欧拉角
-    vec_rotation: Vector3<f32>,
+    pub vec_rotation: Vector3<f32>,
     // 缩放
-    scale: Vector3<f32>,
+    pub scale: Vector3<f32>,
 }
 
 impl SyncData {
@@ -26,18 +25,18 @@ impl SyncData {
     const QUATERNION_MAX_RANGE: f32 = 1.0;
 
     #[allow(dead_code)]
-    pub fn new(changed: u8, pos: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(changed_data_bytes: u8, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self {
-            changed,
-            position: pos,
-            quaternion,
-            vec_rotation: Vector3::new(0.0, 0.0, 0.0),
+            changed_data_bytes,
+            position,
+            quat_rotation,
+            vec_rotation: Self::quaternion_to_euler_angles(quat_rotation),
             scale,
         }
     }
 
     pub fn get_changes(&self) -> Vec<Changed> {
-        Changed::changes_from_u8(self.changed)
+        Changed::changes_from_u8(self.changed_data_bytes)
     }
 
     /// 安全地规范化四元数，即使输入包含无效值（如 NaN）
@@ -63,18 +62,18 @@ impl SyncData {
     }
 
     /// 解压缩四元数
-    pub fn decompress_quaternion(data: u32) -> Quaternion<f32> {
+    pub fn decompress_quaternion(v: u32) -> Quaternion<f32> {
         // 获取 cScaled（位 0..10）
-        let c_scaled = (data & SyncData::TEN_BITS_MAX) as u16;
+        let c_scaled = (v & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 bScaled（位 10..20）
-        let b_scaled = ((data >> 10) & SyncData::TEN_BITS_MAX) as u16;
+        let b_scaled = ((v >> 10) & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 aScaled（位 20..30）
-        let a_scaled = ((data >> 20) & SyncData::TEN_BITS_MAX) as u16;
+        let a_scaled = ((v >> 20) & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 largestIndex（位 30..32）
-        let largest_index = (data >> 30) as usize;
+        let largest_index = (v >> 30) as usize;
 
         // 缩放回浮点数
         let a = SyncData::scale_u16_to_float(
@@ -120,15 +119,78 @@ impl SyncData {
         SyncData::quaternion_normalize_safe(quaternion)
     }
 
-    #[allow(dead_code)]
-    fn serialization() -> Bytes {
-        unimplemented!()
+    /// 压缩四元数
+    pub fn compress_quaternion(q: Quaternion<f32>) -> u32 {
+        // 获取四元数的分量
+        let (w, x, y, z) = (q.w, q.i, q.j, q.k);
+
+        // 计算省略的分量
+        let largest_index = if w.abs() > x.abs() {
+            if w.abs() > y.abs() {
+                if w.abs() > z.abs() {
+                    0
+                } else {
+                    3
+                }
+            } else if y.abs() > z.abs() {
+                1
+            } else {
+                3
+            }
+        } else if x.abs() > y.abs() {
+            if x.abs() > z.abs() {
+                1
+            } else {
+                3
+            }
+        } else if y.abs() > z.abs() {
+            2
+        } else {
+            3
+        };
+
+        // 根据 largestIndex 重建四元数
+        let (a, b, c) = match largest_index {
+            0 => (w, x, y),
+            1 => (x, w, y),
+            2 => (x, y, w),
+            _ => (x, y, z),
+        };
+
+        // 缩放到 u16 范围
+        let a_scaled = ((a - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
+        let b_scaled = ((b - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
+        let c_scaled = ((c - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
+
+        // 重建 u32 值
+        (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | c_scaled as u32
+    }
+
+    pub fn quaternion_to_euler_angles(q: Quaternion<f32>) -> Vector3<f32> {
+        let (x, y, z, w) = (q.i, q.j, q.k, q.w);
+
+        let sinr_cosp = 2.0 * (w * x + y * z);
+        let cosr_cosp = 1.0 - 2.0 * (x * x + y * y);
+        let roll = sinr_cosp.atan2(cosr_cosp);
+
+        let sinp = 2.0 * (w * y - z * x);
+        let pitch = if sinp.abs() >= 1.0 {
+            std::f32::consts::FRAC_PI_2.copysign(sinp)
+        } else {
+            sinp.asin()
+        };
+
+        let siny_cosp = 2.0 * (w * z + x * y);
+        let cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
+        let yaw = siny_cosp.atan2(cosy_cosp);
+
+        Vector3::new(roll, pitch, yaw)
     }
 }
 
 impl Debug for SyncData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "SyncData {{ changed: {}, changes: {:?}, position: {:?}, quaternion: {:?}, vec_rotation: {:?}, scale: {:?} }}", self.changed, self.get_changes(), self.position, self.quaternion, self.vec_rotation, self.scale)
+        write!(f, "SyncData {{ changed: {}, changes: {:?}, position: {:?}, quaternion: {:?}, vec_rotation: {:?}, scale: {:?} }}", self.changed_data_bytes, self.get_changes(), self.position, self.quat_rotation, self.vec_rotation, self.scale)
     }
 }
 
@@ -179,12 +241,55 @@ impl DataReader<SyncData> for SyncData {
         }
 
         Ok(Self {
-            changed,
+            changed_data_bytes: changed,
             position,
-            quaternion,
+            quat_rotation: quaternion,
             vec_rotation,
             scale,
         })
+    }
+}
+
+impl DataWriter for SyncData {
+    fn serialization(&mut self, batch: &mut Batch) {
+        batch.write_u8(self.changed_data_bytes);
+
+        // 位置
+        if (self.changed_data_bytes & Changed::PosX.to_u8()) > 0 {
+            batch.write_f32_le(self.position.x);
+        }
+
+        if (self.changed_data_bytes & Changed::PosY.to_u8()) > 0 {
+            batch.write_f32_le(self.position.y);
+        }
+
+        if (self.changed_data_bytes & Changed::PosZ.to_u8()) > 0 {
+            batch.write_f32_le(self.position.z);
+        }
+
+        // rotation
+        if (self.changed_data_bytes & Changed::CompressRot.to_u8()) > 0 {
+            batch.write_u32_le(SyncData::compress_quaternion(self.quat_rotation));
+        } else {
+            if ((self.changed_data_bytes & Changed::RotX.to_u8()) > 0) {
+                batch.write_f32_le(self.vec_rotation.x);
+            }
+
+            if ((self.changed_data_bytes & Changed::RotY.to_u8()) > 0) {
+                batch.write_f32_le(self.vec_rotation.y);
+            }
+
+            if ((self.changed_data_bytes & Changed::RotZ.to_u8()) > 0) {
+                batch.write_f32_le(self.vec_rotation.z);
+            }
+        }
+
+        // 缩放
+        if ((self.changed_data_bytes & Changed::Scale.to_u8()) == Changed::Scale.to_u8()) {
+            batch.write_f32_le(self.scale.x);
+            batch.write_f32_le(self.scale.y);
+            batch.write_f32_le(self.scale.z);
+        }
     }
 }
 
