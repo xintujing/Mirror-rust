@@ -11,13 +11,13 @@ impl TimeSnapshotMessage {
     pub const FULL_NAME: &'static str = "Mirror.TimeSnapshotMessage";
 }
 impl DataReader<TimeSnapshotMessage> for TimeSnapshotMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<TimeSnapshotMessage> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<TimeSnapshotMessage> {
         let _ = reader;
         Ok(TimeSnapshotMessage {})
     }
 }
 impl DataWriter for TimeSnapshotMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 57097
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -31,13 +31,13 @@ impl ReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.ReadyMessage";
 }
 impl DataReader<ReadyMessage> for ReadyMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let _ = reader;
         Ok(ReadyMessage {})
     }
 }
 impl DataWriter for ReadyMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43708
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -51,13 +51,13 @@ impl NotReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.NotReadyMessage";
 }
 impl DataReader<NotReadyMessage> for NotReadyMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let _ = reader;
         Ok(NotReadyMessage {})
     }
 }
 impl DataWriter for NotReadyMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43378
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -71,13 +71,13 @@ impl AddPlayerMessage {
     pub const FULL_NAME: &'static str = "Mirror.AddPlayerMessage";
 }
 impl DataReader<AddPlayerMessage> for AddPlayerMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let _ = reader;
         Ok(AddPlayerMessage {})
     }
 }
 impl DataWriter for AddPlayerMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 49414
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -127,7 +127,7 @@ impl SceneMessage {
     }
 }
 impl DataReader<SceneMessage> for SceneMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let scene_name = reader.read_string_le()?;
         let operation = SceneOperation::from(reader.read_u8()?);
         let custom_handling = reader.read_bool()?;
@@ -139,7 +139,7 @@ impl DataReader<SceneMessage> for SceneMessage {
     }
 }
 impl DataWriter for SceneMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         let str_bytes = self.scene_name.as_bytes();
         let total_len = 6 + str_bytes.len() as u64;
         writer.compress_var_u64_le(total_len);
@@ -181,7 +181,7 @@ impl CommandMessage {
     }
 }
 impl DataReader<CommandMessage> for CommandMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<CommandMessage> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<CommandMessage> {
         let net_id = reader.read_u32_le()?;
         let component_index = reader.read_u8()?;
         let function_hash = reader.read_u16_le()?;
@@ -195,7 +195,7 @@ impl DataReader<CommandMessage> for CommandMessage {
     }
 }
 impl DataWriter for CommandMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
         let total_len = 13 + self.payload.len() as u64;
         writer.compress_var_u64_le(total_len);
@@ -235,7 +235,7 @@ impl RpcMessage {
     }
 }
 impl DataReader<RpcMessage> for RpcMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let net_id = reader.read_u32_le()?;
         let component_index = reader.read_u8()?;
         let function_hash = reader.read_u16_le()?;
@@ -249,7 +249,7 @@ impl DataReader<RpcMessage> for RpcMessage {
     }
 }
 impl DataWriter for RpcMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 2 + 4 + self.payload.len()
         let total_len = 13 + self.payload.len() as u64;
         writer.compress_var_u64_le(total_len);
@@ -308,7 +308,7 @@ impl SpawnMessage {
     }
 }
 impl DataReader<SpawnMessage> for SpawnMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let net_id = reader.read_u32_le()?;
         let is_local_player = reader.read_bool()?;
         let is_owner = reader.read_bool()?;
@@ -338,7 +338,7 @@ impl DataReader<SpawnMessage> for SpawnMessage {
 }
 
 impl DataWriter for SpawnMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         // 2 + 4 + 1 + 1 + 8 + 12 * 4 + self.payload.len()
         let total_len = 64 + self.payload.len() as u64;
         writer.compress_var_u64_le(total_len);
@@ -390,13 +390,13 @@ impl ObjectSpawnStartedMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnStartedMessage";
 }
 impl DataReader<ObjectSpawnStartedMessage> for ObjectSpawnStartedMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let _ = reader;
         Ok(ObjectSpawnStartedMessage {})
     }
 }
 impl DataWriter for ObjectSpawnStartedMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 12504
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -410,13 +410,13 @@ impl ObjectSpawnFinishedMessage {
     pub const FULL_NAME: &'static str = "Mirror.ObjectSpawnFinishedMessage";
 }
 impl DataReader<ObjectSpawnFinishedMessage> for ObjectSpawnFinishedMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let _ = reader;
         Ok(ObjectSpawnFinishedMessage {})
     }
 }
 impl DataWriter for ObjectSpawnFinishedMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(2);
         // 43444
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -436,13 +436,13 @@ impl ObjectDestroyMessage {
     }
 }
 impl DataReader<ObjectDestroyMessage> for ObjectDestroyMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let net_id = reader.read_u32_le()?;
         Ok(ObjectDestroyMessage { net_id })
     }
 }
 impl DataWriter for ObjectDestroyMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(6);
         // 12504
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -482,14 +482,14 @@ impl EntityStateMessage {
     }
 }
 impl DataReader<EntityStateMessage> for EntityStateMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let net_id = reader.read_u32_le()?;
         let payload = reader.read_remaining()?;
         Ok(EntityStateMessage { net_id, payload })
     }
 }
 impl DataWriter for EntityStateMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         // 2 + 4 + 4 + self.payload.len()
         let total_len = 10 + self.payload.len() as u64;
         writer.compress_var_u64_le(total_len);
@@ -518,7 +518,7 @@ impl NetworkPingMessage {
     }
 }
 impl DataReader<NetworkPingMessage> for NetworkPingMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let local_time = reader.read_f64_le()?;
         let predicted_time_adjusted = reader.read_f64_le()?;
         Ok(NetworkPingMessage {
@@ -528,7 +528,7 @@ impl DataReader<NetworkPingMessage> for NetworkPingMessage {
     }
 }
 impl DataWriter for NetworkPingMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(18);
         // 17487
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());
@@ -560,7 +560,7 @@ impl NetworkPongMessage {
     }
 }
 impl DataReader<NetworkPongMessage> for NetworkPongMessage {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
         let local_time = reader.read_f64_le()?;
         let prediction_error_unadjusted = reader.read_f64_le()?;
         let prediction_error_adjusted = reader.read_f64_le()?;
@@ -572,7 +572,7 @@ impl DataReader<NetworkPongMessage> for NetworkPongMessage {
     }
 }
 impl DataWriter for NetworkPongMessage {
-    fn serialization(&mut self, writer: &mut Batch) {
+    fn serialize(&mut self, writer: &mut Batch) {
         writer.compress_var_u64_le(26);
         // 27095
         writer.write_u16_le(Self::FULL_NAME.get_stable_hash_code16());

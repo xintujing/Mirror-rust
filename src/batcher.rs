@@ -650,10 +650,10 @@ impl Debug for Batch {
 }
 
 pub trait DataReader<T> {
-    fn deserialization(batch: &mut UnBatch) -> io::Result<T>;
+    fn deserialize(batch: &mut UnBatch) -> io::Result<T>;
 }
 
 
 pub trait DataWriter {
-    fn serialization(&mut self, batch: &mut Batch);
+    fn serialize(&mut self, batch: &mut Batch);
 }

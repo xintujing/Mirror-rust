@@ -195,7 +195,7 @@ impl Debug for SyncData {
 }
 
 impl DataReader<SyncData> for SyncData {
-    fn deserialization(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
 
         // 改变的数据
         let changed = reader.read_u8()?;
@@ -251,7 +251,7 @@ impl DataReader<SyncData> for SyncData {
 }
 
 impl DataWriter for SyncData {
-    fn serialization(&mut self, batch: &mut Batch) {
+    fn serialize(&mut self, batch: &mut Batch) {
         batch.write_u8(self.changed_data_bytes);
 
         // 位置
@@ -271,21 +271,21 @@ impl DataWriter for SyncData {
         if (self.changed_data_bytes & Changed::CompressRot.to_u8()) > 0 {
             batch.write_u32_le(SyncData::compress_quaternion(self.quat_rotation));
         } else {
-            if ((self.changed_data_bytes & Changed::RotX.to_u8()) > 0) {
+            if (self.changed_data_bytes & Changed::RotX.to_u8()) > 0 {
                 batch.write_f32_le(self.vec_rotation.x);
             }
 
-            if ((self.changed_data_bytes & Changed::RotY.to_u8()) > 0) {
+            if (self.changed_data_bytes & Changed::RotY.to_u8()) > 0 {
                 batch.write_f32_le(self.vec_rotation.y);
             }
 
-            if ((self.changed_data_bytes & Changed::RotZ.to_u8()) > 0) {
+            if (self.changed_data_bytes & Changed::RotZ.to_u8()) > 0 {
                 batch.write_f32_le(self.vec_rotation.z);
             }
         }
 
         // 缩放
-        if ((self.changed_data_bytes & Changed::Scale.to_u8()) == Changed::Scale.to_u8()) {
+        if (self.changed_data_bytes & Changed::Scale.to_u8()) == Changed::Scale.to_u8() {
             batch.write_f32_le(self.scale.x);
             batch.write_f32_le(self.scale.y);
             batch.write_f32_le(self.scale.z);
