@@ -1,5 +1,6 @@
 use crate::backend_data::{import, BackendData, MethodType};
 use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::components::network_common::NetworkCommon;
 use crate::connect::Connect;
 use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::network_identity::NetworkIdentity;
@@ -12,7 +13,7 @@ use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
-use nalgebra::Vector3;
+use nalgebra::{Quaternion, Vector3};
 use std::process::exit;
 use std::sync::{mpsc, Arc};
 use tklog::{debug, error};
@@ -383,6 +384,9 @@ impl MirrorServer {
         let mut other_batch = Batch::new();
         other_batch.write_f64_le(set);
 
+        // rotation
+        let rotation = Quaternion::new(0.0, 0.0, 0.0, 1.0);
+
         // scale
         let scale = Vector3::new(1.0, 1.0, 1.0);
 
@@ -390,11 +394,13 @@ impl MirrorServer {
 
             // If the object has not been spawned, then do a full spawn and update observers
             cur_connect.identity.net_id = generate_id();
-            let cur_payload = cur_connect.identity.create_spawn_message_payload();
+
             // 添加 ObjectSpawnStartedMessage 数据
             ObjectSpawnStartedMessage {}.serialize(&mut cur_batch);
+            // payload
+            let cur_payload = cur_connect.identity.create_spawn_message_payload();
             // 生成自己
-            let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, cur_connect.identity.scene_id, cur_connect.identity.asset_id, Default::default(), Default::default(), scale, cur_payload);
+            let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, cur_connect.identity.scene_id, cur_connect.identity.asset_id, Default::default(), rotation, scale, cur_payload);
             cur_spawn_message.serialize(&mut cur_batch);
 
             //  *****************************************************************************
@@ -414,11 +420,10 @@ impl MirrorServer {
                     continue;
                 }
                 // 添加已经连接的玩家信息
-                // let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
                 let other_payload = connect.value().identity.create_spawn_message_payload();
                 println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
                 println!("other_payload2: {:?}", to_hex_string(other_payload.as_ref()));
-                let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
+                let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
                 other_spawn_message.serialize(&mut cur_batch);
                 // 发送给其它玩家
                 ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
@@ -428,46 +433,6 @@ impl MirrorServer {
             ObjectSpawnFinishedMessage {}.serialize(&mut cur_batch);
             self.send(c_id, &cur_batch, Kcp2KChannel::Reliable);
         }
-
-        // let scale = Vector3::new(1.0, 1.0, 1.0);
-        //
-        // if let HandleConnectResult::CID(c_id) = self.handel_connect(con_id, |cur_connect| {
-        //
-        //     // 添加 ObjectSpawnStartedMessage 数据
-        //     ObjectSpawnStartedMessage {}.serialization(&mut cur_batch);
-        //     // 生成自己
-        //     let cur_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-        //     let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::copy_from_slice(cur_payload.as_slice()));
-        //     cur_spawn_message.serialization(&mut cur_batch);
-        //
-        //     //  *****************************************************************************
-        //
-        //     // 添加 ObjectSpawnStartedMessage 数据
-        //     ObjectSpawnStartedMessage {}.serialization(&mut other_batch);
-        //     // 添加通知其他客户端有新玩家加入消息
-        //     cur_spawn_message.is_owner = false;
-        //     cur_spawn_message.is_local_player = false;
-        //     cur_spawn_message.serialization(&mut other_batch);
-        //
-        //     HandleConnectResult::CID(cur_connect.connect_id)
-        // }) {
-        //     //  通知当前玩家生成已经连接的玩家
-        //     for connect in self.uid_con_map.iter() {
-        //         if connect.connect_id == c_id {
-        //             continue;
-        //         }
-        //         // 添加已经连接的玩家信息
-        //         let other_payload = hex::decode("031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F").unwrap();
-        //         let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), Default::default(), scale, Bytes::from(other_payload));
-        //         other_spawn_message.serialization(&mut cur_batch);
-        //         // 发送给其它玩家
-        //         ObjectSpawnFinishedMessage {}.serialization(&mut other_batch);
-        //         self.send(connect.connect_id, &other_batch, Kcp2KChannel::Reliable);
-        //     }
-        //     // 发送给当前玩家
-        //     ObjectSpawnFinishedMessage {}.serialization(&mut cur_batch);
-        //     self.send(c_id, &cur_batch, Kcp2KChannel::Reliable);
-        // }
     }
 
     // 处理 CommandMessage 消息
@@ -538,10 +503,28 @@ impl MirrorServer {
 
                 let name = un_batch.read_string_le().unwrap();
 
+                let component = cur_connect.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommon>().unwrap();
+
+                let mut x = Batch::new();
+                x.write_string_le(name.as_str());
+                if let Some(mut var) = component.sync_vars.get_mut(&2) {
+                    var.data = x.get_bytes();
+                }
+
+
                 let a = un_batch.read_f32_le().unwrap();
                 let b = un_batch.read_f32_le().unwrap();
                 let c = un_batch.read_f32_le().unwrap();
                 let d = un_batch.read_f32_le().unwrap();
+
+                let mut x = Batch::new();
+                x.write_f32_le(a);
+                x.write_f32_le(b);
+                x.write_f32_le(c);
+                x.write_f32_le(d);
+                if let Some(mut var) = component.sync_vars.get_mut(&3) {
+                    var.data = x.get_bytes();
+                }
 
                 let mut batch = Batch::new();
 

@@ -1,4 +1,5 @@
 use crate::batcher::{Batch, UnBatch};
+use std::any::Any;
 use std::fmt;
 
 pub trait NetworkBehaviourTrait: fmt::Debug {
@@ -9,6 +10,7 @@ pub trait NetworkBehaviourTrait: fmt::Debug {
     // Deserialize
     fn deserialize(&self, un_batch: &mut UnBatch);
     fn get_network_behaviour(&self) -> &NetworkBehaviour;
+    fn as_any(&self) -> &dyn Any;
 }
 
 #[derive(Debug, Clone)]

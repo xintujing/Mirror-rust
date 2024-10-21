@@ -7,8 +7,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 static GLOBAL_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
 pub fn generate_id() -> u32 {
     GLOBAL_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
+    let mut next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
     if next_id > u32::MAX - 1 {
+        next_id = 1;
         return 0;
     }
     next_id

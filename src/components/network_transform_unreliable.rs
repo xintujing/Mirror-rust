@@ -2,6 +2,7 @@ use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::sync_data::SyncData;
 use nalgebra::{Quaternion, Vector3};
+use std::any::Any;
 
 #[derive(Debug, Clone)]
 pub struct NetworkTransformUnreliable {
@@ -52,5 +53,9 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         &self.network_behaviour
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

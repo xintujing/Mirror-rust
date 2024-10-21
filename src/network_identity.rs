@@ -5,7 +5,7 @@ use crate::components::network_common::NetworkCommon;
 use crate::components::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
 use crate::network_identity;
-use crate::tools::utils::to_hex_string;
+use crate::tools::utils::{get_timestamp, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
 use nalgebra::Vector3;
@@ -76,21 +76,21 @@ impl NetworkIdentity {
                                 // 遍历 sync_vars
                                 let mut sync_var1 = SyncVar::new();
                                 let mut batch = Batch::new();
-                                batch.write_i32_le(0);
-                                sync_var1.data = batch.get_bytes().to_vec();
+                                batch.write_i32_le(1);
+                                sync_var1.data = batch.get_bytes();
                                 sync_vars.insert(1, sync_var1);
                                 let mut sync_var2 = SyncVar::new();
                                 let mut batch = Batch::new();
-                                batch.write_string_le("");
-                                sync_var2.data = batch.get_bytes().to_vec();
+                                batch.write_string_le(&format!("Player {}", get_timestamp()));
+                                sync_var2.data = batch.get_bytes();
                                 sync_vars.insert(2, sync_var2);
                                 let mut sync_var3 = SyncVar::new();
                                 let mut batch = Batch::new();
+                                batch.write_f32_le(0.0);
+                                batch.write_f32_le(0.0);
+                                batch.write_f32_le(0.0);
                                 batch.write_f32_le(1.0);
-                                batch.write_f32_le(1.0);
-                                batch.write_f32_le(1.0);
-                                batch.write_f32_le(1.0);
-                                sync_var3.data = batch.get_bytes().to_vec();
+                                sync_var3.data = batch.get_bytes();
                                 sync_vars.insert(3, sync_var3);
 
                                 // sync_vars: DashMap<String, SyncVar>
@@ -121,54 +121,11 @@ impl NetworkIdentity {
         // 遍历 components
         for component in self.components.iter() {
             mask |= 1 << component.get_network_behaviour().component_index;
-            let component_batch = component.serialize();
-            let component_bytes = component_batch.get_bytes();
+            let component_bytes = component.serialize().get_bytes();
             let safety = (component_bytes.len() & 0xFF) as u8;
             components_batch.write_u8(safety);
             components_batch.write(&component_bytes);
         }
-
-        // if self.scene_id != 0 {
-        //     // TODO: Implement this
-        // } else if self.asset_id != 0 {
-        //     if let Some(asset) = self.backend_data.assets.get(&self.asset_id) {
-        //         // println!("asset: key:{}, value:{}", asset.key(), asset.value());
-        //         if let Some(components) = self.backend_data.components.get(asset.value()) {
-        //             // println!("component: key:{}, value:{:?}", components.key(), components.value());
-        //             for i in 0..components.value().len() as u8 {
-        //                 if let Some(component) = components.value().get(&i) {
-        //                     mask |= 1 << (*component.key() as u64);
-        //                     if component.value().contains("Mirror.NetworkTransform") {
-        //                         let mut network_transform = NetworkTransformUnreliable::new(0, true, true, false, Default::default(), Default::default(), Default::default());
-        //                         // 序列化 NetworkTransform
-        //                         let mut content_batch = network_transform.serialize();
-        //                         let safety = (content_batch.get_bytes().len() & 0xFF) as u8;
-        //                         components_batch.write_u8(safety);
-        //                         components_batch.write(&content_batch.get_bytes());
-        //                     } else if component.value() == "QuickStart.PlayerScript" {
-        //                         let mut content_batch = Batch::new();
-        //                         content_batch.write_u32_le(0);
-        //                         content_batch.write_string_le("");
-        //                         content_batch.write_f32_le(1.0);
-        //                         content_batch.write_f32_le(1.0);
-        //                         content_batch.write_f32_le(1.0);
-        //                         content_batch.write_f32_le(1.0);
-        //                         let safety = (content_batch.get_bytes().len() & 0xFF) as u8;
-        //                         components_batch.write_u8(safety);
-        //                         components_batch.write(&content_batch.get_bytes());
-        //                     } else {
-        //                         for sync_var_data in self.backend_data.sync_vars.iter() {
-        //                             // println!("sync_var_data: {} {}", sync_var_data.sub_class, component.value());
-        //                             if sync_var_data.sub_class.contains(component.value().as_str()) {
-        //                                 println!("sync_var_data: {:?}", sync_var_data);
-        //                             }
-        //                         }
-        //                     }
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
         // 写入 mask
         batch.compress_var_u64_le(mask);
         // 写入 components_batch

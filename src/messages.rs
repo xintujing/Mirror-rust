@@ -352,10 +352,10 @@ impl DataWriter for SpawnMessage {
         writer.write_f32_le(self.position.x);
         writer.write_f32_le(self.position.y);
         writer.write_f32_le(self.position.z);
-        writer.write_f32_le(self.rotation.coords.x);
-        writer.write_f32_le(self.rotation.coords.y);
-        writer.write_f32_le(self.rotation.coords.z);
-        writer.write_f32_le(self.rotation.coords.w);
+        writer.write_f32_le(self.rotation.w);
+        writer.write_f32_le(self.rotation.i);
+        writer.write_f32_le(self.rotation.j);
+        writer.write_f32_le(self.rotation.k);
         writer.write_f32_le(self.scale.x);
         writer.write_f32_le(self.scale.y);
         writer.write_f32_le(self.scale.z);

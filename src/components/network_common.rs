@@ -2,7 +2,9 @@ use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::SyncVar;
 use dashmap::DashMap;
+use std::any::Any;
 use std::fmt::Debug;
+use tklog::debug;
 
 #[derive(Debug, Clone)]
 pub struct NetworkCommon {
@@ -27,7 +29,8 @@ impl NetworkBehaviourTrait for NetworkCommon {
         let mut batch = Batch::new();
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&(i + 1)) {
-                batch.write(sync_var.data.as_slice());
+                debug!(format!("sync_var: {:?}", sync_var.data.to_vec()));
+                batch.write(sync_var.data.as_ref());
             }
         }
         batch
@@ -37,5 +40,9 @@ impl NetworkBehaviourTrait for NetworkCommon {
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         &self.network_behaviour
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

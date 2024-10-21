@@ -27,9 +27,10 @@ impl MethodType {
 pub struct FileData {
     pub r#type: String,
     pub namespace: String,
-    pub sub_class: String,
     pub name: String,
     pub full_name: String,
+    pub sub_class: String,
+
 }
 
 #[derive(Debug)]
@@ -230,4 +231,51 @@ pub fn import() -> BackendData {
     }
     // println!("VERSION:{}\n{:?}", version, data);
     data
+}
+
+// ---------------------------------------------------------
+
+#[derive(Debug)]
+pub struct SyncVar {
+    pub name: &'static str,
+    pub r#type: &'static str,
+    pub value: Vec<u8>,
+    pub dirty_bit: u32,
+    pub is_dirty: bool,
+}
+
+#[derive(Debug)]
+pub struct Components {
+    pub name: &'static str,
+    // index - sync_var
+    pub sync_vars: DashMap<String, SyncVar>,
+}
+
+#[derive(Debug)]
+pub struct Method {
+    pub sub_class: String,
+    pub name: &'static str,
+    pub requires_authority: bool,
+    pub method_type: MethodType,
+    pub parameters: DashMap<u8, String>,
+    pub sync_vars: DashMap<u8, FileData>,
+    pub rpcs: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct Identity {
+    pub scene_id: u64,
+    pub asset_id: u32,
+    pub components: DashMap<u8, Components>,
+}
+
+#[derive(Debug, Default)]
+pub struct BackendDataPro {
+    pub version: u16,
+    pub identities: Vec<Identity>,
+    pub methods: Vec<Method>,
+    // id - path
+    pub assets: DashMap<u32, String>,
+    // id - path
+    pub scenes: DashMap<u64, String>,
 }
