@@ -422,7 +422,7 @@ impl MirrorServer {
                 // 添加已经连接的玩家信息
                 let other_payload = connect.value().identity.create_spawn_message_payload();
                 println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
-                println!("other_payload2: {:?}", to_hex_string(other_payload.as_ref()));
+                println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
                 let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
                 other_spawn_message.serialize(&mut cur_batch);
                 // 发送给其它玩家

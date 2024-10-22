@@ -30,7 +30,7 @@ impl NetworkBehaviourTrait for NetworkCommon {
         let mut batch = Batch::new();
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&(i + 1)) {
-                debug!(format!("sync_var: {:?}", sync_var.data.to_vec()));
+                debug!(format!("sync_var: {} - {:?}", i,sync_var.data.to_vec()));
                 batch.write(sync_var.data.as_ref());
             }
         }
