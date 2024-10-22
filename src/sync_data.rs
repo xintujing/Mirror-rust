@@ -107,7 +107,7 @@ impl SyncData {
         };
 
         // 根据 largestIndex 重建四元数
-        let value = match largest_index {
+        let v4 = match largest_index {
             0 => Vector4::new(d, a, b, c),
             1 => Vector4::new(a, d, b, c),
             2 => Vector4::new(a, b, d, c),
@@ -115,7 +115,7 @@ impl SyncData {
         };
 
         // 创建四元数并安全地规范化
-        let quaternion = Quaternion::new(value.w, value.x, value.y, value.z); // nalgebra 的 Quaternion 顺序为 (w, x, y, z)
+        let quaternion = Quaternion::new(v4.w, v4.x, v4.y, v4.z); // nalgebra 的 Quaternion 顺序为 (w, x, y, z)
         SyncData::quaternion_normalize_safe(quaternion)
     }
 

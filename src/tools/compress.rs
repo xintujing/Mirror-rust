@@ -39,13 +39,13 @@ impl Compress for Quaternion<f32> {
 
         let d = (1.0 - a * a - b * b - c * c).sqrt();
 
-        let q = match largest_index {
-            0 => Quaternion::new(d, a, b, c),
-            1 => Quaternion::new(a, d, b, c),
-            2 => Quaternion::new(a, b, d, c),
-            _ => Quaternion::new(a, b, c, d),
+        let v4 = match largest_index {
+            0 => Vector4::new(d, a, b, c),
+            1 => Vector4::new(a, d, b, c),
+            2 => Vector4::new(a, b, d, c),
+            _ => Vector4::new(a, b, c, d),
         };
-        quaternion_normalize_safe(q)
+        quaternion_normalize_safe(Quaternion::from(v4))
     }
 }
 
@@ -106,9 +106,9 @@ mod test {
     #[test]
     fn test_compress() {
         let q = Quaternion::new(0.0, 0.0, 0.0, 1.0);
-        println!("Original: {:?}", q);
+        println!("Original:     {:?}", q);
         let compressed = q.compress();
-        println!("Compressed: {}", compressed);
+        println!("Compressed:   {}", compressed);
         let decompressed = q.decompress(compressed);
         println!("Decompressed: {:?}", decompressed);
     }
