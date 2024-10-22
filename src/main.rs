@@ -7,7 +7,6 @@ mod logger;
 mod messages;
 mod batcher;
 mod server;
-mod stable_hash;
 mod sync_data;
 mod tools;
 mod transports;

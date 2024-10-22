@@ -1,4 +1,4 @@
-use crate::stable_hash::StableHash;
+use crate::tools::stable_hash::StableHash;
 use byteorder::{LittleEndian, ReadBytesExt};
 use dashmap::DashMap;
 use std::cmp::PartialEq;

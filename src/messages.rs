@@ -1,5 +1,5 @@
 use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
-use crate::stable_hash::StableHash;
+use crate::tools::stable_hash::StableHash;
 use bytes::Bytes;
 use nalgebra::{Quaternion, Vector3};
 use std::io;
@@ -314,14 +314,9 @@ impl DataReader<SpawnMessage> for SpawnMessage {
         let is_owner = reader.read_bool()?;
         let scene_id = reader.read_u64_le()?;
         let asset_id = reader.read_u32_le()?;
-        let position = Vector3::new(reader.read_f32_le()?, reader.read_f32_le()?, reader.read_f32_le()?);
-        let rotation = Quaternion::new(
-            reader.read_f32_le()?,
-            reader.read_f32_le()?,
-            reader.read_f32_le()?,
-            reader.read_f32_le()?,
-        );
-        let scale = Vector3::new(reader.read_f32_le()?, reader.read_f32_le()?, reader.read_f32_le()?);
+        let position = reader.read_vector3_f32_le()?;
+        let rotation = reader.read_quaternion_f32_le()?;
+        let scale = reader.read_vector3_f32_le()?;
         let payload = reader.read_remaining()?;
         Ok(SpawnMessage {
             net_id,
@@ -349,16 +344,9 @@ impl DataWriter for SpawnMessage {
         writer.write_bool(self.is_owner);
         writer.write_u64_le(self.scene_id);
         writer.write_u32_le(self.asset_id);
-        writer.write_f32_le(self.position.x);
-        writer.write_f32_le(self.position.y);
-        writer.write_f32_le(self.position.z);
-        writer.write_f32_le(self.rotation.w);
-        writer.write_f32_le(self.rotation.i);
-        writer.write_f32_le(self.rotation.j);
-        writer.write_f32_le(self.rotation.k);
-        writer.write_f32_le(self.scale.x);
-        writer.write_f32_le(self.scale.y);
-        writer.write_f32_le(self.scale.z);
+        writer.write_vector3_f32_le(self.position);
+        writer.write_quaternion_f32_le(self.rotation);
+        writer.write_vector3_f32_le(self.scale);
         writer.write_u32_le(1 + self.payload.len() as u32);
         writer.write(self.payload.as_ref());
     }

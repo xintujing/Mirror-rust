@@ -285,10 +285,22 @@ impl UnBatch {
         Ok(String::from_utf8_lossy(&buffer).to_string())
     }
 
+    // 读取 string le 字节
+    #[allow(dead_code)]
+    pub fn read_string_le_bytes(&mut self) -> io::Result<Bytes> {
+        let length = self.read_u16_le()? as usize - 1;
+        let mut buffer = vec![0; length];
+        self.bytes.read_exact(&mut buffer)?;
+
+        let mut bytes = BytesMut::with_capacity(length + 2);
+        bytes.put_u16_le(length as u16);
+        bytes.put(buffer.as_slice());
+        Ok(bytes.freeze())
+    }
+
     // 大端序 读取一个 Vector3 类型的数据
     #[allow(dead_code)]
-    pub fn read_vector3_f32_be(&mut self) -> io::Result<Vector3<f32>>
-    {
+    pub fn read_vector3_f32_be(&mut self) -> io::Result<Vector3<f32>> {
         let x = self.read_f32_be()?;
         let y = self.read_f32_be()?;
         let z = self.read_f32_be()?;
@@ -297,8 +309,7 @@ impl UnBatch {
 
     // 小端序 读取一个 Vector3 类型的数据
     #[allow(dead_code)]
-    pub fn read_vector3_f32_le(&mut self) -> io::Result<Vector3<f32>>
-    {
+    pub fn read_vector3_f32_le(&mut self) -> io::Result<Vector3<f32>> {
         let x = self.read_f32_le()?;
         let y = self.read_f32_le()?;
         let z = self.read_f32_le()?;
@@ -307,24 +318,22 @@ impl UnBatch {
 
     // 大端序 读取一个 Quaternion 类型的数据
     #[allow(dead_code)]
-    pub fn read_quaternion_f32_be(&mut self) -> io::Result<Quaternion<f32>>
-    {
+    pub fn read_quaternion_f32_be(&mut self) -> io::Result<Quaternion<f32>> {
         let i = self.read_f32_be()?;
         let j = self.read_f32_be()?;
         let k = self.read_f32_be()?;
         let w = self.read_f32_be()?;
-        Ok(Quaternion::new(i, j, k, w))
+        Ok(Quaternion::new(w, i, j, k))
     }
 
     // 小端序 读取一个 Quaternion 类型的数据
     #[allow(dead_code)]
-    pub fn read_quaternion_f32_le(&mut self) -> io::Result<Quaternion<f32>>
-    {
+    pub fn read_quaternion_f32_le(&mut self) -> io::Result<Quaternion<f32>> {
         let i = self.read_f32_le()?;
         let j = self.read_f32_le()?;
         let k = self.read_f32_le()?;
         let w = self.read_f32_le()?;
-        Ok(Quaternion::new(i, j, k, w))
+        Ok(Quaternion::new(w, i, j, k))
     }
 }
 

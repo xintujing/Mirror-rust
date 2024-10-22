@@ -4,7 +4,7 @@ use crate::components::network_common::NetworkCommon;
 use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::network_connection::NetworkConnection;
 use crate::network_identity::NetworkIdentity;
-use crate::stable_hash::StableHash;
+use crate::tools::stable_hash::StableHash;
 use crate::tools::utils::{generate_id, get_s_e_t, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
@@ -385,7 +385,7 @@ impl MirrorServer {
         other_batch.write_f64_le(set);
 
         // rotation
-        let rotation = Quaternion::new(0.0, 0.0, 0.0, 1.0);
+        let rotation = Quaternion::new(1.0, 0.0, 0.0, 0.0);
 
         // scale
         let scale = Vector3::new(1.0, 1.0, 1.0);
