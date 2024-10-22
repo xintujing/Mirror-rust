@@ -1,8 +1,8 @@
 use crate::backend_data::{import, BackendData, MethodType};
 use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::components::network_common::NetworkCommon;
-use crate::connect::Connect;
 use crate::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
+use crate::network_connection::NetworkConnection;
 use crate::network_identity::NetworkIdentity;
 use crate::stable_hash::StableHash;
 use crate::tools::utils::{generate_id, get_s_e_t, to_hex_string};
@@ -23,14 +23,14 @@ type MapBridge = String;
 pub enum HandleConnectResult {
     Ok,                  // 处理成功但不需要返回值
     CID(u64),            // 处理成功并返回连接 ID
-    CnId(u64, u32), // 处理成功并返回连接 ID 和网络 ID
+    CnId(u64, u32),      // 处理成功并返回连接 ID 和网络 ID
     Err(&'static str),   // 处理失败
 }
 
 pub struct MirrorServer {
     pub kcp_serv: Option<Kcp2K>,
     pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
-    pub uid_con_map: DashMap<MapBridge, Connect>,
+    pub uid_con_map: DashMap<MapBridge, NetworkConnection>,
     pub cid_user_map: DashMap<u64, MapBridge>,
     pub backend_data: Arc<BackendData>,
 }
@@ -81,9 +81,9 @@ impl MirrorServer {
         }
     }
 
-    pub fn send(&self, connection_id: u64, writer: &Batch, channel: Kcp2KChannel) {
+    pub fn send(&self, connection_id: u64, batch: &Batch, channel: Kcp2KChannel) {
         if let Some(serv) = self.kcp_serv.as_ref() {
-            if let Err(_) = serv.s_send(connection_id, writer.get_bytes(), channel) {
+            if let Err(_) = serv.s_send(connection_id, batch.get_bytes(), channel) {
                 // TODO: 发送失败
             }
         }
@@ -197,7 +197,7 @@ impl MirrorServer {
         if let HandleConnectResult::CnId(c_id, net_id) = self.handel_connect(con_id, |connect| {
             connect.is_ready = false;
             connect.is_authenticated = false;
-            HandleConnectResult::CnId(connect.connect_id, connect.identity.net_id)
+            HandleConnectResult::CnId(connect.connection_id, connect.identity.net_id)
         }) {
             // 删除连接
             if let Some((_, v)) = self.cid_user_map.remove(&c_id) {
@@ -208,7 +208,7 @@ impl MirrorServer {
             writer.write_f64_le(get_s_e_t());
             ObjectDestroyMessage::new(net_id).serialize(&mut writer);
             for connect in self.uid_con_map.iter() {
-                self.send(connect.connect_id, &writer, Kcp2KChannel::Reliable);
+                self.send(connect.connection_id, &writer, Kcp2KChannel::Reliable);
             }
         }
     }
@@ -225,7 +225,7 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn handel_connect<F>(&self, con_id: u64, func: F) -> HandleConnectResult
     where
-        F: FnOnce(&mut Connect) -> HandleConnectResult,
+        F: FnOnce(&mut NetworkConnection) -> HandleConnectResult,
     {
         let user_name = match self.cid_user_map.get(&con_id) {
             None => {
@@ -247,7 +247,7 @@ impl MirrorServer {
         F: FnOnce(&mut NetworkIdentity) -> Result<NetworkIdentity, String>,
     {
         for mut connect in self.uid_con_map.iter_mut() {
-            for identity in connect.owned_identity.iter_mut() {
+            for identity in connect.owned_identities.iter_mut() {
                 if identity.net_id == net_id {
                     return func(identity);
                 }
@@ -296,7 +296,7 @@ impl MirrorServer {
             NetworkPongMessage::new(local_time, unadjusted_error, adjusted_error).serialize(&mut writer);
 
             // 发送 writer 数据
-            self.send(cur_connect.connect_id, &writer, Kcp2KChannel::Reliable);
+            self.send(cur_connect.connection_id, &writer, Kcp2KChannel::Reliable);
             HandleConnectResult::Ok
         });
     }
@@ -321,7 +321,7 @@ impl MirrorServer {
         self.cid_user_map.insert(con_id, username.clone());
 
         match self.handel_connect(con_id, |cur_connect| {
-            cur_connect.connect_id = con_id;
+            cur_connect.connection_id = con_id;
             cur_connect.is_authenticated = true;
             /// TODO: 断线重连
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
@@ -332,8 +332,8 @@ impl MirrorServer {
                 // 切换场景
                 self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
-                let mut connect = Connect::new(Arc::clone(&self.backend_data), 0, 3541431626);
-                connect.connect_id = con_id;
+                let mut connect = NetworkConnection::new(Arc::clone(&self.backend_data), 0, 3541431626);
+                connect.connection_id = con_id;
                 connect.is_authenticated = true;
 
                 self.uid_con_map.insert(username.clone(), connect);
@@ -412,11 +412,11 @@ impl MirrorServer {
             cur_spawn_message.is_local_player = false;
             cur_spawn_message.serialize(&mut other_batch);
 
-            HandleConnectResult::CID(cur_connect.connect_id)
+            HandleConnectResult::CID(cur_connect.connection_id)
         }) {
             //  通知当前玩家生成已经连接的玩家
             for connect in self.uid_con_map.iter() {
-                if connect.connect_id == c_id {
+                if connect.connection_id == c_id {
                     continue;
                 }
                 // 添加已经连接的玩家信息
@@ -427,7 +427,7 @@ impl MirrorServer {
                 other_spawn_message.serialize(&mut cur_batch);
                 // 发送给其它玩家
                 ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
-                self.send(connect.connect_id, &other_batch, Kcp2KChannel::Reliable);
+                self.send(connect.connection_id, &other_batch, Kcp2KChannel::Reliable);
             }
             // 发送给当前玩家
             ObjectSpawnFinishedMessage {}.serialize(&mut cur_batch);
@@ -471,17 +471,8 @@ impl MirrorServer {
                     }
                     // 遍历所有连接并发送消息
                     for connect in self.uid_con_map.iter() {
-                        self.send(connect.connect_id, &batch, Kcp2KChannel::Reliable);
+                        self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
                     }
-                    // 如果 parameters 不为空
-                    // if method_data.parameters.len() > 0 {
-                    //     debug!(format!("method_data: {} {} {} {:?}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,method_data.parameters));
-                    //     let mut sync_vars_reader = UnBatch::new(command_message.get_payload_no_len());
-                    //     // 遍历所有 parameters
-                    //     for parameter in method_data.parameters.iter() {
-                    //         println!("parameter: {} {}", parameter.key(), parameter.value());
-                    //     }
-                    // }
                 }
                 MethodType::TargetRpc => {}
                 MethodType::ClientRpc => {}
@@ -555,7 +546,7 @@ impl MirrorServer {
                 HandleConnectResult::Ok
             }) {
                 for connect in self.uid_con_map.iter() {
-                    self.send(connect.connect_id, &writer, Kcp2KChannel::Reliable);
+                    self.send(connect.connection_id, &writer, Kcp2KChannel::Reliable);
                 }
             }
         } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
@@ -583,7 +574,7 @@ impl MirrorServer {
                 HandleConnectResult::Ok
             }) {
                 for connection in self.uid_con_map.iter() {
-                    self.send(connection.connect_id, &writer, Kcp2KChannel::Reliable);
+                    self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
                 }
             }
         } else {

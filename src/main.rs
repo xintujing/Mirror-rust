@@ -12,7 +12,7 @@ mod sync_data;
 mod tools;
 mod transports;
 mod room;
-mod connect;
+mod network_connection;
 mod network_identity;
 mod components;
 
