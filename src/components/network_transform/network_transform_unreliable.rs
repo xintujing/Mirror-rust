@@ -1,12 +1,14 @@
-use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
-use crate::sync_data::SyncData;
+use crate::components::network_transform::network_transform_base::NetworkTransformBase;
+use crate::components::network_transform::transform_sync_data::SyncData;
+use crate::core::batcher::{Batch, UnBatch};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 use std::cell::Cell;
+use std::fmt::Debug;
 
-#[derive(Debug, Clone)]
 pub struct NetworkTransformUnreliable {
+    pub network_transform_base: NetworkTransformBase,
     pub network_behaviour: NetworkBehaviour,
 
     pub sync_position: bool,
@@ -23,6 +25,7 @@ impl NetworkTransformUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformUnreliable";
     pub fn new(component_index: u8, sync_position: bool, sync_rotation: bool, sync_scale: bool, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         NetworkTransformUnreliable {
+            network_transform_base: NetworkTransformBase::new(),
             network_behaviour: NetworkBehaviour::new(component_index),
             sync_position,
             sync_rotation,
@@ -33,6 +36,7 @@ impl NetworkTransformUnreliable {
         }
     }
 }
+
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
 

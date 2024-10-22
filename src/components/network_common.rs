@@ -1,6 +1,6 @@
-use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::SyncVar;
+use crate::core::batcher::{Batch, UnBatch};
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;

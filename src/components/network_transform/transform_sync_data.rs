@@ -1,4 +1,4 @@
-use crate::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use nalgebra::{Quaternion, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;

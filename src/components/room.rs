@@ -1,4 +1,4 @@
-use crate::network_connection::NetworkConnection;
+use crate::core::network_connection::NetworkConnection;
 
 pub struct Room {
     pub id: [u8; 3],

@@ -1,6 +1,6 @@
-use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
-use crate::sync_data::SyncData;
+use crate::components::network_transform::transform_sync_data::SyncData;
+use crate::core::batcher::{Batch, UnBatch};
 use crate::tools::compress::{scale_to_long0, Compress, Decompress};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;

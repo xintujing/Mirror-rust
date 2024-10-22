@@ -1,9 +1,8 @@
 use crate::backend_data::BackendData;
-use crate::network_identity::NetworkIdentity;
+use crate::core::network_identity::NetworkIdentity;
 use crate::tools::utils::get_sec_timestamp_f64;
 use std::sync::Arc;
 
-#[derive(Debug)]
 pub struct NetworkConnection {
     pub connection_id: u64,
     pub is_ready: bool,

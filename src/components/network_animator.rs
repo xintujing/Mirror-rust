@@ -1,5 +1,5 @@
-use crate::batcher::{Batch, UnBatch};
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
+use crate::core::batcher::{Batch, UnBatch};
 use std::any::Any;
 
 #[derive(Debug, Clone)]

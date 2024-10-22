@@ -1,8 +1,7 @@
-use crate::batcher::{Batch, UnBatch};
+use crate::core::batcher::{Batch, UnBatch};
 use std::any::Any;
-use std::fmt;
 
-pub trait NetworkBehaviourTrait: fmt::Debug {
+pub trait NetworkBehaviourTrait {
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool);
     // Serialize

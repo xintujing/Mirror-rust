@@ -1,10 +1,10 @@
 use crate::backend_data::BackendData;
-use crate::batcher::Batch;
 use crate::components::network_behaviour::NetworkBehaviourTrait;
 use crate::components::network_common::NetworkCommon;
-use crate::components::network_transform_reliable::NetworkTransformReliable;
-use crate::components::network_transform_unreliable::NetworkTransformUnreliable;
+use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
+use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
+use crate::core::batcher::Batch;
 use crate::tools::utils::get_timestamp;
 use bytes::Bytes;
 use dashmap::DashMap;
@@ -18,7 +18,6 @@ pub enum Visibility { Default, Hidden, Shown }
 #[derive(Debug, Clone, Copy)]
 pub enum OwnedType { Client, Server }
 
-#[derive(Debug)]
 pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
