@@ -1,10 +1,9 @@
 use crate::backend_data::BackendData;
-use crate::batcher::{Batch, DataWriter};
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
+use crate::batcher::Batch;
+use crate::components::network_behaviour::NetworkBehaviourTrait;
 use crate::components::network_common::NetworkCommon;
 use crate::components::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
-use crate::network_identity;
 use crate::tools::utils::{get_timestamp, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
@@ -121,7 +120,7 @@ impl NetworkIdentity {
         // 遍历 components
         for component in self.components.iter() {
             mask |= 1 << component.get_network_behaviour().component_index;
-            let component_bytes = component.serialize().get_bytes();
+            let component_bytes = component.serialize(true).get_bytes();
             let safety = (component_bytes.len() & 0xFF) as u8;
             components_batch.write_u8(safety);
             components_batch.write(&component_bytes);

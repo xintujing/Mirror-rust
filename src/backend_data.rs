@@ -90,7 +90,7 @@ fn read_components<T: Read>(reader: &mut T, data: &mut BackendData) {
         let key = read_string(reader);
         // value
         let len = reader.read_u16::<LittleEndian>().unwrap();
-        let mut value = DashMap::new();
+        let value = DashMap::new();
         for _ in 0..len {
             let k = reader.read_u8().unwrap();
             let v = read_string(reader);
@@ -142,14 +142,14 @@ fn read_methods<T: Read>(reader: &mut T, data: &mut BackendData) {
         let requires_authority = reader.read_u8().unwrap() != 0;
         let method_type = MethodType::from_u8(reader.read_u8().unwrap()).unwrap();
         let parameters_length = reader.read_u16::<LittleEndian>().unwrap();
-        let mut parameters = DashMap::new();
+        let parameters = DashMap::new();
         for _ in 0..parameters_length {
             let key = read_string(reader);
             let value = read_string(reader);
             parameters.insert(key, value);
         }
         let mut rpcs = Vec::new();
-        let mut sync_vars = DashMap::new();
+        let sync_vars = DashMap::new();
 
         if method_type == MethodType::Command {
             let rpc_length = reader.read_u16::<LittleEndian>().unwrap();

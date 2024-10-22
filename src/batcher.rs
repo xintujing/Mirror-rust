@@ -267,6 +267,18 @@ impl UnBatch {
         Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid data"))
     }
 
+    // 读取一个压缩的 i64 类型的数据
+    #[allow(dead_code)]
+    pub fn decompress_var_i64_le(&mut self) -> io::Result<i64> {
+        let value = self.decompress_var_u64_le()?;
+        let zigzagged = value >> 1;
+        if value & 1 == 1 {
+            Ok(-(zigzagged as i64))
+        } else {
+            Ok(zigzagged as i64)
+        }
+    }
+
     // 大端序 读取一个 str 类型的数据
     #[allow(dead_code)]
     pub fn read_string_be(&mut self) -> io::Result<String> {
@@ -595,6 +607,13 @@ impl Batch {
             self.write_u8(255);
             self.write(&value.to_le_bytes());
         }
+    }
+
+    // 写入一个压缩的 i64 类型的数据
+    #[allow(dead_code)]
+    pub fn compress_var_i64_le(&mut self, value: i64) {
+        let zigzagged = ((value >> 63) ^ (value << 1)) as u64;
+        self.compress_var_u64_le(zigzagged);
     }
 
     // 大端序 写入一个 string 类型的数据

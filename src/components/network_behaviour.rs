@@ -4,11 +4,11 @@ use std::fmt;
 
 pub trait NetworkBehaviourTrait: fmt::Debug {
     // DeserializeObjectsAll
-    fn deserialize_objects_all(&self, un_batch: UnBatch);
+    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool);
     // Serialize
-    fn serialize(&self) -> Batch;
+    fn serialize(&self, initial_state: bool) -> Batch;
     // Deserialize
-    fn deserialize(&self, un_batch: &mut UnBatch);
+    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool);
     fn get_network_behaviour(&self) -> &NetworkBehaviour;
     fn as_any(&self) -> &dyn Any;
 }

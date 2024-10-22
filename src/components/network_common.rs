@@ -13,6 +13,7 @@ pub struct NetworkCommon {
 }
 
 impl NetworkCommon {
+    #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
     pub fn new(component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
         NetworkCommon {
@@ -23,9 +24,9 @@ impl NetworkCommon {
 }
 
 impl NetworkBehaviourTrait for NetworkCommon {
-    fn deserialize_objects_all(&self, un_batch: UnBatch) {}
+    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
 
-    fn serialize(&self) -> Batch {
+    fn serialize(&self, initial_state: bool) -> Batch {
         let mut batch = Batch::new();
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&(i + 1)) {
@@ -36,7 +37,7 @@ impl NetworkBehaviourTrait for NetworkCommon {
         batch
     }
 
-    fn deserialize(&self, un_batch: &mut UnBatch) {}
+    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool) {}
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         &self.network_behaviour

@@ -415,7 +415,7 @@ impl MirrorServer {
             HandleConnectResult::CID(cur_connect.connection_id)
         }) {
             //  通知当前玩家生成已经连接的玩家
-            for connect in self.uid_con_map.iter() {
+            for mut connect in self.uid_con_map.iter() {
                 if connect.connection_id == c_id {
                     continue;
                 }
