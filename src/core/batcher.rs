@@ -2,6 +2,7 @@ use crate::tools::utils::get_s_e_t;
 use byteorder::ReadBytesExt;
 use bytes::{BufMut, Bytes, BytesMut};
 use nalgebra::{Quaternion, Vector3};
+use std::any::Any;
 use std::fmt::Debug;
 use std::io;
 use std::io::{Cursor, Read};
@@ -685,11 +686,12 @@ impl Debug for Batch {
     }
 }
 
-pub trait DataReader<T> {
-    fn deserialize(batch: &mut UnBatch) -> io::Result<T>;
+pub trait DataReader: Sized + Any {
+    fn deserialize(batch: &mut UnBatch) -> io::Result<Self>;
+    fn get_hash_code() -> u16;
 }
 
 
-pub trait DataWriter {
+pub trait DataWriter: Sized + Any {
     fn serialize(&mut self, batch: &mut Batch);
 }

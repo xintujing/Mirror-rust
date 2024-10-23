@@ -194,7 +194,7 @@ impl Debug for SyncData {
     }
 }
 
-impl DataReader<SyncData> for SyncData {
+impl DataReader for SyncData {
     fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
 
         // 改变的数据
@@ -247,6 +247,10 @@ impl DataReader<SyncData> for SyncData {
             vec_rotation,
             scale,
         })
+    }
+
+    fn get_hash_code() -> u16 {
+        0x0001
     }
 }
 
