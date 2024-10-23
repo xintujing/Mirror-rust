@@ -1,5 +1,6 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::network_transform::transform_sync_data::SyncData;
+use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::batcher::{Batch, UnBatch};
 use crate::tools::compress::{scale_to_long0, Compress, Decompress};
 use nalgebra::{Quaternion, Vector3};
@@ -30,9 +31,9 @@ impl NetworkTransformReliable {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformReliable";
     #[allow(dead_code)]
-    pub fn new(component_index: u8, sync_position: bool, sync_rotation: bool, sync_scale: bool, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_position: bool, sync_rotation: bool, sync_scale: bool, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         NetworkTransformReliable {
-            network_behaviour: NetworkBehaviour::new(component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             sync_position,
             sync_rotation,
             sync_scale,

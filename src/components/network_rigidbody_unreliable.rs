@@ -1,4 +1,5 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
+use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::batcher::{Batch, UnBatch};
 use std::any::Any;
 
@@ -9,9 +10,9 @@ pub struct NetworkRigidbodyUnreliable {
 
 impl NetworkRigidbodyUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRigidbodyUnreliable";
-    pub fn new(component_index: u8) -> Self {
+    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkRigidbodyUnreliable {
-            network_behaviour: NetworkBehaviour::new(component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
         }
     }
 }

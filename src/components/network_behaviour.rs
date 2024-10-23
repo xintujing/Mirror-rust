@@ -1,3 +1,4 @@
+use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::batcher::{Batch, UnBatch};
 use std::any::Any;
 
@@ -14,6 +15,7 @@ pub trait NetworkBehaviourTrait {
 
 #[derive(Debug, Clone)]
 pub struct NetworkBehaviour {
+    pub sync_direction: u8,
     // ComponentIndex
     pub component_index: u8,
     // syncVarDirtyBits
@@ -23,8 +25,9 @@ pub struct NetworkBehaviour {
 }
 
 impl NetworkBehaviour {
-    pub fn new(component_index: u8) -> Self {
+    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkBehaviour {
+            sync_direction: network_behaviour_setting.sync_direction,
             component_index,
             sync_var_dirty_bits: 0,
             sync_object_dirty_bits: 0,

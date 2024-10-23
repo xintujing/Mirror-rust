@@ -1,5 +1,6 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::SyncVar;
+use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::batcher::{Batch, UnBatch};
 use dashmap::DashMap;
 use std::any::Any;
@@ -15,9 +16,9 @@ pub struct NetworkCommon {
 impl NetworkCommon {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
-    pub fn new(component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
+    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
         NetworkCommon {
-            network_behaviour: NetworkBehaviour::new(component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             sync_vars,
         }
     }
