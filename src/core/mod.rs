@@ -1,10 +1,10 @@
-pub mod network_connection;
 mod network_identity;
 mod messages;
+pub mod network_connection;
 pub mod batcher;
 pub mod snapshot_interpolation;
 pub mod backend_data;
 pub mod network_server;
-pub(crate) mod tools;
+pub mod tools;
 pub mod network_time;
 pub mod test_server;
