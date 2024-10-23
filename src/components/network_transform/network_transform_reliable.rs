@@ -3,7 +3,7 @@ use crate::components::network_transform::network_transform_base::NetworkTransfo
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformReliableSetting};
 use crate::core::batcher::{Batch, UnBatch};
-use crate::tools::compress::{scale_to_long0, Compress, Decompress};
+use crate::core::tools::compress::{scale_to_long0, Compress, Decompress};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 use std::cell::Cell;

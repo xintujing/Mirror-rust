@@ -5,6 +5,6 @@ pub mod batcher;
 pub mod snapshot_interpolation;
 pub mod backend_data;
 pub mod network_server;
-mod tools;
+pub(crate) mod tools;
 pub mod network_time;
 pub mod test_server;

@@ -1,7 +1,7 @@
 extern crate kcp2k_rust;
 
-mod tools;
 mod transports;
+mod tools;
 mod components;
 mod core;
 

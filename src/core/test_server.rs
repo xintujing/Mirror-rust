@@ -4,7 +4,7 @@ use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::NetworkIdentity;
-use crate::tools::stable_hash::StableHash;
+use crate::core::tools::stable_hash::StableHash;
 use crate::tools::utils::{generate_id, get_s_e_t, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
@@ -16,7 +16,6 @@ use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::{Quaternion, Vector3};
 use std::process::exit;
 use std::sync::{mpsc, Arc};
-use std::thread::sleep;
 use tklog::{debug, error};
 
 type MapBridge = String;
@@ -243,23 +242,6 @@ impl MirrorServer {
         }
     }
 
-    pub fn handel_network_identity<F>(&self, net_id: u32, func: F) -> Result<NetworkIdentity, String>
-    where
-        F: FnOnce(&mut NetworkIdentity) -> Result<NetworkIdentity, String>,
-    {
-        for mut connect in self.uid_con_map.iter_mut() {
-            for identity in connect.owned_identities.iter_mut() {
-                if identity.net_id == net_id {
-                    return func(identity);
-                }
-            }
-            if connect.identity.net_id == net_id {
-                return func(&mut connect.identity);
-            }
-        }
-        Err("can't find in uid_con_map".to_string())
-    }
-
     // 处理 TimeSnapshotMessage 消息
     #[allow(dead_code)]
     pub fn handel_time_snapshot_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
@@ -324,7 +306,6 @@ impl MirrorServer {
         match self.handel_connect(con_id, |cur_connect| {
             cur_connect.connection_id = con_id;
             cur_connect.is_authenticated = true;
-            /// TODO: 断线重连
             self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
             HandleConnectResult::Ok

@@ -1,11 +1,11 @@
 use crate::core::batcher::{DataReader, UnBatch};
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, ReadyMessage, TimeSnapshotMessage};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::tools::time_sample::TimeSample;
 use dashmap::DashMap;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
-use tklog::{debug, warn};
+use tklog::warn;
 
 pub enum RemovePlayerOptions {
     /// <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
@@ -94,7 +94,7 @@ impl NetworkServer {
         self.initialize();
         self.max_connections = max_connections;
 
-        if (!self.dont_listen) {
+        if !self.dont_listen {
             // TODO Transport.active.ServerStart()
         }
         self.active = true;
