@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum MethodType {
@@ -6,6 +7,7 @@ pub enum MethodType {
     TargetRpc = 2,
     ClientRpc = 3,
 }
+
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct KeyValue<KeyType, ValueType> {
     pub key: KeyType,
@@ -44,9 +46,9 @@ pub struct SyncVarData {
     #[serde(rename = "type")]
     pub r#type: String,
     #[serde(rename = "initialValue")]
-    pub initial_value: Vec<u8>,
+    pub value: Vec<u8>,
     #[serde(rename = "dirtyBit")]
-    pub dirty_bit: i32,
+    pub dirty_bit: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -113,9 +115,9 @@ pub struct NetworkTransformUnreliableSetting {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkBehaviourComponent {
     #[serde(rename = "componentIndex")]
-    pub component_index: u8,
+    pub index: u8,
     #[serde(rename = "componentType")]
-    pub component_type: String,
+    pub sub_class: String,
     #[serde(rename = "networkBehaviourSetting")]
     pub network_behaviour_setting: NetworkBehaviourSetting,
     #[serde(rename = "networkTransformBaseSetting")]
@@ -133,6 +135,7 @@ pub struct NetworkIdentityData {
     #[serde(rename = "sceneId")]
     pub scene_id: u64,
     #[serde(rename = "networkBehaviourComponents")]
+    /// need fix  dont need use KeyValue
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
 }
 
@@ -156,8 +159,9 @@ impl BackendData {
         // 读取 JSON 文件内容
         if let Ok(data) = std::fs::read_to_string(path) {
             // 将 JSON 文件内容反序列化为 Data 结构体
-            let data: BackendData = serde_json::from_str(&data).unwrap();
-            return data;
+            if let Ok(backend_data) = serde_json::from_str::<BackendData>(&data) {
+                return backend_data;
+            }
         }
         panic!("Failed to import BackData");
     }
@@ -196,7 +200,7 @@ impl BackendData {
         hash_codes
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data(&self, asset_id: u32) -> Option<&NetworkIdentityData> {
+    pub fn get_network_identity_data_by_asset_id(&self, asset_id: u32) -> Option<&NetworkIdentityData> {
         for network_identity_data in &self.network_identities {
             if network_identity_data.asset_id == asset_id {
                 return Some(network_identity_data);
@@ -205,15 +209,32 @@ impl BackendData {
         None
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data_network_behaviour_components(&self, asset_id: u32) -> Vec<&NetworkBehaviourComponent> {
+    pub fn get_network_identity_data_by_scene_id(&self, scene_id: u64) -> Option<&NetworkIdentityData> {
+        for network_identity_data in &self.network_identities {
+            if network_identity_data.scene_id == scene_id {
+                return Some(network_identity_data);
+            }
+        }
+        None
+    }
+    #[allow(dead_code)]
+    pub fn get_network_identity_data_network_behaviour_components_by_asset_id(&self, asset_id: u32) -> Vec<&NetworkBehaviourComponent> {
         let mut network_behaviour_components = Vec::new();
-        if let Some(network_identity_data) = self.get_network_identity_data(asset_id) {
+        if let Some(network_identity_data) = self.get_network_identity_data_by_asset_id(asset_id) {
             network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
         }
         network_behaviour_components
     }
     #[allow(dead_code)]
-    pub fn get_scene_id(&self, scene_name: &str) -> Option<u64> {
+    pub fn get_network_identity_data_network_behaviour_components_by_scene_id(&self, scene_id: u64) -> Vec<&NetworkBehaviourComponent> {
+        let mut network_behaviour_components = Vec::new();
+        if let Some(network_identity_data) = self.get_network_identity_data_by_scene_id(scene_id) {
+            network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
+        }
+        network_behaviour_components
+    }
+    #[allow(dead_code)]
+    pub fn get_scene_id_by_scene_name(&self, scene_name: &str) -> Option<u64> {
         for scene_id in &self.scene_ids {
             if scene_id.key == scene_name {
                 return Some(scene_id.value);
@@ -222,13 +243,17 @@ impl BackendData {
         None
     }
     #[allow(dead_code)]
-    pub fn get_sync_var_data(&self, full_name: &str) -> Option<&SyncVarData> {
+    pub fn get_sync_var_data_s_by_sub_class(&self, sub_class: &str) -> Vec<&SyncVarData> {
+        let mut sync_var_data_s = Vec::new();
+        let mut seen_full_names = HashSet::new();
         for sync_var_data in &self.sync_vars {
-            if sync_var_data.full_name == full_name {
-                return Some(sync_var_data);
+            if sync_var_data.sub_class == sub_class {
+                if seen_full_names.insert(sync_var_data.full_name.clone()) {
+                    sync_var_data_s.push(sync_var_data);
+                }
             }
         }
-        None
+        sync_var_data_s
     }
 }
 
@@ -240,18 +265,15 @@ mod tests {
     fn test_import_data() {
         let backend_data = BackendData::import("backend_data.json");
 
-        if let Some(method_data) = backend_data.get_method_data_by_hash_code(42311) {
-            println!("{:?}", method_data);
-            let rpc_method_datas = backend_data.get_method_data_by_method_name(method_data.rpc_list.as_ref());
-            for rpc_method_data in rpc_method_datas {
-                println!("{:?}", rpc_method_data);
-            }
-        }
         println!("{:?}", backend_data.get_rpc_hash_code_s(42311));
 
-        let vec = backend_data.get_network_identity_data_network_behaviour_components(3541431626);
+        let vec = backend_data.get_network_identity_data_network_behaviour_components_by_asset_id(3541431626);
         for v in vec {
             println!("{:?}", v);
+        }
+
+        for x in backend_data.get_sync_var_data_s_by_sub_class("QuickStart.PlayerScript") {
+            println!("{:?}", x);
         }
     }
 }

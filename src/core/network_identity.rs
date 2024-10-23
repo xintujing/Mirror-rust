@@ -1,11 +1,10 @@
 use crate::components::network_behaviour::NetworkBehaviourTrait;
-use crate::components::network_common::NetworkCommon;
+use crate::components::network_common_component::NetworkCommonComponent;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
-use crate::core::backend_data::BackendData;
+use crate::core::backend_data::{BackendData, NetworkBehaviourComponent};
 use crate::core::batcher::Batch;
-use crate::tools::utils::get_timestamp;
 use bytes::Bytes;
 use dashmap::DashMap;
 use nalgebra::Vector3;
@@ -51,54 +50,30 @@ impl NetworkIdentity {
         }
         // 如果 asset_id 不为 0
         if network_identity.asset_id != 0 {
-            for component in network_identity.backend_data.get_network_identity_data_network_behaviour_components(network_identity.asset_id) {
+            for component in network_identity.backend_data.get_network_identity_data_network_behaviour_components_by_asset_id(network_identity.asset_id) {
                 // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
-                if component.component_type.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
+                if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
                     // scale
                     let scale = Vector3::new(1.0, 1.0, 1.0);
                     // 创建 NetworkTransform
-                    let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.component_index, Default::default(), Default::default(), scale);
+                    let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
                     // 添加到 components
                     network_identity.components.push(Box::new(network_transform));
                     continue;
                 }
                 // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
-                if component.component_type.contains(NetworkTransformReliable::COMPONENT_TAG) {
+                if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
                     // scale
                     let scale = Vector3::new(1.0, 1.0, 1.0);
                     // 创建 NetworkTransform
-                    let network_transform = NetworkTransformReliable::new(component.network_behaviour_setting, component.component_index, true, true, false, Default::default(), Default::default(), scale);
+                    let network_transform = NetworkTransformReliable::new(component.network_behaviour_setting, component.index, true, true, false, Default::default(), Default::default(), scale);
                     // 添加到 components
                     network_identity.components.push(Box::new(network_transform));
                     continue;
                 }
-                // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
-                if component.component_type == "QuickStart.PlayerScript" {
-                    let sync_vars = DashMap::new();
-                    // 遍历 sync_vars
-                    let mut sync_var1 = SyncVar::new();
-                    let mut batch = Batch::new();
-                    batch.write_i32_le(1);
-                    sync_var1.data = batch.get_bytes();
-                    sync_vars.insert(1, sync_var1);
-
-                    let mut sync_var2 = SyncVar::new();
-                    let mut batch = Batch::new();
-                    batch.write_string_le(&format!("Player {}", get_timestamp()));
-                    sync_var2.data = batch.get_bytes();
-                    sync_vars.insert(2, sync_var2);
-
-                    let mut sync_var3 = SyncVar::new();
-                    let mut batch = Batch::new();
-                    batch.write_f32_le(0.0);
-                    batch.write_f32_le(0.0);
-                    batch.write_f32_le(0.0);
-                    batch.write_f32_le(1.0);
-                    sync_var3.data = batch.get_bytes();
-                    sync_vars.insert(3, sync_var3);
-
-                    // sync_vars: DashMap<String, SyncVar>
-                    let network_common = NetworkCommon::new(component.network_behaviour_setting, component.component_index, sync_vars);
+                if component.sub_class == "QuickStart.PlayerScript" {
+                    // 创建 NetworkCommonComponent
+                    let network_common = network_identity.new_network_common_component(component);
                     // 添加到 components
                     network_identity.components.push(Box::new(network_common));
                 }
@@ -107,7 +82,17 @@ impl NetworkIdentity {
         network_identity
     }
 
-    pub fn serialize_server() {}
+    pub fn new_network_common_component(&self, network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonComponent {
+        let sync_vars = DashMap::new();
+        for (index, sync_var) in self.backend_data.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
+            sync_vars.insert(index as u8, SyncVar::new(
+                sync_var.full_name.clone(),
+                Bytes::copy_from_slice(sync_var.value.as_slice()),
+                sync_var.dirty_bit,
+            ));
+        }
+        NetworkCommonComponent::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
+    }
 
     pub fn create_spawn_message_payload(&self) -> Bytes {
         // mask

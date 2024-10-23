@@ -1,5 +1,5 @@
-use crate::components::network_common::NetworkCommon;
-use crate::core::backend_data::{BackendData, MethodType};
+use crate::components::network_common_component::NetworkCommonComponent;
+use crate::core::backend_data::BackendData;
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
@@ -451,59 +451,7 @@ impl MirrorServer {
         let component_idx = command_message.component_index;
         let function_hash = command_message.function_hash;
 
-        // 创建 writer
-        let mut batch = Batch::new();
-        batch.write_f64_le(get_s_e_t());
-        for rpc_hash_code in self.backend_data.get_rpc_hash_code_s(function_hash) {
-            println!("rpc_hash_code: {}", rpc_hash_code);
-            let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, command_message.get_payload().slice(4..));
-            rpc_message.serialize(&mut batch);
-        }
-        // 遍历所有连接并发送消息
-        for connect in self.uid_con_map.iter() {
-            self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
-        }
-
-        // 找到 MethodData
-        if let Some(method_data) = self.backend_data.get_method_data_by_hash_code(function_hash) {
-            // if method_data.r#type == "0" {
-            //     // 创建 writer
-            //     let mut batch = Batch::new();
-            //     batch.write_f64_le(get_s_e_t());
-            //     for rpc_hash_code in self.backend_data.get_rpc_hash_code_s(method_data.hash_code) {
-            //         let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, command_message.get_payload().slice(4..));
-            //         rpc_message.serialize(&mut batch);
-            //     }
-            //     // 遍历所有连接并发送消息
-            //     for connect in self.uid_con_map.iter() {
-            //         self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
-            //     }
-            // }
-            // match method_data.r#type {
-            //     // Command 类型
-            //     MethodType::Command => {
-            //         // 创建 writer
-            //         let mut batch = Batch::new();
-            //         batch.write_f64_le(get_s_e_t());
-            //         // 如果有 rpc
-            //         if method_data.rpc_list.len() > 0 {
-            //             // 遍历所有 rpc
-            //             for rpc in &method_data.rpcs {
-            //                 // debug!(format!("method_data: {} {} {} {}", method_data.name,method_data.name.get_fn_stable_hash_code(),component_idx,rpc.get_fn_stable_hash_code()));
-            //
-            //                 let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc.get_fn_stable_hash_code(), command_message.get_payload().slice(4..));
-            //                 rpc_message.serialize(&mut batch);
-            //             }
-            //         }
-            //         // 遍历所有连接并发送消息
-            //         for connect in self.uid_con_map.iter() {
-            //             self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
-            //         }
-            //     }
-            //     MethodType::TargetRpc => {}
-            //     MethodType::ClientRpc => {}
-            // }
-        }
+        let rpc_hash_code_s = self.backend_data.get_rpc_hash_code_s(function_hash);
 
         if function_hash == "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code() {
             let mut writer = Batch::new();
@@ -520,14 +468,13 @@ impl MirrorServer {
 
                 let name = un_batch.read_string_le().unwrap();
 
-                let component = cur_connect.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommon>().unwrap();
+                let component = cur_connect.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
 
                 let mut x = Batch::new();
                 x.write_string_le(name.as_str());
-                if let Some(mut var) = component.sync_vars.get_mut(&2) {
+                if let Some(mut var) = component.sync_vars.get_mut(&1) {
                     var.data = x.get_bytes();
                 }
-
 
                 let a = un_batch.read_f32_le().unwrap();
                 let b = un_batch.read_f32_le().unwrap();
@@ -539,7 +486,7 @@ impl MirrorServer {
                 x.write_f32_le(b);
                 x.write_f32_le(c);
                 x.write_f32_le(d);
-                if let Some(mut var) = component.sync_vars.get_mut(&3) {
+                if let Some(mut var) = component.sync_vars.get_mut(&2) {
                     var.data = x.get_bytes();
                 }
 
@@ -603,8 +550,20 @@ impl MirrorServer {
                     self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
                 }
             }
+        } else if rpc_hash_code_s.len() > 0 {
+            // 创建 writer
+            let mut batch = Batch::new();
+            batch.write_f64_le(get_s_e_t());
+            for rpc_hash_code in rpc_hash_code_s {
+                let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, command_message.get_payload().slice(4..));
+                rpc_message.serialize(&mut batch);
+            }
+            // 遍历所有连接并发送消息
+            for connect in self.uid_con_map.iter() {
+                self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
+            }
         } else {
-            // debug!(format!("Unknown function hash: {}\n", function_hash));
+            debug!(format!("Unknown function hash: {}\n", function_hash));
         }
     }
 }
