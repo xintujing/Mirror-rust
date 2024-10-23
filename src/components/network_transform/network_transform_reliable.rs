@@ -16,6 +16,7 @@ pub struct NetworkTransformReliable {
     pub rotation_sensitivity: f32,
     pub position_precision: f32,
     pub scale_precision: f32,
+    pub compress_rotation: bool,
     // NetworkTransformReliableSetting end
 
     pub network_behaviour: NetworkBehaviour,
@@ -24,7 +25,6 @@ pub struct NetworkTransformReliable {
     pub last_deserialized_position: Cell<Vector3<i64>>,
     pub last_serialized_scale: Cell<Vector3<i64>>,
     pub last_deserialized_scale: Cell<Vector3<i64>>,
-    pub compress_rotation: bool,
 
     pub sync_data: Cell<SyncData>,
 }
@@ -40,12 +40,12 @@ impl NetworkTransformReliable {
             rotation_sensitivity: network_transform_reliable_setting.rotation_sensitivity,
             position_precision: network_transform_reliable_setting.position_precision,
             scale_precision: network_transform_reliable_setting.scale_precision,
+            compress_rotation: true,
             network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             last_serialized_position: Default::default(),
             last_deserialized_position: Default::default(),
             last_serialized_scale: Default::default(),
             last_deserialized_scale: Default::default(),
-            compress_rotation: true,
             sync_data: Cell::new(SyncData::new(0, position, quaternion, scale)),
         }
     }

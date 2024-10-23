@@ -16,6 +16,7 @@ use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::{Quaternion, Vector3};
 use std::process::exit;
 use std::sync::{mpsc, Arc};
+use std::thread::sleep;
 use tklog::{debug, error};
 
 type MapBridge = String;
@@ -78,6 +79,7 @@ impl MirrorServer {
                     }
                 }
             }
+            // sleep(std::time::Duration::from_millis(1));
         }
     }
 
@@ -108,7 +110,6 @@ impl MirrorServer {
         "".to_string()
     }
 
-
     #[allow(dead_code)]
     pub fn on_connected(&self, con_id: u64) {
         debug!(format!("OnConnected {}", con_id));
@@ -126,13 +127,13 @@ impl MirrorServer {
         let remote_time_stamp = match batch.read_f64_le() {
             Ok(rts) => rts,
             Err(err) => {
-                error!(format!("on_data: {:?}", err));
+                error!(format!("on_data err: {:?}", err));
                 return;
             }
         };
 
         // 更新连接时间
-        let _ = self.handel_connect(con_id, |connect| {
+        self.handel_connect(con_id, |connect| {
             connect.last_message_time = remote_time_stamp;
             HandleConnectResult::Ok
         });
@@ -204,21 +205,21 @@ impl MirrorServer {
                 self.uid_con_map.remove(&v);
             }
             // 通知其它客户端
-            let mut writer = Batch::new();
-            writer.write_f64_le(get_s_e_t());
-            ObjectDestroyMessage::new(net_id).serialize(&mut writer);
+            let mut batch = Batch::new();
+            batch.write_f64_le(get_s_e_t());
+            ObjectDestroyMessage::new(net_id).serialize(&mut batch);
             for connect in self.uid_con_map.iter() {
-                self.send(connect.connection_id, &writer, Kcp2KChannel::Reliable);
+                self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
             }
         }
     }
 
     #[allow(dead_code)]
     pub fn switch_scene(&self, con_id: u64, scene_name: String, custom_handling: bool) {
-        let mut writer = Batch::new();
-        writer.write_f64_le(get_s_e_t());
-        SceneMessage::new(scene_name, SceneOperation::Normal, custom_handling).serialize(&mut writer);
-        self.send(con_id, &writer, Kcp2KChannel::Reliable);
+        let mut batch = Batch::new();
+        batch.write_f64_le(get_s_e_t());
+        SceneMessage::new(scene_name, SceneOperation::Normal, custom_handling).serialize(&mut batch);
+        self.send(con_id, &batch, Kcp2KChannel::Reliable);
     }
 
 
@@ -450,30 +451,39 @@ impl MirrorServer {
         let net_id = command_message.net_id;
         let component_idx = command_message.component_index;
         let function_hash = command_message.function_hash;
+        let payload = command_message.get_payload();
 
+        // self.handel_connect(con_id, |cur_connect| {
+        //     let component = cur_connect.identity.components[component_idx as usize].as_ref();
+        //     component.deserialize(&mut UnBatch::new(payload), false);
+        //     HandleConnectResult::Ok
+        // });
+
+
+        // 获取 rpc_hash_code_s
         let rpc_hash_code_s = self.backend_data.get_rpc_hash_code_s(function_hash);
 
-        if function_hash == "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code() {
-            let mut writer = Batch::new();
-            writer.write_f64_le(get_s_e_t());
+        // 创建 batch
+        let mut batch = Batch::new_with_s_e_t();
 
+        if function_hash == "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code() {
             if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connect| {
                 debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.get_payload().slice(4..).as_ref())));
 
                 // 名字 颜色
                 // let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload().slice(4..)))).unwrap();
 
-                let mut un_batch = UnBatch::new(command_message.get_payload());
+                let mut un_batch = UnBatch::new(payload);
                 let _ = un_batch.read_u32_le().unwrap();
 
                 let name = un_batch.read_string_le().unwrap();
 
                 let component = cur_connect.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
 
-                let mut x = Batch::new();
-                x.write_string_le(name.as_str());
+                let mut batch01 = Batch::new();
+                batch01.write_string_le(name.as_str());
                 if let Some(mut var) = component.sync_vars.get_mut(&1) {
-                    var.data = x.get_bytes();
+                    var.data = batch01.get_bytes();
                 }
 
                 let a = un_batch.read_f32_le().unwrap();
@@ -481,74 +491,74 @@ impl MirrorServer {
                 let c = un_batch.read_f32_le().unwrap();
                 let d = un_batch.read_f32_le().unwrap();
 
-                let mut x = Batch::new();
-                x.write_f32_le(a);
-                x.write_f32_le(b);
-                x.write_f32_le(c);
-                x.write_f32_le(d);
+                let mut batch02 = Batch::new();
+                batch02.write_f32_le(a);
+                batch02.write_f32_le(b);
+                batch02.write_f32_le(c);
+                batch02.write_f32_le(d);
                 if let Some(mut var) = component.sync_vars.get_mut(&2) {
-                    var.data = x.get_bytes();
+                    var.data = batch02.get_bytes();
                 }
 
-                let mut batch = Batch::new();
+                let mut batch03 = Batch::new();
 
-                batch.write_u8(0x02);
-                batch.write_u8(0x2c);
+                batch03.write_u8(0x02);
+                batch03.write_u8(0x2c);
 
-                batch.write_u64_le(0);
-                batch.write_u64_le(6);
+                batch03.write_u64_le(0);
+                batch03.write_u64_le(6);
 
-                batch.write_string_le(name.as_str());
-                batch.write_f32_le(a);
-                batch.write_f32_le(b);
-                batch.write_f32_le(c);
-                batch.write_f32_le(d);
+                batch03.write_string_le(name.as_str());
+                batch03.write_f32_le(a);
+                batch03.write_f32_le(b);
+                batch03.write_f32_le(c);
+                batch03.write_f32_le(d);
 
-                let mut entity_state_message = EntityStateMessage::new(cur_connect.identity.net_id, batch.get_bytes());
-                entity_state_message.serialize(&mut writer);
+                let mut entity_state_message = EntityStateMessage::new(cur_connect.identity.net_id, batch03.get_bytes());
+                entity_state_message.serialize(&mut batch);
 
                 // 场景右上角
-                let mut batch = Batch::new();
-                batch.write_u8(0x01);
-                batch.write_u8(0x13);
-                batch.write_string_le(format!("{} joined.", name).as_str());
+                let mut batch04 = Batch::new();
+                batch04.write_u8(0x01);
+                batch04.write_u8(0x13);
+                batch04.write_string_le(format!("{} joined.", name).as_str());
 
-                let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch.get_bytes());
-                cur_spawn_message.serialize(&mut writer);
+                let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch04.get_bytes());
+                cur_spawn_message.serialize(&mut batch);
 
                 HandleConnectResult::Ok
             }) {
                 for connect in self.uid_con_map.iter() {
-                    self.send(connect.connection_id, &writer, Kcp2KChannel::Reliable);
+                    self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
                 }
             }
         } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
-            let mut batch = Batch::new_with_s_e_t();
-
             if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connection| {
-                debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.get_payload().slice(4..).as_ref())));
+                debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(payload.slice(4..).as_ref())));
 
                 // let tmp = cur_connection.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
                 // println!("{:?}", tmp);
 
-                let mut un_batch = UnBatch::new(command_message.get_payload());
+                let mut un_batch = UnBatch::new(payload);
+
+                // len
                 let _ = un_batch.read_u32_le().unwrap();
 
                 let weapon_index = un_batch.read_i32_le().unwrap();
 
-                let mut batch = Batch::new();
+                let mut batch01 = Batch::new();
                 // mask
-                batch.write_u8(0x02);
+                batch01.write_u8(0x02);
                 // safe
-                batch.write_u8(0x14);
+                batch01.write_u8(0x14);
                 // sync obj dirty
-                batch.write_u64_le(0);
+                batch01.write_u64_le(0);
                 // sync var dirty
-                batch.write_u64_le(1);
+                batch01.write_u64_le(1);
                 // weapon index
-                batch.write_i32_le(weapon_index);
+                batch01.write_i32_le(weapon_index);
 
-                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch.get_bytes());
+                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch01.get_bytes());
                 entity_state_message.serialize(&mut batch);
 
                 HandleConnectResult::Ok
@@ -558,11 +568,9 @@ impl MirrorServer {
                 }
             }
         } else if rpc_hash_code_s.len() > 0 {
-            // 创建 writer
-            let mut batch = Batch::new();
-            batch.write_f64_le(get_s_e_t());
+            println!("rpc_list: {:?}", self.backend_data.get_method_data_by_hash_code(function_hash).unwrap().rpc_list);
             for rpc_hash_code in rpc_hash_code_s {
-                let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, command_message.get_payload().slice(4..));
+                let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, payload.slice(4..));
                 rpc_message.serialize(&mut batch);
             }
             // 遍历所有连接并发送消息
