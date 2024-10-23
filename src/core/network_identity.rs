@@ -66,7 +66,7 @@ impl NetworkIdentity {
                     // scale
                     let scale = Vector3::new(1.0, 1.0, 1.0);
                     // 创建 NetworkTransform
-                    let network_transform = NetworkTransformReliable::new(component.network_behaviour_setting, component.index, true, true, false, Default::default(), Default::default(), scale);
+                    let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
                     // 添加到 components
                     network_identity.components.push(Box::new(network_transform));
                     continue;
@@ -94,7 +94,7 @@ impl NetworkIdentity {
         NetworkCommonComponent::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
 
-    pub fn create_spawn_message_payload(&self) -> Bytes {
+    pub fn new_spawn_message_payload(&self) -> Bytes {
         // mask
         let mut mask = 0u64;
         // 创建 Batch
@@ -113,6 +113,7 @@ impl NetworkIdentity {
         batch.compress_var_u64_le(mask);
         // 写入 components_batch
         batch.write(&components_batch.get_bytes());
+        // 返回 batch 的 bytes
         batch.get_bytes()
     }
 }

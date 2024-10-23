@@ -398,7 +398,7 @@ impl MirrorServer {
             // 添加 ObjectSpawnStartedMessage 数据
             ObjectSpawnStartedMessage {}.serialize(&mut cur_batch);
             // payload
-            let cur_payload = cur_connect.identity.create_spawn_message_payload();
+            let cur_payload = cur_connect.identity.new_spawn_message_payload();
             // 生成自己
             let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, cur_connect.identity.scene_id, cur_connect.identity.asset_id, Default::default(), rotation, scale, cur_payload);
             cur_spawn_message.serialize(&mut cur_batch);
@@ -420,18 +420,18 @@ impl MirrorServer {
                     continue;
                 }
                 // 添加已经连接的玩家信息
-                let other_payload = connect.value().identity.create_spawn_message_payload();
+                let other_payload = connect.value().identity.new_spawn_message_payload();
                 println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
                 println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
                 let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
                 other_spawn_message.serialize(&mut cur_batch);
                 // 发送给其它玩家
                 ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
-                self.send(connect.connection_id, &other_batch, Kcp2KChannel::Reliable);
+                self.send(connect.connection_id, &other_batch, channel);
             }
             // 发送给当前玩家
             ObjectSpawnFinishedMessage {}.serialize(&mut cur_batch);
-            self.send(c_id, &cur_batch, Kcp2KChannel::Reliable);
+            self.send(c_id, &cur_batch, channel);
         }
     }
 
@@ -523,11 +523,13 @@ impl MirrorServer {
                 }
             }
         } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
-            let mut writer = Batch::new();
-            writer.write_f64_le(get_s_e_t());
+            let mut batch = Batch::new_with_s_e_t();
 
             if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connection| {
                 debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(command_message.get_payload().slice(4..).as_ref())));
+
+                // let tmp = cur_connection.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
+                // println!("{:?}", tmp);
 
                 let mut un_batch = UnBatch::new(command_message.get_payload());
                 let _ = un_batch.read_u32_le().unwrap();
@@ -535,19 +537,24 @@ impl MirrorServer {
                 let weapon_index = un_batch.read_i32_le().unwrap();
 
                 let mut batch = Batch::new();
+                // mask
                 batch.write_u8(0x02);
+                // safe
                 batch.write_u8(0x14);
+                // sync obj dirty
                 batch.write_u64_le(0);
+                // sync var dirty
                 batch.write_u64_le(1);
+                // weapon index
                 batch.write_i32_le(weapon_index);
 
                 let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch.get_bytes());
-                entity_state_message.serialize(&mut writer);
+                entity_state_message.serialize(&mut batch);
 
                 HandleConnectResult::Ok
             }) {
                 for connection in self.uid_con_map.iter() {
-                    self.send(connection.connection_id, &writer, Kcp2KChannel::Reliable);
+                    self.send(connection.connection_id, &batch, channel);
                 }
             }
         } else if rpc_hash_code_s.len() > 0 {
@@ -560,7 +567,7 @@ impl MirrorServer {
             }
             // 遍历所有连接并发送消息
             for connect in self.uid_con_map.iter() {
-                self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
+                self.send(connect.connection_id, &batch, channel);
             }
         } else {
             debug!(format!("Unknown function hash: {}\n", function_hash));
