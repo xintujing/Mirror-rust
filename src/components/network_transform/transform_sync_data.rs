@@ -1,10 +1,9 @@
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use nalgebra::{Quaternion, Vector3, Vector4};
-use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::io;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct SyncData {
     // 改变的数据
     pub changed_data_bytes: u8,
@@ -297,7 +296,7 @@ impl DataWriter for SyncData {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(u8)]
 pub enum Changed {
     None = 0,

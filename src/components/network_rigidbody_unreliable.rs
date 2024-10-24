@@ -22,18 +22,17 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         todo!()
     }
 
-    fn serialize(&self, initial_state: bool) -> Batch {
+    fn serialize(&mut self, initial_state: bool) -> Batch {
         todo!()
     }
 
-    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool) {
+    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
         todo!()
     }
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         todo!()
     }
-
     fn as_any(&self) -> &dyn Any {
         self
     }

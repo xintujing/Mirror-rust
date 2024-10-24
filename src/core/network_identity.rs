@@ -11,7 +11,7 @@ use nalgebra::Vector3;
 use std::default::Default;
 use std::sync::Arc;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
 
 #[derive(Debug, Clone, Copy)]
@@ -94,7 +94,7 @@ impl NetworkIdentity {
         NetworkCommonComponent::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
 
-    pub fn new_spawn_message_payload(&self) -> Bytes {
+    pub fn new_spawn_message_payload(&mut self) -> Bytes {
         // mask
         let mut mask = 0u64;
         // 创建 Batch
@@ -102,7 +102,7 @@ impl NetworkIdentity {
         // 创建 所有 components 的 Batch
         let mut components_batch = Batch::new();
         // 遍历 components
-        for component in self.components.iter() {
+        for mut component in self.components.iter_mut() {
             mask |= 1 << component.get_network_behaviour().component_index;
             let component_bytes = component.serialize(true).get_bytes();
             let safety = (component_bytes.len() & 0xFF) as u8;

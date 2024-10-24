@@ -22,9 +22,9 @@ type MapBridge = String;
 #[derive(Debug)]
 pub enum HandleConnectResult {
     Ok,                  // 处理成功但不需要返回值
+    Fail,                // 处理失败
     CID(u64),            // 处理成功并返回连接 ID
     CnId(u64, u32),      // 处理成功并返回连接 ID 和网络 ID
-    Err(&'static str),   // 处理失败
 }
 
 pub struct MirrorServer {
@@ -229,14 +229,14 @@ impl MirrorServer {
     {
         let user_name = match self.cid_user_map.get(&con_id) {
             None => {
-                return HandleConnectResult::Err("can't find user in cid_user_map")
+                return HandleConnectResult::Fail
             }
             Some(user_name) => user_name.to_string()
         };
 
         match self.uid_con_map.get_mut(user_name.as_str()) {
             None => {
-                HandleConnectResult::Err("can't find connect in uid_con_map")
+                HandleConnectResult::Fail
             }
             Some(mut connect) => func(connect.value_mut())
         }
@@ -310,7 +310,7 @@ impl MirrorServer {
 
             HandleConnectResult::Ok
         }) {
-            HandleConnectResult::Err(_) => {
+            HandleConnectResult::Fail => {
                 // 切换场景
                 self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
@@ -397,12 +397,12 @@ impl MirrorServer {
             HandleConnectResult::CID(cur_connect.connection_id)
         }) {
             //  通知当前玩家生成已经连接的玩家
-            for mut connect in self.uid_con_map.iter() {
+            for mut connect in self.uid_con_map.iter_mut() {
                 if connect.connection_id == c_id {
                     continue;
                 }
                 // 添加已经连接的玩家信息
-                let other_payload = connect.value().identity.new_spawn_message_payload();
+                let other_payload = connect.identity.new_spawn_message_payload();
                 println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
                 println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
                 let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));

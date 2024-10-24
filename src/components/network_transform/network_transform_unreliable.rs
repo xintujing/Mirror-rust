@@ -5,7 +5,6 @@ use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSet
 use crate::core::batcher::{Batch, UnBatch};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
-use std::cell::Cell;
 
 pub struct NetworkTransformUnreliable {
     pub network_transform_base: NetworkTransformBase,
@@ -18,7 +17,7 @@ pub struct NetworkTransformUnreliable {
 
     pub network_behaviour: NetworkBehaviour,
 
-    pub sync_data: Cell<SyncData>,
+    pub sync_data: SyncData,
 }
 
 impl NetworkTransformUnreliable {
@@ -32,7 +31,7 @@ impl NetworkTransformUnreliable {
             rotation_sensitivity: network_transform_unreliable_setting.rotation_sensitivity,
             scale_sensitivity: network_transform_unreliable_setting.scale_sensitivity,
             network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
-            sync_data: Cell::new(SyncData::new(8, position, quaternion, scale)),
+            sync_data: SyncData::new(8, position, quaternion, scale),
         }
     }
 }
@@ -40,37 +39,37 @@ impl NetworkTransformUnreliable {
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
 
-    fn serialize(&self, initial_state: bool) -> Batch {
+    fn serialize(&mut self, initial_state: bool) -> Batch {
         let mut batch = Batch::new();
         if initial_state {
             if self.network_transform_base.sync_position {
-                batch.write_vector3_f32_le(self.sync_data.get().position);
+                batch.write_vector3_f32_le(self.sync_data.position);
             }
             if self.network_transform_base.sync_rotation {
-                batch.write_quaternion_f32_le(self.sync_data.get().quat_rotation);
+                batch.write_quaternion_f32_le(self.sync_data.quat_rotation);
             }
             if self.network_transform_base.sync_scale {
-                batch.write_vector3_f32_le(self.sync_data.get().scale);
+                batch.write_vector3_f32_le(self.sync_data.scale);
             }
         }
         batch
     }
 
-    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool) {
+    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
         if initial_state {
             if self.network_transform_base.sync_position {
                 if let Ok(position) = un_batch.read_vector3_f32_le() {
-                    self.sync_data.get().position = position;
+                    self.sync_data.position = position;
                 }
             }
             if self.network_transform_base.sync_rotation {
                 if let Ok(quat_rotation) = un_batch.read_quaternion_f32_le() {
-                    self.sync_data.get().quat_rotation = quat_rotation;
+                    self.sync_data.quat_rotation = quat_rotation;
                 }
             }
             if self.network_transform_base.sync_scale {
                 if let Ok(scale) = un_batch.read_vector3_f32_le() {
-                    self.sync_data.get().scale = scale;
+                    self.sync_data.scale = scale;
                 }
             }
         }

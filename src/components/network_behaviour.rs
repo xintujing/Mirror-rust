@@ -2,13 +2,13 @@ use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::batcher::{Batch, UnBatch};
 use std::any::Any;
 
-pub trait NetworkBehaviourTrait {
+pub trait NetworkBehaviourTrait: Send + Sync {
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool);
     // Serialize
-    fn serialize(&self, initial_state: bool) -> Batch;
+    fn serialize(&mut self, initial_state: bool) -> Batch;
     // Deserialize
-    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool);
+    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool);
     fn get_network_behaviour(&self) -> &NetworkBehaviour;
     fn as_any(&self) -> &dyn Any;
 }

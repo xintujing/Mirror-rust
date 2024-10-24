@@ -1,12 +1,19 @@
 use crate::core::batcher::{DataReader, UnBatch};
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
-use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_time::NetworkTime;
 use crate::core::tools::time_sample::TimeSample;
 use dashmap::DashMap;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
+use lazy_static::lazy_static;
+use std::sync::RwLock;
 use tklog::warn;
+
+
+lazy_static! {
+    static ref SPAWNED: RwLock<DashMap<u64, NetworkIdentity>> = RwLock::new(DashMap::new());
+}
 
 pub enum RemovePlayerOptions {
     /// <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
@@ -26,7 +33,6 @@ pub struct NetworkServer {
     pub last_send_time: f64,
     pub network_connections: DashMap<u64, NetworkConnection>,
     pub network_message_handlers: DashMap<u16, NetworkMessageHandler>,
-    pub spawned: DashMap<u32, NetworkIdentity>,
     pub dont_listen: bool,
     pub active: bool,
     pub is_loading_scene: bool,
@@ -55,7 +61,6 @@ impl NetworkServer {
             last_send_time: 0.0,
             network_connections: DashMap::new(),
             network_message_handlers: DashMap::new(),
-            spawned: DashMap::new(),
             dont_listen: false,
             active: false,
             is_loading_scene: false,
@@ -121,18 +126,44 @@ impl NetworkServer {
 
     // 处理 ReadyMessage 消息
     fn on_client_ready_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
-        let message = ReadyMessage::deserialize(reader);
-        if let Ok(message) = message {
-            println!("on_client_ready_message: {:?}", message);
+        let _ = channel;
+        if let Ok(_) = ReadyMessage::deserialize(reader) {
+            Self::set_client_ready(connection);
         }
+    }
+    // 设置客户端准备就绪
+    fn set_client_ready(connection: &mut NetworkConnection) {
+        connection.is_ready = true;
+
+        Self::spawn_observers_for_connection(connection);
+    }
+
+    // 为连接生成观察者
+    fn spawn_observers_for_connection(connection: &mut NetworkConnection) {
+        if !connection.is_ready {
+            return;
+        }
+
+        // TODO: conn.Send(new ObjectSpawnStartedMessage()); 1227
+
+        // add connection to each nearby NetworkIdentity's observers, which
+        // internally sends a spawn message for each one to the connection.
+        SPAWNED.read().unwrap().iter().for_each(|identity| {
+            if identity.visibility == Visibility::Shown {
+                // TODO: identity.AddObserver(connection);
+            } else if identity.visibility == Visibility::Hidden {
+                // do nothing
+            } else if identity.visibility == Visibility::Default {
+                // TODO aoi system
+                // TODO: identity.AddObserver(connection);
+            }
+        })
+        // TODO: conn.Send(new ObjectSpawnFinishedMessage()); 1279
     }
 
     // 处理 OnCommandMessage 消息
     fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
-        let message = CommandMessage::deserialize(reader);
-        if let Ok(message) = message {
-            println!("on_command_message: {:?}", message);
-        }
+        if let Ok(message) = CommandMessage::deserialize(reader) {}
     }
 
     // 处理 OnEntityStateMessage 消息

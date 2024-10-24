@@ -26,7 +26,7 @@ impl NetworkCommonComponent {
 impl NetworkBehaviourTrait for NetworkCommonComponent {
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
 
-    fn serialize(&self, initial_state: bool) -> Batch {
+    fn serialize(&mut self, initial_state: bool) -> Batch {
         let mut batch = Batch::new();
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&i) {
@@ -36,7 +36,7 @@ impl NetworkBehaviourTrait for NetworkCommonComponent {
         batch
     }
 
-    fn deserialize(&self, un_batch: &mut UnBatch, initial_state: bool) {}
+    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {}
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         &self.network_behaviour
