@@ -1,5 +1,4 @@
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::LazyLock;
 use std::thread::sleep;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -15,13 +14,11 @@ pub fn generate_id() -> u32 {
     next_id
 }
 
-// 全局启动时间锚点
-pub static SERV_START_INSTANT: LazyLock<Instant> = LazyLock::new(|| Instant::now());
-// 获取启动时间
-#[allow(dead_code)]
-pub fn get_s_e_t() -> f64 {
-    get_e_t_f64(*SERV_START_INSTANT)
-}
+// // 获取启动时间
+// #[allow(dead_code)]
+// pub fn get_s_e_t() -> f64 {
+//     get_e_t_f64()
+// }
 #[allow(dead_code)]
 pub fn get_e_t_str(start: Instant) -> String {
     let secs = start.elapsed().as_secs();

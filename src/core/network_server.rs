@@ -1,7 +1,8 @@
 use crate::core::batcher::{DataReader, UnBatch};
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, ReadyMessage, TimeSnapshotMessage};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_time::NetworkTime;
 use crate::core::tools::time_sample::TimeSample;
 use dashmap::DashMap;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
@@ -79,8 +80,7 @@ impl NetworkServer {
 
         // TODO: if (aoi != null) aoi.ResetState();
 
-
-        // TODO NetworkTime::ResetStatics();
+        NetworkTime::reset_statics();
 
         // TODO AddTransportHandlers();
 
@@ -109,9 +109,9 @@ impl NetworkServer {
         self.register_handler::<CommandMessage>(Box::new(Self::on_command_message), true);
 
         // 注册 NetworkPingMessage 处理程序
-        // self.register_handler::<NetworkPingMessage>(Box::new(self), false);
+        self.register_handler::<NetworkPingMessage>(Box::new(NetworkTime::on_server_ping), false);
         // 注册 NetworkPongMessage 处理程序
-        // self.register_handler::<NetworkPongMessage>(Box::new(self), false);
+        self.register_handler::<NetworkPongMessage>(Box::new(NetworkTime::on_server_pong), false);
 
         // 注册 EntityStateMessage 处理程序
         self.register_handler::<EntityStateMessage>(Box::new(Self::on_entity_state_message), true);

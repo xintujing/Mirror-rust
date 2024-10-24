@@ -6,6 +6,7 @@ version = 3
 name = "Mirror-rust"
 version = "0.1.0"
 dependencies = [
+    "atomic",
     "bytemuck",
     "byteorder",
     "bytes",
@@ -13,6 +14,7 @@ dependencies = [
     "encoding_rs",
     "hex",
     "kcp2k_rust",
+    "lazy_static",
     "nalgebra",
     "rust_multistack",
     "serde",
@@ -66,6 +68,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
 dependencies = [
     "num-traits",
+]
+
+[[package]]
+name = "atomic"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d818003e740b63afc82337e3160717f4f63078720a810b7b903e70a5d1d2994"
+dependencies = [
+    "bytemuck",
 ]
 
 [[package]]
@@ -339,6 +350,12 @@ dependencies = [
     "socket2",
     "tklog",
 ]
+
+[[package]]
+name = "lazy_static"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "libc"

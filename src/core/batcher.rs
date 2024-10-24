@@ -1,4 +1,4 @@
-use crate::tools::utils::get_s_e_t;
+use crate::core::network_time::NetworkTime;
 use byteorder::ReadBytesExt;
 use bytes::{BufMut, Bytes, BytesMut};
 use nalgebra::{Quaternion, Vector3};
@@ -378,7 +378,7 @@ impl Batch {
     #[allow(dead_code)]
     pub fn new_with_s_e_t() -> Self {
         let mut batch = Batch::new();
-        batch.write_f64_le(get_s_e_t());
+        batch.write_f64_le(NetworkTime::local_time());
         batch
     }
 

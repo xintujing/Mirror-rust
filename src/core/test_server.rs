@@ -3,9 +3,9 @@ use crate::core::backend_data::BackendData;
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
-use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_time::NetworkTime;
 use crate::core::tools::stable_hash::StableHash;
-use crate::tools::utils::{generate_id, get_s_e_t, to_hex_string};
+use crate::tools::utils::{generate_id, to_hex_string};
 use bytes::Bytes;
 use dashmap::DashMap;
 use kcp2k_rust::error_code::ErrorCode;
@@ -205,7 +205,7 @@ impl MirrorServer {
             }
             // 通知其它客户端
             let mut batch = Batch::new();
-            batch.write_f64_le(get_s_e_t());
+            batch.write_f64_le(NetworkTime::local_time());
             ObjectDestroyMessage::new(net_id).serialize(&mut batch);
             for connect in self.uid_con_map.iter() {
                 self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
@@ -216,7 +216,7 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn switch_scene(&self, con_id: u64, scene_name: String, custom_handling: bool) {
         let mut batch = Batch::new();
-        batch.write_f64_le(get_s_e_t());
+        batch.write_f64_le(NetworkTime::local_time());
         SceneMessage::new(scene_name, SceneOperation::Normal, custom_handling).serialize(&mut batch);
         self.send(con_id, &batch, Kcp2KChannel::Reliable);
     }
@@ -246,7 +246,7 @@ impl MirrorServer {
     #[allow(dead_code)]
     pub fn handel_time_snapshot_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
         let mut batch = Batch::new();
-        batch.write_f64_le(get_s_e_t());
+        batch.write_f64_le(NetworkTime::local_time());
         TimeSnapshotMessage {}.serialize(&mut batch);
         // println!("handel_time_snapshot_message: {}", get_s_e_t());
         self.send(con_id, &batch, channel);
@@ -269,9 +269,9 @@ impl MirrorServer {
             let predicted_time_adjusted = network_ping_message.predicted_time_adjusted;
 
             let mut writer = Batch::new();
-            writer.write_f64_le(get_s_e_t());
+            writer.write_f64_le(NetworkTime::local_time());
             // 准备 NetworkPongMessage 数据
-            let s_e_t = get_s_e_t();
+            let s_e_t = NetworkTime::local_time();
             let unadjusted_error = s_e_t - local_time;
             let adjusted_error = s_e_t - predicted_time_adjusted;
 
@@ -294,7 +294,7 @@ impl MirrorServer {
         println!("username: {}", username);
 
         let mut batch = Batch::new();
-        batch.write_f64_le(get_s_e_t());
+        batch.write_f64_le(NetworkTime::local_time());
         batch.compress_var_u64_le(5);
         batch.write_u16_le(56082);
         batch.write_u8(100);
@@ -356,7 +356,7 @@ impl MirrorServer {
         let _ = reader;
 
         // 生成 net_id
-        let set = get_s_e_t();
+        let set = NetworkTime::local_time();
 
         // 创建 cur_batch
         let mut cur_batch = Batch::new();

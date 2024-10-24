@@ -1,3 +1,4 @@
+extern crate atomic;
 extern crate kcp2k_rust;
 
 mod transports;

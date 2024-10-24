@@ -1,132 +1,121 @@
+use crate::core::batcher::{DataReader, UnBatch};
 use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnection;
+use atomic::Atomic;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
-use std::sync::atomic::AtomicU64;
+use lazy_static::lazy_static;
+use std::sync::atomic::Ordering;
+use std::sync::RwLock;
+use std::thread::sleep;
 use std::time::Instant;
 
-pub struct NetworkTime {
-    ping_interval: f64,
-    last_ping_time: Instant,
-    rtt: ExponentialMovingAverage,
-    prediction_error_unadjusted: ExponentialMovingAverage,
-    prediction_error_adjusted: AtomicU64,
-    local_time: Instant,
+lazy_static! {
+    // 全局启动时间锚点
+    static ref START_INSTANT: RwLock<Instant> = RwLock::new(Instant::now());
+    static ref _RTT: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE));
+    static ref _PREDICTION_ERROR_UNADJUSTED: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PREDICTION_ERROR_WINDOW_SIZE));
 }
+static LAST_PING_TIME: Atomic<f64> = Atomic::new(0.0);
+static PING_INTERVAL: Atomic<f64> = Atomic::new(NetworkTime::DEFAULT_PING_INTERVAL * NetworkTime::PRECISION_FACTOR);
+
+
+pub struct NetworkTime;
 
 impl NetworkTime {
-    const PRECISION_FACTOR: f64 = 1_000_000.0; // 1 million for microseconds precision
+    const PRECISION_FACTOR: f64 = 1_000_000.0;
+    const DEFAULT_PING_INTERVAL: f64 = 0.1;
+    const PING_WINDOW_SIZE: u32 = 50;
+    const PREDICTION_ERROR_WINDOW_SIZE: u32 = 20;
+
     #[allow(dead_code)]
-    pub fn new(ping_interval: f64, ping_window_size: usize, prediction_error_window_size: usize) -> Self {
-        Self {
-            ping_interval,
-            last_ping_time: Instant::now(),
-            rtt: ExponentialMovingAverage::new(ping_window_size),
-            prediction_error_unadjusted: ExponentialMovingAverage::new(prediction_error_window_size),
-            prediction_error_adjusted: AtomicU64::new(0),
-            local_time: Instant::now(),
+    pub fn local_time() -> f64 {
+        START_INSTANT.read().unwrap().elapsed().as_secs_f64()
+    }
+
+    #[allow(dead_code)]
+    pub fn predicted_time() -> f64 {
+        Self::local_time()
+    }
+
+    #[allow(dead_code)]
+    pub fn prediction_error_unadjusted() -> f64 {
+        _PREDICTION_ERROR_UNADJUSTED.read().unwrap().value()
+    }
+
+    #[allow(dead_code)]
+    pub fn rtt() -> f64 {
+        _RTT.read().unwrap().value()
+    }
+
+    #[allow(dead_code)]
+    pub fn rtt_variance() -> f64 {
+        _RTT.read().unwrap().variance()
+    }
+
+    #[allow(dead_code)]
+    pub fn reset_statics() {
+        if let Ok(mut start_instant) = START_INSTANT.write() {
+            *start_instant = Instant::now();
+        }
+        if let Ok(mut rtt) = _RTT.write() {
+            *rtt = ExponentialMovingAverage::new(Self::PING_WINDOW_SIZE);
+        }
+        if let Ok(mut prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.write() {
+            *prediction_error_unadjusted = ExponentialMovingAverage::new(Self::PREDICTION_ERROR_WINDOW_SIZE);
+        }
+        PING_INTERVAL.store(Self::DEFAULT_PING_INTERVAL * Self::PRECISION_FACTOR, Ordering::Relaxed);
+        LAST_PING_TIME.store(0.0, Ordering::Relaxed);
+    }
+
+    #[allow(dead_code)]
+    pub fn update_client() {
+        if Self::local_time() >= LAST_PING_TIME.load(Ordering::Relaxed) + PING_INTERVAL.load(Ordering::Relaxed) {
+            Self::send_ping();
         }
     }
 
     #[allow(dead_code)]
-    pub fn local_time(&self) -> f64 {
-        self.local_time.elapsed().as_secs_f64()
-    }
-
-    #[allow(dead_code)]
-    pub fn time(&self) -> f64 {
-        self.local_time()
-    }
-
-    #[allow(dead_code)]
-    pub fn predicted_time(&self) -> f64 {
-        self.local_time() + self.prediction_error_unadjusted.value()
-    }
-
-    #[allow(dead_code)]
-    pub fn offset(&self) -> f64 {
-        self.local_time() - self.time()
-    }
-
-    #[allow(dead_code)]
-    pub fn rtt(&self) -> f64 {
-        self.rtt.value()
-    }
-
-    #[allow(dead_code)]
-    pub fn rtt_variance(&self) -> f64 {
-        self.rtt.variance()
-    }
-
-    #[allow(dead_code)]
-    pub fn update_client(&mut self) {
-        if self.local_time.elapsed().as_secs_f64() >= self.last_ping_time.elapsed().as_secs_f64() + self.ping_interval {
-            self.send_ping();
-        }
-    }
-
-    #[allow(dead_code)]
-    fn send_ping(&mut self) {
-        let local_time = self.local_time();
-        let predicted_time = self.predicted_time();
+    fn send_ping() {
+        let local_time = Self::local_time();
+        let predicted_time = Self::predicted_time();
         let ping_message = NetworkPingMessage::new(local_time, predicted_time);
         // Simulate sending ping message
-        self.last_ping_time = Instant::now();
+        LAST_PING_TIME.store(Instant::now().elapsed().as_secs_f64(), Ordering::Relaxed);
+        // TODO: Send ping message
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(&mut self, connection: &mut NetworkConnection, message: NetworkPingMessage, channel: Kcp2KChannel) {
-        let unadjusted_error = self.local_time() - message.local_time;
-        let adjusted_error = self.local_time() - message.predicted_time_adjusted;
-        let pong_message = NetworkPongMessage {
-            local_time: message.local_time,
-            prediction_error_unadjusted: unadjusted_error,
-            prediction_error_adjusted: adjusted_error,
-        };
-        // Simulate sending pong message
-    }
-    #[allow(dead_code)]
-    pub fn on_server_pong(&mut self, connection: &mut NetworkConnection, message: NetworkPongMessage, channel: Kcp2KChannel) {
-        if message.local_time > self.local_time() {
-            return;
+    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+        if let Ok(message) = NetworkPingMessage::deserialize(un_batch) {
+            let local_time = Self::local_time();
+            let unadjusted_error = local_time - message.local_time;
+            let adjusted_error = local_time - message.predicted_time_adjusted;
+            let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
+            // TODO: Send pong message
         }
-        let new_rtt = self.local_time() - message.local_time;
-        self.rtt.add(new_rtt);
     }
 
-
-    // pub fn on_client_pong(&mut self, message: NetworkPongMessage) {
-    //     if message.local_time > self.local_time() {
-    //         return;
-    //     }
-    //     let new_rtt = self.local_time() - message.local_time;
-    //     self.rtt.add(new_rtt);
-    //     self.prediction_error_unadjusted.add(message.prediction_error_unadjusted);
-    //     self.prediction_error_adjusted.store(
-    //         (message.prediction_error_adjusted * Self::PRECISION_FACTOR) as u64,
-    //         Ordering::Relaxed,
-    //     );
-    // }
-    //
-    // pub fn on_client_ping(&mut self, message: NetworkPingMessage) {
-    //     let pong_message = NetworkPongMessage {
-    //         local_time: message.local_time,
-    //         prediction_error_unadjusted: 0.0,
-    //         prediction_error_adjusted: 0.0,
-    //     };
-    //     // Simulate sending pong message
-    // }
-
+    #[allow(dead_code)]
+    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+        if let Ok(message) = NetworkPongMessage::deserialize(un_batch) {
+            if message.local_time > Self::local_time() {
+                return;
+            }
+            let new_rtt = Self::local_time() - message.local_time;
+            _RTT.write().unwrap().add(new_rtt);
+        }
+    }
 }
 
 struct ExponentialMovingAverage {
-    n: usize,
+    n: u32,
     value: f64,
     variance: f64,
 }
 
 impl ExponentialMovingAverage {
     #[allow(dead_code)]
-    fn new(n: usize) -> Self {
+    fn new(n: u32) -> Self {
         Self { n, value: 0.0, variance: 0.0 }
     }
     #[allow(dead_code)]
@@ -146,4 +135,13 @@ impl ExponentialMovingAverage {
     fn variance(&self) -> f64 {
         self.variance
     }
+}
+
+#[test]
+fn test_network_time() {
+    NetworkTime::reset_statics();
+    sleep(std::time::Duration::from_secs(3));
+    let local_time = NetworkTime::local_time();
+    println!("local_time: {}", local_time);
+    assert!(local_time > 0.0);
 }
