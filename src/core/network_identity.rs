@@ -3,13 +3,12 @@ use crate::components::network_common_component::NetworkCommonComponent;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
-use crate::core::backend_data::{BackendData, NetworkBehaviourComponent};
+use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
 use crate::core::batcher::Batch;
 use bytes::Bytes;
 use dashmap::DashMap;
 use nalgebra::Vector3;
 use std::default::Default;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
@@ -27,11 +26,10 @@ pub struct NetworkIdentity {
     pub is_destroy: bool,
     pub visibility: Visibility,
     pub components: Vec<Box<dyn NetworkBehaviourTrait>>,
-    pub backend_data: Arc<BackendData>,
 }
 
 impl NetworkIdentity {
-    pub fn new(backend_data: Arc<BackendData>, scene_id: u64, asset_id: u32) -> Self {
+    pub fn new(scene_id: u64, asset_id: u32) -> Self {
         let mut network_identity = NetworkIdentity {
             scene_id,
             asset_id,
@@ -42,7 +40,6 @@ impl NetworkIdentity {
             is_destroy: false,
             visibility: Visibility::Default,
             components: Vec::new(),
-            backend_data,
         };
 
         if network_identity.scene_id != 0 {
@@ -50,7 +47,7 @@ impl NetworkIdentity {
         }
         // 如果 asset_id 不为 0
         if network_identity.asset_id != 0 {
-            for component in network_identity.backend_data.get_network_identity_data_network_behaviour_components_by_asset_id(network_identity.asset_id) {
+            for component in BACKEND_DATA.get_network_identity_data_network_behaviour_components_by_asset_id(network_identity.asset_id) {
                 // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
                 if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
                     // scale
@@ -84,7 +81,7 @@ impl NetworkIdentity {
 
     pub fn new_network_common_component(&self, network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonComponent {
         let sync_vars = DashMap::new();
-        for (index, sync_var) in self.backend_data.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
+        for (index, sync_var) in BACKEND_DATA.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
             sync_vars.insert(index as u8, SyncVar::new(
                 sync_var.full_name.clone(),
                 Bytes::copy_from_slice(sync_var.value.as_slice()),

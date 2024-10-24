@@ -1,5 +1,10 @@
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+
+lazy_static! {
+    pub static ref BACKEND_DATA: BackendData = BackendData::import("backend_data.json");
+}
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum MethodType {

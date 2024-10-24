@@ -22,10 +22,10 @@ static PING_INTERVAL: Atomic<f64> = Atomic::new(NetworkTime::DEFAULT_PING_INTERV
 pub struct NetworkTime;
 
 impl NetworkTime {
-    const PRECISION_FACTOR: f64 = 1_000_000.0;
-    const DEFAULT_PING_INTERVAL: f64 = 0.1;
-    const PING_WINDOW_SIZE: u32 = 50;
-    const PREDICTION_ERROR_WINDOW_SIZE: u32 = 20;
+    pub const PRECISION_FACTOR: f64 = 1_000_000.0;
+    pub const DEFAULT_PING_INTERVAL: f64 = 0.1;
+    pub const PING_WINDOW_SIZE: u32 = 50;
+    pub const PREDICTION_ERROR_WINDOW_SIZE: u32 = 20;
 
     #[allow(dead_code)]
     pub fn local_time() -> f64 {
@@ -107,7 +107,7 @@ impl NetworkTime {
     }
 }
 
-struct ExponentialMovingAverage {
+pub struct ExponentialMovingAverage {
     n: u32,
     value: f64,
     variance: f64,
@@ -115,11 +115,11 @@ struct ExponentialMovingAverage {
 
 impl ExponentialMovingAverage {
     #[allow(dead_code)]
-    fn new(n: u32) -> Self {
+    pub fn new(n: u32) -> Self {
         Self { n, value: 0.0, variance: 0.0 }
     }
     #[allow(dead_code)]
-    fn add(&mut self, sample: f64) {
+    pub fn add(&mut self, sample: f64) {
         let alpha = 2.0 / (self.n as f64 + 1.0);
         let diff = sample - self.value;
         self.value = alpha * sample + (1.0 - alpha) * self.value;
@@ -127,12 +127,12 @@ impl ExponentialMovingAverage {
     }
 
     #[allow(dead_code)]
-    fn value(&self) -> f64 {
+    pub fn value(&self) -> f64 {
         self.value
     }
 
     #[allow(dead_code)]
-    fn variance(&self) -> f64 {
+    pub fn variance(&self) -> f64 {
         self.variance
     }
 }

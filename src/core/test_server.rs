@@ -1,5 +1,5 @@
 use crate::components::network_common_component::NetworkCommonComponent;
-use crate::core::backend_data::BackendData;
+use crate::core::backend_data::{BackendData, BACKEND_DATA};
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
@@ -32,7 +32,6 @@ pub struct MirrorServer {
     pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
     pub uid_con_map: DashMap<MapBridge, NetworkConnection>,
     pub cid_user_map: DashMap<u64, MapBridge>,
-    pub backend_data: Arc<BackendData>,
 }
 
 impl MirrorServer {
@@ -46,7 +45,6 @@ impl MirrorServer {
                     kcp_serv_rx: Some(s_rx),
                     uid_con_map: Default::default(),
                     cid_user_map: Default::default(),
-                    backend_data: Arc::new(BackendData::import("backend_data.json")),
                 }
             }
             Err(err) => {
@@ -197,7 +195,10 @@ impl MirrorServer {
         if let HandleConnectResult::CnId(c_id, net_id) = self.handel_connect(con_id, |connect| {
             connect.is_ready = false;
             connect.is_authenticated = false;
-            HandleConnectResult::CnId(connect.connection_id, connect.identity.net_id)
+            if let Some(identity) = &connect.identity {
+                return HandleConnectResult::CnId(connect.connection_id, identity.net_id);
+            }
+            HandleConnectResult::Fail
         }) {
             // 删除连接
             if let Some((_, v)) = self.cid_user_map.remove(&c_id) {
@@ -314,7 +315,7 @@ impl MirrorServer {
                 // 切换场景
                 self.switch_scene(con_id, "Assets/QuickStart/Scenes/MyScene.scene".to_string(), false);
 
-                let mut connect = NetworkConnection::new(Arc::clone(&self.backend_data), 0, 3541431626);
+                let mut connect = NetworkConnection::new(0, 3541431626);
                 connect.connection_id = con_id;
                 connect.is_authenticated = true;
 
@@ -375,41 +376,46 @@ impl MirrorServer {
         if let HandleConnectResult::CID(c_id) = self.handel_connect(con_id, |cur_connect| {
 
             // If the object has not been spawned, then do a full spawn and update observers
-            cur_connect.identity.net_id = generate_id();
+            if let Some(identity) = &mut cur_connect.identity {
+                identity.net_id = generate_id();
 
-            // 添加 ObjectSpawnStartedMessage 数据
-            ObjectSpawnStartedMessage {}.serialize(&mut cur_batch);
-            // payload
-            let cur_payload = cur_connect.identity.new_spawn_message_payload();
-            // 生成自己
-            let mut cur_spawn_message = SpawnMessage::new(cur_connect.identity.net_id, true, true, cur_connect.identity.scene_id, cur_connect.identity.asset_id, Default::default(), rotation, scale, cur_payload);
-            cur_spawn_message.serialize(&mut cur_batch);
+                // 添加 ObjectSpawnStartedMessage 数据
+                ObjectSpawnStartedMessage {}.serialize(&mut cur_batch);
+                // payload
+                let cur_payload = identity.new_spawn_message_payload();
+                // 生成自己
+                let mut cur_spawn_message = SpawnMessage::new(identity.net_id, true, true, identity.scene_id, identity.asset_id, Default::default(), rotation, scale, cur_payload);
+                cur_spawn_message.serialize(&mut cur_batch);
 
-            //  *****************************************************************************
+                //  *****************************************************************************
 
-            // 添加 ObjectSpawnStartedMessage 数据
-            ObjectSpawnStartedMessage {}.serialize(&mut other_batch);
-            // 添加通知其他客户端有新玩家加入消息
-            cur_spawn_message.is_owner = false;
-            cur_spawn_message.is_local_player = false;
-            cur_spawn_message.serialize(&mut other_batch);
+                // 添加 ObjectSpawnStartedMessage 数据
+                ObjectSpawnStartedMessage {}.serialize(&mut other_batch);
+                // 添加通知其他客户端有新玩家加入消息
+                cur_spawn_message.is_owner = false;
+                cur_spawn_message.is_local_player = false;
+                cur_spawn_message.serialize(&mut other_batch);
 
-            HandleConnectResult::CID(cur_connect.connection_id)
+                return HandleConnectResult::CID(cur_connect.connection_id);
+            }
+            HandleConnectResult::Fail
         }) {
             //  通知当前玩家生成已经连接的玩家
             for mut connect in self.uid_con_map.iter_mut() {
                 if connect.connection_id == c_id {
                     continue;
                 }
-                // 添加已经连接的玩家信息
-                let other_payload = connect.identity.new_spawn_message_payload();
-                println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
-                println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
-                let mut other_spawn_message = SpawnMessage::new(connect.identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
-                other_spawn_message.serialize(&mut cur_batch);
-                // 发送给其它玩家
-                ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
-                self.send(connect.connection_id, &other_batch, channel);
+                if let Some(identity) = &mut connect.identity {
+                    // 添加已经连接的玩家信息
+                    let other_payload = identity.new_spawn_message_payload();
+                    println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
+                    println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
+                    let mut other_spawn_message = SpawnMessage::new(identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
+                    other_spawn_message.serialize(&mut cur_batch);
+                    // 发送给其它玩家
+                    ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
+                    self.send(connect.connection_id, &other_batch, channel);
+                }
             }
             // 发送给当前玩家
             ObjectSpawnFinishedMessage {}.serialize(&mut cur_batch);
@@ -442,7 +448,7 @@ impl MirrorServer {
 
 
         // 获取 rpc_hash_code_s
-        let rpc_hash_code_s = self.backend_data.get_rpc_hash_code_s(function_hash);
+        let rpc_hash_code_s = BACKEND_DATA.get_rpc_hash_code_s(function_hash);
 
         // 创建 batch
         let mut batch = Batch::new_with_s_e_t();
@@ -454,60 +460,63 @@ impl MirrorServer {
                 // 名字 颜色
                 // let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload().slice(4..)))).unwrap();
 
-                let mut un_batch = UnBatch::new(payload);
-                let _ = un_batch.read_u32_le().unwrap();
+                if let Some(identity) = &cur_connect.identity {
+                    let mut un_batch = UnBatch::new(payload);
+                    let _ = un_batch.read_u32_le().unwrap();
 
-                let name = un_batch.read_string_le().unwrap();
+                    let name = un_batch.read_string_le().unwrap();
 
-                let component = cur_connect.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
+                    let component = identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
 
-                let mut batch01 = Batch::new();
-                batch01.write_string_le(name.as_str());
-                if let Some(mut var) = component.sync_vars.get_mut(&1) {
-                    var.data = batch01.get_bytes();
+                    let mut batch01 = Batch::new();
+                    batch01.write_string_le(name.as_str());
+                    if let Some(mut var) = component.sync_vars.get_mut(&1) {
+                        var.data = batch01.get_bytes();
+                    }
+
+                    let a = un_batch.read_f32_le().unwrap();
+                    let b = un_batch.read_f32_le().unwrap();
+                    let c = un_batch.read_f32_le().unwrap();
+                    let d = un_batch.read_f32_le().unwrap();
+
+                    let mut batch02 = Batch::new();
+                    batch02.write_f32_le(a);
+                    batch02.write_f32_le(b);
+                    batch02.write_f32_le(c);
+                    batch02.write_f32_le(d);
+                    if let Some(mut var) = component.sync_vars.get_mut(&2) {
+                        var.data = batch02.get_bytes();
+                    }
+
+                    let mut batch03 = Batch::new();
+
+                    batch03.write_u8(0x02);
+                    batch03.write_u8(0x2c);
+
+                    batch03.write_u64_le(0);
+                    batch03.write_u64_le(6);
+
+                    batch03.write_string_le(name.as_str());
+                    batch03.write_f32_le(a);
+                    batch03.write_f32_le(b);
+                    batch03.write_f32_le(c);
+                    batch03.write_f32_le(d);
+
+                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch03.get_bytes());
+                    entity_state_message.serialize(&mut batch);
+
+                    // 场景右上角
+                    let mut batch04 = Batch::new();
+                    batch04.write_u8(0x01);
+                    batch04.write_u8(0x13);
+                    batch04.write_string_le(format!("{} joined.", name).as_str());
+
+                    let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch04.get_bytes());
+                    cur_spawn_message.serialize(&mut batch);
+
+                    return HandleConnectResult::Ok;
                 }
-
-                let a = un_batch.read_f32_le().unwrap();
-                let b = un_batch.read_f32_le().unwrap();
-                let c = un_batch.read_f32_le().unwrap();
-                let d = un_batch.read_f32_le().unwrap();
-
-                let mut batch02 = Batch::new();
-                batch02.write_f32_le(a);
-                batch02.write_f32_le(b);
-                batch02.write_f32_le(c);
-                batch02.write_f32_le(d);
-                if let Some(mut var) = component.sync_vars.get_mut(&2) {
-                    var.data = batch02.get_bytes();
-                }
-
-                let mut batch03 = Batch::new();
-
-                batch03.write_u8(0x02);
-                batch03.write_u8(0x2c);
-
-                batch03.write_u64_le(0);
-                batch03.write_u64_le(6);
-
-                batch03.write_string_le(name.as_str());
-                batch03.write_f32_le(a);
-                batch03.write_f32_le(b);
-                batch03.write_f32_le(c);
-                batch03.write_f32_le(d);
-
-                let mut entity_state_message = EntityStateMessage::new(cur_connect.identity.net_id, batch03.get_bytes());
-                entity_state_message.serialize(&mut batch);
-
-                // 场景右上角
-                let mut batch04 = Batch::new();
-                batch04.write_u8(0x01);
-                batch04.write_u8(0x13);
-                batch04.write_string_le(format!("{} joined.", name).as_str());
-
-                let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch04.get_bytes());
-                cur_spawn_message.serialize(&mut batch);
-
-                HandleConnectResult::Ok
+                HandleConnectResult::Fail
             }) {
                 for connect in self.uid_con_map.iter() {
                     self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
@@ -539,17 +548,19 @@ impl MirrorServer {
                 // weapon index
                 batch01.write_i32_le(weapon_index);
 
-                let mut entity_state_message = EntityStateMessage::new(cur_connection.identity.net_id, batch01.get_bytes());
-                entity_state_message.serialize(&mut batch);
-
-                HandleConnectResult::Ok
+                if let Some(identity) = &cur_connection.identity {
+                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch01.get_bytes());
+                    entity_state_message.serialize(&mut batch);
+                    return HandleConnectResult::Ok;
+                }
+                HandleConnectResult::Fail
             }) {
                 for connection in self.uid_con_map.iter() {
                     self.send(connection.connection_id, &batch, channel);
                 }
             }
         } else if rpc_hash_code_s.len() > 0 {
-            println!("rpc_list: {:?}", self.backend_data.get_method_data_by_hash_code(function_hash).unwrap().rpc_list);
+            println!("rpc_list: {:?}", BACKEND_DATA.get_method_data_by_hash_code(function_hash).unwrap().rpc_list);
             for rpc_hash_code in rpc_hash_code_s {
                 let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, payload.slice(4..));
                 rpc_message.serialize(&mut batch);

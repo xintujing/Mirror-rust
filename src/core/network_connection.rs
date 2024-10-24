@@ -1,43 +1,95 @@
-use crate::core::backend_data::BackendData;
+use crate::core::batcher::Batch;
 use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
+use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::tools::utils::get_sec_timestamp_f64;
-use std::sync::Arc;
+use dashmap::DashMap;
 
 pub struct NetworkConnection {
+    pub reliable_rpcs_batch: Batch,
+    pub unreliable_rpcs_batch: Batch,
+    // pub un_batch:UnBatch,
     pub connection_id: u64,
     pub is_ready: bool,
     pub is_authenticated: bool,
     pub authentication_data: Vec<u8>,
     pub address: &'static str,
-    pub identity: NetworkIdentity,
+    pub identity: Option<NetworkIdentity>,
     pub owned_identities: Vec<NetworkIdentity>,
-    pub ob_connects_id: Vec<u64>,
+    pub observing_identities: Vec<NetworkIdentity>,
     pub last_message_time: f64,
     pub remote_time_stamp: f64,
 
     pub last_ping_time: f64,
     pub rtt: f64,
-    pub backend_data: Arc<BackendData>,
-    // snapshots: SortedList<f64, TimeSnapshot>,
+    // pub backend_data: Arc<BackendData>,
+    pub snapshots: DashMap<u64, TimeSnapshot>,
+    pub snapshot_buffer_size_limit: i32,
+    pub drift_ema: ExponentialMovingAverage,
+    pub delivery_time_ema: ExponentialMovingAverage,
+    pub remote_timeline: f64,
+    pub remote_timescale: f64,
+    pub buffer_time_multiplier: f64,
+    pub buffer_time: f64,
+    pub _rtt: ExponentialMovingAverage,
 }
 
 impl NetworkConnection {
-    pub fn new(backend_data: Arc<BackendData>, scene_id: u64, asset_id: u32) -> Self {
+    pub fn new(scene_id: u64, asset_id: u32) -> Self {
         let ts = get_sec_timestamp_f64();
         NetworkConnection {
+            reliable_rpcs_batch: Batch::new(),
+            unreliable_rpcs_batch: Batch::new(),
             connection_id: 0,
             is_ready: false,
             is_authenticated: false,
             authentication_data: Default::default(),
             address: "",
-            identity: NetworkIdentity::new(Arc::clone(&backend_data), scene_id, asset_id),
+            identity: Some(NetworkIdentity::new(scene_id, asset_id)),
             owned_identities: Default::default(),
-            ob_connects_id: Default::default(),
+            observing_identities: Default::default(),
             last_message_time: ts,
             remote_time_stamp: ts,
             last_ping_time: ts,
             rtt: 0.0,
-            backend_data,
+            snapshots: DashMap::new(),
+            snapshot_buffer_size_limit: 64,
+            drift_ema: ExponentialMovingAverage::new(10),
+            delivery_time_ema: ExponentialMovingAverage::new(10),
+            remote_timeline: 0.0,
+            remote_timescale: 0.0,
+            buffer_time_multiplier: 2.0,
+            buffer_time: 0.0,
+            _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
+        }
+    }
+
+    pub fn network_connection(connection_id: u64) -> Self {
+        let ts = get_sec_timestamp_f64();
+        NetworkConnection {
+            reliable_rpcs_batch: Batch::new(),
+            unreliable_rpcs_batch: Batch::new(),
+            connection_id,
+            is_ready: false,
+            is_authenticated: false,
+            authentication_data: Default::default(),
+            address: "",
+            identity: None,
+            owned_identities: Default::default(),
+            observing_identities: Default::default(),
+            last_message_time: ts,
+            remote_time_stamp: ts,
+            last_ping_time: ts,
+            rtt: 0.0,
+            snapshots: Default::default(),
+            snapshot_buffer_size_limit: 64,
+            drift_ema: ExponentialMovingAverage::new(60),
+            delivery_time_ema: ExponentialMovingAverage::new(10),
+            remote_timeline: 0.0,
+            remote_timescale: 0.0,
+            buffer_time_multiplier: 2.0,
+            buffer_time: 0.0,
+            _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         }
     }
 }

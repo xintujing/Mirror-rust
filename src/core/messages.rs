@@ -6,7 +6,7 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use nalgebra::{Quaternion, Vector3};
 use std::io;
 
-pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut UnBatch, Kcp2KChannel)>;
+pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut UnBatch, Kcp2KChannel) + Send + Sync>;
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,
