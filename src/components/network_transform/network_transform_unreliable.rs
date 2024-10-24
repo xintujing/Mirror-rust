@@ -6,6 +6,7 @@ use crate::core::batcher::{Batch, UnBatch};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 
+#[derive(Clone)]
 pub struct NetworkTransformUnreliable {
     pub network_transform_base: NetworkTransformBase,
     // network_transform_unreliable_setting: NetworkTransformUnreliableSetting

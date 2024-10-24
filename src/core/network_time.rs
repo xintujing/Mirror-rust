@@ -12,17 +12,17 @@ use std::time::Instant;
 lazy_static! {
     // 全局启动时间锚点
     static ref START_INSTANT: RwLock<Instant> = RwLock::new(Instant::now());
+    static ref LAST_PING_TIME: Atomic<f64> = Atomic::new(0.0);
+    static ref PING_INTERVAL: Atomic<f64> = Atomic::new(NetworkTime::DEFAULT_PING_INTERVAL);
     static ref _RTT: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE));
     static ref _PREDICTION_ERROR_UNADJUSTED: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PREDICTION_ERROR_WINDOW_SIZE));
 }
-static LAST_PING_TIME: Atomic<f64> = Atomic::new(0.0);
-static PING_INTERVAL: Atomic<f64> = Atomic::new(NetworkTime::DEFAULT_PING_INTERVAL * NetworkTime::PRECISION_FACTOR);
+
 
 
 pub struct NetworkTime;
 
 impl NetworkTime {
-    pub const PRECISION_FACTOR: f64 = 1_000_000.0;
     pub const DEFAULT_PING_INTERVAL: f64 = 0.1;
     pub const PING_WINDOW_SIZE: u32 = 50;
     pub const PREDICTION_ERROR_WINDOW_SIZE: u32 = 20;
@@ -54,17 +54,15 @@ impl NetworkTime {
 
     #[allow(dead_code)]
     pub fn reset_statics() {
-        if let Ok(mut start_instant) = START_INSTANT.write() {
-            *start_instant = Instant::now();
-        }
+        Self::set_static_instant(Instant::now());
         if let Ok(mut rtt) = _RTT.write() {
             *rtt = ExponentialMovingAverage::new(Self::PING_WINDOW_SIZE);
         }
         if let Ok(mut prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.write() {
             *prediction_error_unadjusted = ExponentialMovingAverage::new(Self::PREDICTION_ERROR_WINDOW_SIZE);
         }
-        PING_INTERVAL.store(Self::DEFAULT_PING_INTERVAL * Self::PRECISION_FACTOR, Ordering::Relaxed);
-        LAST_PING_TIME.store(0.0, Ordering::Relaxed);
+        Self::set_ping_interval(Self::DEFAULT_PING_INTERVAL);
+        Self::set_last_ping_time(0.0);
     }
 
     #[allow(dead_code)]
@@ -105,8 +103,46 @@ impl NetworkTime {
             _RTT.write().unwrap().add(new_rtt);
         }
     }
+
+
+    #[allow(dead_code)]
+    pub fn get_static_instant() -> Instant {
+        if let Ok(start_instant) = START_INSTANT.read() {
+            *start_instant
+        } else {
+            Instant::now()
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn set_static_instant(instant: Instant) {
+        if let Ok(mut start_instant) = START_INSTANT.write() {
+            *start_instant = instant;
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn get_last_ping_time() -> f64 {
+        LAST_PING_TIME.load(Ordering::Relaxed)
+    }
+
+    #[allow(dead_code)]
+    pub fn set_last_ping_time(time: f64) {
+        LAST_PING_TIME.store(time, Ordering::Relaxed);
+    }
+
+    #[allow(dead_code)]
+    pub fn get_ping_interval() -> f64 {
+        PING_INTERVAL.load(Ordering::Relaxed)
+    }
+
+    #[allow(dead_code)]
+    pub fn set_ping_interval(interval: f64) {
+        PING_INTERVAL.store(interval, Ordering::Relaxed);
+    }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct ExponentialMovingAverage {
     n: u32,
     value: f64,
@@ -144,4 +180,8 @@ fn test_network_time() {
     let local_time = NetworkTime::local_time();
     println!("local_time: {}", local_time);
     assert!(local_time > 0.0);
+
+    let predicted_time = NetworkTime::predicted_time();
+    println!("predicted_time: {}", predicted_time);
+    assert!(predicted_time > 0.0);
 }

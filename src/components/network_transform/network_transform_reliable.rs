@@ -7,6 +7,7 @@ use crate::core::tools::compress::{scale_to_long0, Compress, Decompress};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 
+#[derive(Clone)]
 pub struct NetworkTransformReliable {
     pub network_transform_base: NetworkTransformBase,
 

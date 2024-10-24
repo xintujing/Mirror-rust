@@ -1,7 +1,7 @@
 use bytes::Bytes;
 
 pub mod network_behaviour;
-pub mod network_common_component;
+pub mod network_common_behaviour;
 pub mod network_animator;
 pub mod network_rigidbody_unreliable;
 pub mod room;

@@ -2,6 +2,7 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
 
 
+#[derive(Clone)]
 pub struct NetworkTransformBase {
     pub is_client_with_authority: bool,
 

@@ -1,5 +1,5 @@
-use crate::core::batcher::{DataReader, UnBatch};
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ReadyMessage, TimeSnapshotMessage};
+use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_time::NetworkTime;
@@ -9,7 +9,6 @@ use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::DashMap;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use lazy_static::lazy_static;
-use std::cell::RefMut;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use tklog::{error, warn};
@@ -17,16 +16,17 @@ use tklog::{error, warn};
 
 lazy_static! {
     static ref INITIALIZED: Atomic<bool> = Atomic::new(false);
-    static ref TICK_RATE: Atomic<u32> = Atomic::new(0);
-    static ref TICK_INTERVAL: Atomic<f32> = Atomic::new(0.0);
-    static ref SEND_RATE: Atomic<u32> = Atomic::new(0);
+    static ref TICK_RATE: Atomic<u32> = Atomic::new(60);
+    static ref TICK_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServer::get_static_tick_rate() as f32);
+    static ref SEND_RATE: Atomic<u32> = Atomic::new(NetworkServer::get_static_tick_rate());
+    static ref SEND_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServer::get_static_send_rate() as f32);
     static ref LAST_SEND_TIME: Atomic<f64> = Atomic::new(0.0);
     static ref DONT_LISTEN: Atomic<bool> = Atomic::new(false);
     static ref ACTIVE: Atomic<bool> = Atomic::new(false);
     static ref IS_LOADING_SCENE: Atomic<bool> = Atomic::new(false);
     static ref EXCEPTIONS_DISCONNECT: Atomic<bool> = Atomic::new(false);
     static ref DISCONNECT_INACTIVE_CONNECTIONS: Atomic<bool> = Atomic::new(false);
-    static ref DISCONNECT_INACTIVE_TIMEOUT: Atomic<f32> = Atomic::new(0.0);
+    static ref DISCONNECT_INACTIVE_TIMEOUT: Atomic<f32> = Atomic::new(60.0);
     static ref ACTUAL_TICK_RATE: Atomic<u32> = Atomic::new(0);
     static ref ACTUAL_TICK_RATE_START: Atomic<f64> = Atomic::new(0.0);
     static ref ACTUAL_TICK_RATE_COUNTER: Atomic<u32> = Atomic::new(0);
@@ -168,22 +168,26 @@ impl NetworkServer {
             return;
         }
 
-        // TODO: conn.Send(new ObjectSpawnStartedMessage()); 1227
+        let mut batch = Batch::new_with_s_e_t();
+        ObjectSpawnStartedMessage {}.serialize(&mut batch);
+        connection.send(&batch, Kcp2KChannel::Reliable);
 
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
-
-        SPAWNED.iter().for_each(|identity| {
+        SPAWNED.iter_mut().for_each(|mut identity| {
             if identity.visibility == Visibility::Shown {
-                // TODO: identity.AddObserver(connection);
+                identity.add_observing_network_connection(connection);
             } else if identity.visibility == Visibility::Hidden {
                 // do nothing
             } else if identity.visibility == Visibility::Default {
                 // TODO aoi system
-                // TODO: identity.AddObserver(connection);
+                identity.add_observing_network_connection(connection);
             }
         });
-        // TODO: conn.Send(new ObjectSpawnFinishedMessage()); 1279
+
+        let mut batch = Batch::new_with_s_e_t();
+        ObjectSpawnFinishedMessage {}.serialize(&mut batch);
+        connection.send(&batch, Kcp2KChannel::Reliable);
     }
 
     // 处理 OnCommandMessage 消息
@@ -253,6 +257,13 @@ impl NetworkServer {
     }
     pub fn set_static_send_rate(value: u32) {
         SEND_RATE.store(value, Ordering::Relaxed);
+        Self::set_static_send_interval(1f32 / value as f32);
+    }
+    pub fn get_static_send_interval() -> f32 {
+        SEND_INTERVAL.load(Ordering::Relaxed)
+    }
+    pub fn set_static_send_interval(value: f32) {
+        SEND_INTERVAL.store(value, Ordering::Relaxed);
     }
     pub fn get_static_dont_listen() -> bool {
         DONT_LISTEN.load(Ordering::Relaxed)
@@ -265,6 +276,68 @@ impl NetworkServer {
     }
     pub fn set_static_active(value: bool) {
         ACTIVE.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_is_loading_scene() -> bool {
+        IS_LOADING_SCENE.load(Ordering::Relaxed)
+    }
+    pub fn set_static_is_loading_scene(value: bool) {
+        IS_LOADING_SCENE.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_exceptions_disconnect() -> bool {
+        EXCEPTIONS_DISCONNECT.load(Ordering::Relaxed)
+    }
+    pub fn set_static_exceptions_disconnect(value: bool) {
+        EXCEPTIONS_DISCONNECT.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_disconnect_inactive_connections() -> bool {
+        DISCONNECT_INACTIVE_CONNECTIONS.load(Ordering::Relaxed)
+    }
+    pub fn set_static_disconnect_inactive_connections(value: bool) {
+        DISCONNECT_INACTIVE_CONNECTIONS.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_disconnect_inactive_timeout() -> f32 {
+        DISCONNECT_INACTIVE_TIMEOUT.load(Ordering::Relaxed)
+    }
+    pub fn set_static_disconnect_inactive_timeout(value: f32) {
+        DISCONNECT_INACTIVE_TIMEOUT.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_actual_tick_rate() -> u32 {
+        ACTUAL_TICK_RATE.load(Ordering::Relaxed)
+    }
+    pub fn set_static_actual_tick_rate(value: u32) {
+        ACTUAL_TICK_RATE.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_actual_tick_rate_start() -> f64 {
+        ACTUAL_TICK_RATE_START.load(Ordering::Relaxed)
+    }
+    pub fn set_static_actual_tick_rate_start(value: f64) {
+        ACTUAL_TICK_RATE_START.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_actual_tick_rate_counter() -> u32 {
+        ACTUAL_TICK_RATE_COUNTER.load(Ordering::Relaxed)
+    }
+    pub fn set_static_actual_tick_rate_counter(value: u32) {
+        ACTUAL_TICK_RATE_COUNTER.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_tick_rate() -> u32 {
+        TICK_RATE.load(Ordering::Relaxed)
+    }
+    pub fn set_static_tick_rate(value: u32) {
+        TICK_RATE.store(value, Ordering::Relaxed);
+        Self::set_static_tick_interval(1f32 / value as f32);
+        Self::set_static_send_rate(value);
+    }
+    pub fn get_static_tick_interval() -> f32 {
+        TICK_INTERVAL.load(Ordering::Relaxed)
+    }
+    pub fn set_static_tick_interval(value: f32) {
+        TICK_INTERVAL.store(value, Ordering::Relaxed);
+    }
+    pub fn get_static_last_send_time() -> f64 {
+        LAST_SEND_TIME.load(Ordering::Relaxed)
+    }
+    pub fn set_static_last_send_time(value: f64) {
+        LAST_SEND_TIME.store(value, Ordering::Relaxed);
     }
 
     // 遍历NETWORK_CONNECTIONS

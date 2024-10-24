@@ -1,5 +1,6 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
 
+#[derive(Clone)]
 pub struct TimeSnapshot {
     pub snapshot: Snapshot,
 }

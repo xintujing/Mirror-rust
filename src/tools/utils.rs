@@ -9,7 +9,7 @@ pub fn generate_id() -> u32 {
     let mut next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
     if next_id > u32::MAX - 1 {
         next_id = 1;
-        return 0;
+        return next_id;
     }
     next_id
 }

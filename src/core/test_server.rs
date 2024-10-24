@@ -1,5 +1,5 @@
-use crate::components::network_common_component::NetworkCommonComponent;
-use crate::core::backend_data::{BackendData, BACKEND_DATA};
+use crate::components::network_common_behaviour::NetworkCommonBehaviour;
+use crate::core::backend_data::BACKEND_DATA;
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
@@ -15,7 +15,7 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::{Quaternion, Vector3};
 use std::process::exit;
-use std::sync::{mpsc, Arc};
+use std::sync::mpsc;
 use tklog::{debug, error};
 
 type MapBridge = String;
@@ -460,47 +460,55 @@ impl MirrorServer {
                 // 名字 颜色
                 // let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload().slice(4..)))).unwrap();
 
+                let mut batch03 = Batch::new();
+
+
                 if let Some(identity) = &cur_connect.identity {
                     let mut un_batch = UnBatch::new(payload);
                     let _ = un_batch.read_u32_le().unwrap();
 
                     let name = un_batch.read_string_le().unwrap();
 
-                    let component = identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
+                    // let component = identity.network_behaviours.get_mut(&component_idx).unwrap().as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
+                    if let Some(network_behaviour) = identity.network_behaviours.get(&component_idx) {
+                        if let Ok(network_behaviour_) = network_behaviour.read() {
+                            // let component = network_common.as_any().downcast_ref::<NetworkCommonBehaviour>().unwrap();
+                            if let Some(component) = network_behaviour_.as_any().downcast_ref::<NetworkCommonBehaviour>() {
+                                let mut batch01 = Batch::new();
+                                batch01.write_string_le(name.as_str());
+                                if let Some(mut var) = component.sync_vars.get_mut(&1) {
+                                    var.data = batch01.get_bytes();
+                                }
 
-                    let mut batch01 = Batch::new();
-                    batch01.write_string_le(name.as_str());
-                    if let Some(mut var) = component.sync_vars.get_mut(&1) {
-                        var.data = batch01.get_bytes();
+                                let a = un_batch.read_f32_le().unwrap();
+                                let b = un_batch.read_f32_le().unwrap();
+                                let c = un_batch.read_f32_le().unwrap();
+                                let d = un_batch.read_f32_le().unwrap();
+
+                                let mut batch02 = Batch::new();
+                                batch02.write_f32_le(a);
+                                batch02.write_f32_le(b);
+                                batch02.write_f32_le(c);
+                                batch02.write_f32_le(d);
+                                if let Some(mut var) = component.sync_vars.get_mut(&2) {
+                                    var.data = batch02.get_bytes();
+                                }
+
+
+                                batch03.write_u8(0x02);
+                                batch03.write_u8(0x2c);
+
+                                batch03.write_u64_le(0);
+                                batch03.write_u64_le(6);
+
+                                batch03.write_string_le(name.as_str());
+                                batch03.write_f32_le(a);
+                                batch03.write_f32_le(b);
+                                batch03.write_f32_le(c);
+                                batch03.write_f32_le(d);
+                            }
+                        }
                     }
-
-                    let a = un_batch.read_f32_le().unwrap();
-                    let b = un_batch.read_f32_le().unwrap();
-                    let c = un_batch.read_f32_le().unwrap();
-                    let d = un_batch.read_f32_le().unwrap();
-
-                    let mut batch02 = Batch::new();
-                    batch02.write_f32_le(a);
-                    batch02.write_f32_le(b);
-                    batch02.write_f32_le(c);
-                    batch02.write_f32_le(d);
-                    if let Some(mut var) = component.sync_vars.get_mut(&2) {
-                        var.data = batch02.get_bytes();
-                    }
-
-                    let mut batch03 = Batch::new();
-
-                    batch03.write_u8(0x02);
-                    batch03.write_u8(0x2c);
-
-                    batch03.write_u64_le(0);
-                    batch03.write_u64_le(6);
-
-                    batch03.write_string_le(name.as_str());
-                    batch03.write_f32_le(a);
-                    batch03.write_f32_le(b);
-                    batch03.write_f32_le(c);
-                    batch03.write_f32_le(d);
 
                     let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch03.get_bytes());
                     entity_state_message.serialize(&mut batch);

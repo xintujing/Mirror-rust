@@ -4,7 +4,9 @@ use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::tools::utils::get_sec_timestamp_f64;
 use dashmap::DashMap;
+use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 
+#[derive(Clone)]
 pub struct NetworkConnection {
     pub reliable_rpcs_batch: Batch,
     pub unreliable_rpcs_batch: Batch,
@@ -92,4 +94,6 @@ impl NetworkConnection {
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         }
     }
+
+    pub fn send(&self, batch: &Batch, channel: Kcp2KChannel) {}
 }

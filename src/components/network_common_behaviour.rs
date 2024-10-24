@@ -7,23 +7,23 @@ use std::any::Any;
 use std::fmt::Debug;
 
 #[derive(Debug, Clone)]
-pub struct NetworkCommonComponent {
+pub struct NetworkCommonBehaviour {
     pub network_behaviour: NetworkBehaviour,
     pub sync_vars: DashMap<u8, SyncVar>,
 }
 
-impl NetworkCommonComponent {
+impl NetworkCommonBehaviour {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
     pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
-        NetworkCommonComponent {
+        NetworkCommonBehaviour {
             network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             sync_vars,
         }
     }
 }
 
-impl NetworkBehaviourTrait for NetworkCommonComponent {
+impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
 
     fn serialize(&mut self, initial_state: bool) -> Batch {

@@ -1,6 +1,6 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
+#[derive(Copy, Clone)]
 pub struct TimeSample {
     // 记录开始时间
     begin_time: Instant,
@@ -9,18 +9,18 @@ pub struct TimeSample {
     ema: ExponentialMovingAverage,
 
     // 平均值
-    average: AtomicU64,
+    average: f64,
 }
 
 impl TimeSample {
-    const PRECISION_FACTOR: f64 = 1_000_000.0; // 1 million for microseconds precision
+    // const PRECISION_FACTOR: f64 = 1_000_000.0; // 1 million for microseconds precision
 
     // 新建一个 TimeSample
     pub fn new(n: u32) -> Self {
         Self {
             begin_time: Instant::now(),
             ema: ExponentialMovingAverage::new(n),
-            average: AtomicU64::new(0),
+            average: 0.0,
         }
     }
 
@@ -36,16 +36,16 @@ impl TimeSample {
         self.ema.add(elapsed);
 
         // Expose new average thread safely
-        let average_as_u64 = (self.ema.value() * Self::PRECISION_FACTOR) as u64;
-        self.average.store(average_as_u64, Ordering::Relaxed);
+        self.average = self.ema.value();
     }
 
     // 获取平均值
     pub fn average(&self) -> f64 {
-        self.average.load(Ordering::Relaxed) as f64 / Self::PRECISION_FACTOR
+        self.average
     }
 }
 
+#[derive(Copy, Clone)]
 struct ExponentialMovingAverage {
     n: u32,
     value: f64,

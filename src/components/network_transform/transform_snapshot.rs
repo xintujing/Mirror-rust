@@ -1,6 +1,7 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
 use nalgebra::{Quaternion, Vector3};
 
+#[derive(Clone)]
 pub struct TransformSnapshot {
     pub snapshot: Snapshot,
 
