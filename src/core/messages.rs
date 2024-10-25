@@ -1,12 +1,12 @@
 use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::tools::stable_hash::StableHash;
+use crate::core::transport::TransportChannel;
 use bytes::Bytes;
-use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use nalgebra::{Quaternion, Vector3};
 use std::io;
 
-pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut UnBatch, Kcp2KChannel) + Send + Sync>;
+pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut UnBatch, TransportChannel) + Send + Sync>;
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,

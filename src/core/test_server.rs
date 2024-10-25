@@ -15,7 +15,6 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use nalgebra::{Quaternion, Vector3};
 use std::process::exit;
-use std::sync::mpsc;
 use tklog::{debug, error};
 
 type MapBridge = String;

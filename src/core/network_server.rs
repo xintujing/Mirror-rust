@@ -2,17 +2,19 @@ use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
+use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::NetworkTime;
 use crate::core::tools::time_sample::TimeSample;
+use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc};
 use atomic::Atomic;
+use bytes::Bytes;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::DashMap;
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{error, warn};
-
+use tklog::{debug, error, warn};
 
 lazy_static! {
     static ref INITIALIZED: Atomic<bool> = Atomic::new(false);
@@ -21,7 +23,7 @@ lazy_static! {
     static ref SEND_RATE: Atomic<u32> = Atomic::new(NetworkServer::get_static_tick_rate());
     static ref SEND_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServer::get_static_send_rate() as f32);
     static ref LAST_SEND_TIME: Atomic<f64> = Atomic::new(0.0);
-    static ref DONT_LISTEN: Atomic<bool> = Atomic::new(false);
+    static ref DONT_LISTEN: Atomic<bool> = Atomic::new(true);
     static ref ACTIVE: Atomic<bool> = Atomic::new(false);
     static ref IS_LOADING_SCENE: Atomic<bool> = Atomic::new(false);
     static ref EXCEPTIONS_DISCONNECT: Atomic<bool> = Atomic::new(false);
@@ -53,7 +55,7 @@ pub enum RemovePlayerOptions {
 pub struct NetworkServer;
 
 impl NetworkServer {
-    pub fn initialize() {
+    fn initialize() {
         if Self::get_static_initialized() {
             return;
         }
@@ -65,7 +67,11 @@ impl NetworkServer {
 
         NetworkTime::reset_statics();
 
-        // TODO AddTransportHandlers();
+        unsafe {
+            if let Some(mut transport) = Transport::get_active_transport() {
+                transport.set_transport_cb_fn(Box::new(Self::transport_callback));
+            }
+        }
 
         if Self::get_static_initialized() {
             return;
@@ -87,7 +93,11 @@ impl NetworkServer {
         Self::set_static_max_connections(max_connections);
 
         if Self::get_static_dont_listen() {
-            // TODO transport.active.server_start()
+            unsafe {
+                if let Some(mut transport) = Transport::get_active_transport() {
+                    transport.server_start();
+                }
+            }
         }
 
         Self::set_static_active(true);
@@ -95,34 +105,159 @@ impl NetworkServer {
         Self::register_message_handlers();
     }
 
-    pub fn on_transport_connected(connection_id: u64) {
+    // 网络早期更新
+    pub fn network_early_update() {
+        if Self::get_static_active() {
+            if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
+                early_update_duration.begin();
+            }
+            if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
+                full_update_duration.begin();
+            }
+        }
+        unsafe {
+            if let Some(mut active_transport) = Transport::get_active_transport() {
+                active_transport.server_early_update();
+            }
+        }
+
+        //  step each connection's local time interpolation in early update. 1969
+        Self::for_each_network_connection(|mut connection| {
+            connection.update_time_interpolation();
+        });
+
+
+        if Self::get_static_active() {
+            if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
+                early_update_duration.end();
+            }
+        }
+    }
+
+    // 网络更新
+    pub fn network_late_update() {
+        if Self::get_static_active() {
+            if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
+                late_update_duration.begin();
+            }
+        }
+        unsafe {
+            if let Some(mut active_transport) = Transport::get_active_transport() {
+                active_transport.server_late_update();
+            }
+        }
+
+        if Self::get_static_active() {
+
+            // TODO
+
+            if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
+                late_update_duration.end();
+            }
+            if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
+                full_update_duration.end();
+            }
+        }
+    }
+
+    // 处理 TransportCallback
+    fn transport_callback(tbc: TransportCallback) {
+        match tbc.r#type {
+            TransportCallbackType::OnServerConnected => {
+                Self::on_transport_connected(tbc.connection_id)
+            }
+            TransportCallbackType::OnServerDataReceived => {
+                Self::on_transport_data(tbc.connection_id, tbc.data, tbc.channel)
+            }
+            TransportCallbackType::OnServerDisconnected => {
+                Self::on_transport_disconnected(tbc.connection_id)
+            }
+            TransportCallbackType::OnServerError => {
+                Self::on_transport_error(tbc.connection_id, tbc.error)
+            }
+            TransportCallbackType::OnServerTransportException => {
+                Self::on_server_transport_exception(tbc.connection_id, tbc.error)
+            }
+            _ => {}
+        }
+    }
+
+    // 处理 TransportConnected 消息
+    fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
             error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
-            // TODO transport.active.server_disconnect(connectionId);
+            unsafe {
+                if let Some(mut transport) = Transport::get_active_transport() {
+                    transport.server_disconnect(connection_id);
+                }
+            }
             return;
         }
 
         if NETWORK_CONNECTIONS.contains_key(&connection_id) {
             error!(format!("Server.HandleConnect: connectionId {} already exists.", connection_id));
-            // TODO transport.active.server_disconnect(connectionId);
+            unsafe {
+                if let Some(mut transport) = Transport::get_active_transport() {
+                    transport.server_disconnect(connection_id);
+                }
+            }
             return;
         }
 
         if Self::get_static_network_connections_size() >= Self::get_static_max_connections() {
             error!(format!("Server.HandleConnect: maxConnections reached: {}. Disconnecting connectionId: {}", Self::get_static_max_connections(), connection_id));
-            // TODO transport.active.server_disconnect(connectionId);
+            unsafe {
+                if let Some(mut transport) = Transport::get_active_transport() {
+                    transport.server_disconnect(connection_id);
+                }
+            }
             return;
         }
         let connection = NetworkConnection::network_connection(connection_id);
-        // TODO
-        // Self::on_connected(&mut connection);
+        Self::on_connected(connection);
     }
 
+    // 处理 TransportData 消息
+    fn on_transport_data(connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
+        //
+        let mut reader = UnBatch::new(Bytes::copy_from_slice(data.as_slice()));
+        let remote_time_stamp = reader.read_f64_le().unwrap_or_else(|_| 0.0);
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            while let Ok(mut batch) = reader.read_next() {
+                let message_id = batch.read_u16_le().unwrap();
+                // println!("remote_time_stamp: {}, message_id: {}", remote_time_stamp, message_id);
+                if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
+                    (handler.func)(&mut connection, &mut batch, channel);
+                }
+                if IS_LOADING_SCENE.load(Ordering::Relaxed) && batch.remaining() > NetworkMessages::ID_SIZE {
+                    connection.remote_time_stamp = remote_time_stamp;
+                }
+            }
+        }
+    }
+
+    // 处理 TransportDisconnected 消息
+    fn on_transport_disconnected(connection_id: u64) {
+        // TODO
+    }
+
+    // 处理 TransportError 消息
+    fn on_transport_error(connection_id: u64, transport_error: TransportError) {
+        // TODO
+    }
+
+    // 处理 ServerTransportException 消息
+    fn on_server_transport_exception(connection_id: u64, transport_error: TransportError) {
+        // TODO
+    }
+
+    // 处理 Connected 消息
     fn on_connected(connection: NetworkConnection) {
         Self::add_connection(connection);
         // TODO: OnConnectedEvent?.Invoke(conn);
     }
 
+    // 添加连接
     fn add_connection(connection: NetworkConnection) -> bool {
         if NETWORK_CONNECTIONS.contains_key(&connection.connection_id) {
             return false;
@@ -131,6 +266,7 @@ impl NetworkServer {
         true
     }
 
+    // 注册消息处理程序
     fn register_message_handlers() {
         // 注册 ReadyMessage 处理程序
         Self::register_handler::<ReadyMessage>(Box::new(Self::on_client_ready_message), true);
@@ -149,7 +285,7 @@ impl NetworkServer {
     }
 
     // 处理 ReadyMessage 消息
-    fn on_client_ready_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
+    fn on_client_ready_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         let _ = channel;
         if let Ok(_) = ReadyMessage::deserialize(reader) {
             Self::set_client_ready(connection);
@@ -161,16 +297,16 @@ impl NetworkServer {
 
         Self::spawn_observers_for_connection(connection);
     }
-
     // 为连接生成观察者
     fn spawn_observers_for_connection(connection: &mut NetworkConnection) {
         if !connection.is_ready {
             return;
         }
+        println!("spawn_observers_for_connection: {}", connection.connection_id);
 
         let mut batch = Batch::new_with_s_e_t();
         ObjectSpawnStartedMessage {}.serialize(&mut batch);
-        connection.send(&batch, Kcp2KChannel::Reliable);
+        connection.send(&batch, TransportChannel::Reliable);
 
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
@@ -187,16 +323,16 @@ impl NetworkServer {
 
         let mut batch = Batch::new_with_s_e_t();
         ObjectSpawnFinishedMessage {}.serialize(&mut batch);
-        connection.send(&batch, Kcp2KChannel::Reliable);
+        connection.send(&batch, TransportChannel::Reliable);
     }
 
     // 处理 OnCommandMessage 消息
-    fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
+    fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         if let Ok(message) = CommandMessage::deserialize(reader) {}
     }
 
     // 处理 OnEntityStateMessage 消息
-    fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
+    fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
         if let Ok(message) = message {
             println!("on_entity_state_message: {:?}", message);
@@ -204,10 +340,10 @@ impl NetworkServer {
     }
 
     // 处理 OnTimeSnapshotMessage 消息
-    fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: Kcp2KChannel) {
+    fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         let message = TimeSnapshotMessage::deserialize(reader);
         if let Ok(message) = message {
-            println!("on_time_snapshot_message: {:?}", message);
+            // TODO connection.OnTimeSnapshot(new TimeSnapshot(connection.remoteTimeStamp, NetworkTime.localTime));
         }
     }
 
@@ -222,13 +358,6 @@ impl NetworkServer {
             warn!(format!("NetworkServer.RegisterHandler replacing handler for id={}. If replacement is intentional, use ReplaceHandler instead to avoid this warning.", hash_code));
             return;
         }
-        // if let Ok(mut network_message_handlers) = NETWORK_MESSAGE_HANDLERS.write() {
-        //     if network_message_handlers.contains_key(&hash_code) {
-        //         warn!(format!("NetworkServer.RegisterHandler replacing handler for id={}. If replacement is intentional, use ReplaceHandler instead to avoid this warning.", hash_code));
-        //         return;
-        //     }
-        //     network_message_handlers.insert(hash_code, NetworkMessageHandler::wrap_handler(network_message_handler, require_authentication));
-        // }
         NETWORK_MESSAGE_HANDLERS.insert(hash_code, NetworkMessageHandler::wrap_handler(network_message_handler, require_authentication));
     }
 
@@ -338,6 +467,21 @@ impl NetworkServer {
     }
     pub fn set_static_last_send_time(value: f64) {
         LAST_SEND_TIME.store(value, Ordering::Relaxed);
+    }
+    pub fn set_static_early_update_duration(value: TimeSample) {
+        if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
+            *early_update_duration = value;
+        }
+    }
+    pub fn set_static_full_update_duration(value: TimeSample) {
+        if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
+            *full_update_duration = value;
+        }
+    }
+    pub fn set_static_late_update_duration(value: TimeSample) {
+        if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
+            *late_update_duration = value;
+        }
     }
 
     // 遍历NETWORK_CONNECTIONS

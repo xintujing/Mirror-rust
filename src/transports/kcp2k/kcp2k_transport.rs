@@ -22,7 +22,7 @@ pub struct Kcp2kTransport {
 }
 
 impl Kcp2kTransport {
-    const SCHEME: &'static str = "kcp2k";
+    pub const SCHEME: &'static str = "kcp2k";
     pub fn from_kcp2k_channel(kcp2k_channel: Kcp2KChannel) -> TransportChannel {
         match kcp2k_channel {
             Kcp2KChannel::Unreliable => TransportChannel::Unreliable,
@@ -49,7 +49,6 @@ impl Kcp2kTransport {
             ErrorCode::ConnectionNotFound => TransportError::ConnectionNotFound,
         }
     }
-
     pub fn from_kcp2k_callback_type(callback_type: CallbackType) -> TransportCallbackType {
         match callback_type {
             CallbackType::OnConnected => TransportCallbackType::OnServerConnected,
@@ -58,7 +57,6 @@ impl Kcp2kTransport {
             CallbackType::OnError => TransportCallbackType::OnServerError,
         }
     }
-
     fn recv_data(&mut self) {
         // 服务器接收
         if let Ok(cb) = self.kcp_serv_rx.as_ref().unwrap().try_recv() {
@@ -80,10 +78,10 @@ impl Kcp2kTransport {
 impl Kcp2kTransportTrait for Kcp2kTransport {
     fn awake() {
         let kcp2k_transport = Self {
-            transport: Default::default(),
+            transport: Transport::default(),
             server_active: false,
             config: Default::default(),
-            port: 0,
+            port: 7777,
             kcp_serv: None,
             kcp_serv_rx: None,
         };
@@ -102,8 +100,8 @@ impl TransportTrait for Kcp2kTransport {
         todo!()
     }
 
-    fn server_start(&mut self, port: u16) {
-        match Kcp2K::new_server(self.config, format!("0.0.0.0:{}", port)) {
+    fn server_start(&mut self) {
+        match Kcp2K::new_server(self.config, format!("0.0.0.0:{}", self.port)) {
             Ok((server, s_rx)) => {
                 self.kcp_serv = Some(server);
                 self.kcp_serv_rx = Some(s_rx);

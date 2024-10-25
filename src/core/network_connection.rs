@@ -2,9 +2,9 @@ use crate::core::batcher::Batch;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
+use crate::core::transport::TransportChannel;
 use crate::tools::utils::get_sec_timestamp_f64;
 use dashmap::DashMap;
-use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 
 #[derive(Clone)]
 pub struct NetworkConnection {
@@ -95,5 +95,19 @@ impl NetworkConnection {
         }
     }
 
-    pub fn send(&self, batch: &Batch, channel: Kcp2KChannel) {}
+    pub fn send(&self, batch: &Batch, channel: TransportChannel) {
+        // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
+
+        // TODO GetBatchForChannelId(channelId).AddMessage(segment, NetworkTime.localTime);
+    }
+
+    pub fn update_time_interpolation(&self) {
+        // todo!()
+    }
+
+    pub fn on_time_snapshot(&self, snapshot: TimeSnapshot) {
+        if self.snapshots.len() >= self.snapshot_buffer_size_limit as usize {
+            return;
+        }
+    }
 }

@@ -1,8 +1,8 @@
-use crate::core::batcher::{DataReader, UnBatch};
+use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
 use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnection;
+use crate::core::transport::TransportChannel;
 use atomic::Atomic;
-use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
@@ -83,18 +83,25 @@ impl NetworkTime {
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
+        let _ = channel;
         if let Ok(message) = NetworkPingMessage::deserialize(un_batch) {
             let local_time = Self::local_time();
             let unadjusted_error = local_time - message.local_time;
             let adjusted_error = local_time - message.predicted_time_adjusted;
-            let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-            // TODO: Send pong message
+            // new prediction error
+            let mut pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
+            // new batch
+            let mut batch = Batch::new();
+            // serialize pong message
+            pong_message.serialize(&mut batch);
+            // send pong message
+            connection.send(&batch, TransportChannel::Reliable);
         }
     }
 
     #[allow(dead_code)]
-    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
+    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
         if let Ok(message) = NetworkPongMessage::deserialize(un_batch) {
             if message.local_time > Self::local_time() {
                 return;

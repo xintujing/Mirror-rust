@@ -3,14 +3,14 @@ use std::sync::{Arc, Mutex};
 
 static mut ACTIVE_TRANSPORT: Option<Box<dyn TransportTrait>> = None;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportChannel {
     Reliable = 1,
     Unreliable = 2,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportCallbackType {
     OnServerConnected,
@@ -21,7 +21,7 @@ pub enum TransportCallbackType {
     OnServerTransportException,
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportError {
     None,
@@ -78,7 +78,7 @@ pub trait TransportTrait {
         ""
     }
     fn server_active(&self) -> bool;
-    fn server_start(&mut self, port: u16);
+    fn server_start(&mut self);
     fn server_send(&mut self, connection_id: u64, data: Vec<u8>, channel: TransportChannel);
     fn server_disconnect(&mut self, connection_id: u64);
     fn server_get_client_address(&self, connection_id: u64) -> String;
