@@ -87,7 +87,7 @@ impl NetworkServer {
         Self::set_static_max_connections(max_connections);
 
         if Self::get_static_dont_listen() {
-            // TODO Transport.active.server_start()
+            // TODO transport.active.server_start()
         }
 
         Self::set_static_active(true);
@@ -98,19 +98,19 @@ impl NetworkServer {
     pub fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
             error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
-            // TODO Transport.active.server_disconnect(connectionId);
+            // TODO transport.active.server_disconnect(connectionId);
             return;
         }
 
         if NETWORK_CONNECTIONS.contains_key(&connection_id) {
             error!(format!("Server.HandleConnect: connectionId {} already exists.", connection_id));
-            // TODO Transport.active.server_disconnect(connectionId);
+            // TODO transport.active.server_disconnect(connectionId);
             return;
         }
 
         if Self::get_static_network_connections_size() >= Self::get_static_max_connections() {
             error!(format!("Server.HandleConnect: maxConnections reached: {}. Disconnecting connectionId: {}", Self::get_static_max_connections(), connection_id));
-            // TODO Transport.active.server_disconnect(connectionId);
+            // TODO transport.active.server_disconnect(connectionId);
             return;
         }
         let connection = NetworkConnection::network_connection(connection_id);
