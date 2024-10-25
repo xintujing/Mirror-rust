@@ -2,6 +2,8 @@ extern crate atomic;
 extern crate kcp2k_rust;
 
 use crate::core::network_server::NetworkServer;
+use crate::core::transport::ACTIVE;
+use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 
 mod transports;
 mod tools;
@@ -17,6 +19,19 @@ fn main() {
         println!("message hash: {} require_authentication: {}", item.key(), item.require_authentication);
     });
 
-    let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
-    m_server.start();
+    // let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
+    // m_server.start();
+
+    Kcp2kTransport::awake(Default::default(), 7777);
+    unsafe {
+        if let Some(mut transport) = ACTIVE.as_mut() {
+            transport.set_transport_cb_fn(Box::new(|cb| {
+                println!("{:?}", cb);
+            }));
+            loop {
+                transport.server_early_update();
+                transport.server_late_update();
+            }
+        }
+    }
 }

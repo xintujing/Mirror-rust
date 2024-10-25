@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
+pub static mut ACTIVE: Option<Box<dyn TransportTrait>> = None;
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportChannel {
@@ -11,10 +13,12 @@ pub enum TransportChannel {
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportCallbackType {
-    OnConnected,
-    OnData,
-    OnDisconnected,
-    OnError,
+    OnServerConnected,
+    OnServerDataReceived,
+    OnServerDisconnected,
+    OnServerError,
+    OnServerDataSent,
+    OnServerTransportException,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -44,7 +48,7 @@ pub struct TransportCallback {
 impl Default for TransportCallback {
     fn default() -> Self {
         Self {
-            r#type: TransportCallbackType::OnError,
+            r#type: TransportCallbackType::OnServerError,
             data: Vec::new(),
             connection_id: 0,
             channel: TransportChannel::Reliable,
@@ -52,10 +56,10 @@ impl Default for TransportCallback {
         }
     }
 }
-pub type TransportFunc = Box<dyn Fn(TransportCallback) + Send + Sync>;
+pub type TransportFunc = Box<dyn Fn(TransportCallback)>;
 #[derive(Clone, Default)]
 pub struct Transport {
-    pub server_cb_fn: Arc<Mutex<Option<TransportFunc>>>,
+    pub transport_cb_fn: Arc<Mutex<Option<TransportFunc>>>,
 }
 pub trait TransportTrait {
     fn available(&self) -> bool;
@@ -74,5 +78,5 @@ pub trait TransportTrait {
     fn server_late_update(&mut self);
     fn server_stop(&mut self);
     fn shutdown(&mut self);
-    fn set_server_cb_fn(&self, func: TransportFunc);
+    fn set_transport_cb_fn(&self, func: TransportFunc);
 }

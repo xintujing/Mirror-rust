@@ -1,4 +1,4 @@
-use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc, TransportTrait};
+use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc, TransportTrait, ACTIVE};
 use bytes::Bytes;
 use dashmap::DashMap;
 use kcp2k_rust::error_code::ErrorCode;
@@ -54,10 +54,10 @@ impl Kcp2kTransport {
 
     pub fn from_kcp2k_callback_type(callback_type: CallbackType) -> TransportCallbackType {
         match callback_type {
-            CallbackType::OnConnected => TransportCallbackType::OnConnected,
-            CallbackType::OnData => TransportCallbackType::OnData,
-            CallbackType::OnDisconnected => TransportCallbackType::OnDisconnected,
-            CallbackType::OnError => TransportCallbackType::OnError,
+            CallbackType::OnConnected => TransportCallbackType::OnServerConnected,
+            CallbackType::OnData => TransportCallbackType::OnServerDataReceived,
+            CallbackType::OnDisconnected => TransportCallbackType::OnServerDisconnected,
+            CallbackType::OnError => TransportCallbackType::OnServerError,
         }
     }
 
@@ -70,7 +70,7 @@ impl Kcp2kTransport {
             tcb.data = cb.data.to_vec();
             tcb.channel = Self::from_kcp2k_channel(cb.channel);
             tcb.error = Self::from_kcp2k_error_code(cb.error_code);
-            if let Ok(on_server_connected) = self.transport.server_cb_fn.lock() {
+            if let Ok(on_server_connected) = self.transport.transport_cb_fn.lock() {
                 if let Some(func) = on_server_connected.as_ref() {
                     func(tcb);
                 }
@@ -83,7 +83,7 @@ impl Kcp2kTransportTrait for Kcp2kTransport {
     fn awake(config: Kcp2KConfig, port: u16) {
         match Kcp2K::new_server(config, format!("0.0.0.0:{}", port)) {
             Ok((server, s_rx)) => {
-                Self {
+                let kcp2k_transport = Self {
                     transport: Default::default(),
                     server_active: false,
                     config,
@@ -91,6 +91,9 @@ impl Kcp2kTransportTrait for Kcp2kTransport {
                     kcp_serv: server,
                     kcp_serv_rx: s_rx,
                 };
+                unsafe {
+                    ACTIVE = Some(Box::new(kcp2k_transport));
+                }
             }
             Err(err) => {
                 error!(format!("Kcp2kTransport awake error: {:?}", err));
@@ -112,12 +115,28 @@ impl TransportTrait for Kcp2kTransport {
     fn server_start(&mut self) {
         self.server_stop();
         Self::awake(self.config, self.port);
+        self.server_active = true;
     }
 
     fn server_send(&mut self, connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
+        let mut tcb = TransportCallback::default();
         match self.kcp_serv.s_send(connection_id, Bytes::copy_from_slice(data.as_slice()), Self::two_kcp2k_channel(channel)) {
-            Ok(_) => { todo!() }
-            Err(_) => {}
+            Ok(_) => {
+                tcb.r#type = TransportCallbackType::OnServerDataSent;
+                tcb.connection_id = connection_id;
+                tcb.data = data;
+                tcb.channel = channel;
+            }
+            Err(e) => {
+                tcb.r#type = TransportCallbackType::OnServerError;
+                tcb.connection_id = connection_id;
+                tcb.error = Self::from_kcp2k_error_code(e);
+            }
+        }
+        if let Ok(mut transport_cb_fn) = self.transport.transport_cb_fn.lock() {
+            if let Some(func) = transport_cb_fn.as_ref() {
+                func(tcb);
+            }
         }
     }
 
@@ -145,9 +164,9 @@ impl TransportTrait for Kcp2kTransport {
 
     fn shutdown(&mut self) {}
 
-    fn set_server_cb_fn(&self, func: TransportFunc) {
-        if let Ok(mut server_cb_fn) = self.transport.server_cb_fn.lock() {
-            *server_cb_fn = Some(func);
+    fn set_transport_cb_fn(&self, func: TransportFunc) {
+        if let Ok(mut transport_cb_fn) = self.transport.transport_cb_fn.lock() {
+            *transport_cb_fn = Some(func);
         }
     }
 }
