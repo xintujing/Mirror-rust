@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-kcp2k_rust = { path = "src/transports/kcp/kcp2k-rust" }
+kcp2k_rust = { path = "src/transports/kcp2k/kcp2k-rust" }
 bytes = "1.7.1"
 byteorder = "1.5.0"
 bytemuck = "1.18.0"
