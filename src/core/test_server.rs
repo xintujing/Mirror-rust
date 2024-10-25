@@ -29,7 +29,7 @@ pub enum HandleConnectResult {
 
 pub struct MirrorServer {
     pub kcp_serv: Option<Kcp2K>,
-    pub kcp_serv_rx: Option<mpsc::Receiver<Callback>>,
+    pub kcp_serv_rx: Option<crossbeam_channel::Receiver<Callback>>,
     pub uid_con_map: DashMap<MapBridge, NetworkConnection>,
     pub cid_user_map: DashMap<u64, MapBridge>,
 }

@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
-pub static mut ACTIVE: Option<Box<dyn TransportTrait>> = None;
+static mut ACTIVE_TRANSPORT: Option<Box<dyn TransportTrait>> = None;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
@@ -61,6 +61,14 @@ pub type TransportFunc = Box<dyn Fn(TransportCallback)>;
 pub struct Transport {
     pub transport_cb_fn: Arc<Mutex<Option<TransportFunc>>>,
 }
+impl Transport {
+    pub unsafe fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
+        ACTIVE_TRANSPORT.as_mut()
+    }
+    pub unsafe fn set_active_transport(transport: Box<dyn TransportTrait>) {
+        ACTIVE_TRANSPORT = Some(transport);
+    }
+}
 pub trait TransportTrait {
     fn available(&self) -> bool;
     fn is_encrypted(&self) -> bool {
@@ -70,7 +78,7 @@ pub trait TransportTrait {
         ""
     }
     fn server_active(&self) -> bool;
-    fn server_start(&mut self);
+    fn server_start(&mut self, port: u16);
     fn server_send(&mut self, connection_id: u64, data: Vec<u8>, channel: TransportChannel);
     fn server_disconnect(&mut self, connection_id: u64);
     fn server_get_client_address(&self, connection_id: u64) -> String;

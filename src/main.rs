@@ -2,7 +2,7 @@ extern crate atomic;
 extern crate kcp2k_rust;
 
 use crate::core::network_server::NetworkServer;
-use crate::core::transport::ACTIVE;
+use crate::core::transport::{Transport, TransportTrait};
 use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 
 mod transports;
@@ -22,9 +22,10 @@ fn main() {
     // let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
     // m_server.start();
 
-    Kcp2kTransport::awake(Default::default(), 7777);
+    Kcp2kTransport::awake();
     unsafe {
-        if let Some(mut transport) = ACTIVE.as_mut() {
+        if let Some(mut transport) = Transport::get_active_transport() {
+            transport.server_start(7777);
             transport.set_transport_cb_fn(Box::new(|cb| {
                 println!("{:?}", cb);
             }));

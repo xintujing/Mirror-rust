@@ -1,17 +1,15 @@
-use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc, TransportTrait, ACTIVE};
+use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc, TransportTrait};
 use bytes::Bytes;
-use dashmap::DashMap;
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use std::process::exit;
-use std::sync::mpsc;
 use tklog::error;
 
 pub trait Kcp2kTransportTrait {
-    fn awake(config: Kcp2KConfig, port: u16);
+    fn awake();
 }
 
 pub struct Kcp2kTransport {
@@ -19,8 +17,8 @@ pub struct Kcp2kTransport {
     pub server_active: bool,
     pub config: Kcp2KConfig,
     pub port: u16,
-    pub kcp_serv: Kcp2K,
-    pub kcp_serv_rx: mpsc::Receiver<Callback>,
+    pub kcp_serv: Option<Kcp2K>,
+    pub kcp_serv_rx: Option<crossbeam_channel::Receiver<Callback>>,
 }
 
 impl Kcp2kTransport {
@@ -63,7 +61,7 @@ impl Kcp2kTransport {
 
     fn recv_data(&mut self) {
         // 服务器接收
-        if let Ok(cb) = self.kcp_serv_rx.try_recv() {
+        if let Ok(cb) = self.kcp_serv_rx.as_ref().unwrap().try_recv() {
             let mut tcb = TransportCallback::default();
             tcb.r#type = Self::from_kcp2k_callback_type(cb.callback_type);
             tcb.connection_id = cb.connection_id;
@@ -80,25 +78,17 @@ impl Kcp2kTransport {
 }
 
 impl Kcp2kTransportTrait for Kcp2kTransport {
-    fn awake(config: Kcp2KConfig, port: u16) {
-        match Kcp2K::new_server(config, format!("0.0.0.0:{}", port)) {
-            Ok((server, s_rx)) => {
-                let kcp2k_transport = Self {
-                    transport: Default::default(),
-                    server_active: false,
-                    config,
-                    port,
-                    kcp_serv: server,
-                    kcp_serv_rx: s_rx,
-                };
-                unsafe {
-                    ACTIVE = Some(Box::new(kcp2k_transport));
-                }
-            }
-            Err(err) => {
-                error!(format!("Kcp2kTransport awake error: {:?}", err));
-                exit(1)
-            }
+    fn awake() {
+        let kcp2k_transport = Self {
+            transport: Default::default(),
+            server_active: false,
+            config: Default::default(),
+            port: 0,
+            kcp_serv: None,
+            kcp_serv_rx: None,
+        };
+        unsafe {
+            Transport::set_active_transport(Box::new(kcp2k_transport));
         }
     }
 }
@@ -112,15 +102,23 @@ impl TransportTrait for Kcp2kTransport {
         todo!()
     }
 
-    fn server_start(&mut self) {
-        self.server_stop();
-        Self::awake(self.config, self.port);
-        self.server_active = true;
+    fn server_start(&mut self, port: u16) {
+        match Kcp2K::new_server(self.config, format!("0.0.0.0:{}", port)) {
+            Ok((server, s_rx)) => {
+                self.kcp_serv = Some(server);
+                self.kcp_serv_rx = Some(s_rx);
+                self.server_active = true;
+            }
+            Err(err) => {
+                error!(format!("Kcp2kTransport awake error: {:?}", err));
+                exit(1)
+            }
+        }
     }
 
     fn server_send(&mut self, connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
         let mut tcb = TransportCallback::default();
-        match self.kcp_serv.s_send(connection_id, Bytes::copy_from_slice(data.as_slice()), Self::two_kcp2k_channel(channel)) {
+        match self.kcp_serv.as_ref().unwrap().s_send(connection_id, Bytes::copy_from_slice(data.as_slice()), Self::two_kcp2k_channel(channel)) {
             Ok(_) => {
                 tcb.r#type = TransportCallbackType::OnServerDataSent;
                 tcb.connection_id = connection_id;
@@ -141,25 +139,25 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_disconnect(&mut self, connection_id: u64) {
-        todo!()
+        self.kcp_serv.as_ref().unwrap().close_connection(connection_id);
     }
 
     fn server_get_client_address(&self, connection_id: u64) -> String {
-        todo!()
+        self.kcp_serv.as_ref().unwrap().get_connection_address(connection_id)
     }
 
     fn server_early_update(&mut self) {
-        self.kcp_serv.tick_incoming();
+        self.kcp_serv.as_ref().unwrap().tick_incoming();
         self.recv_data();
     }
 
     fn server_late_update(&mut self) {
-        self.kcp_serv.tick_outgoing();
+        self.kcp_serv.as_ref().unwrap().tick_outgoing();
         self.recv_data();
     }
 
     fn server_stop(&mut self) {
-        let _ = self.kcp_serv.stop();
+        let _ = self.kcp_serv.as_ref().unwrap().stop();
     }
 
     fn shutdown(&mut self) {}
