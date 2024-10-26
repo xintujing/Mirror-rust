@@ -1,16 +1,6 @@
-#[allow(dead_code)]
-#[derive(Clone)]
-pub struct Snapshot {
-    pub remote_time: f64,
-    pub local_time: f64,
-}
-
-#[allow(dead_code)]
-impl Snapshot {
-    pub fn new(remote_time: f64, local_time: f64) -> Self {
-        Snapshot {
-            remote_time,
-            local_time,
-        }
-    }
+pub trait Snapshot: Ord {
+    fn local_time(&self) -> f64;
+    fn remote_time(&self) -> f64;
+    fn set_local_time(&mut self, local_time: f64);
+    fn set_remote_time(&mut self, remote_time: f64);
 }

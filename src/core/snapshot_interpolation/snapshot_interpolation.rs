@@ -1,3 +1,6 @@
+use crate::core::snapshot_interpolation::snapshot::Snapshot;
+use std::collections::BTreeSet;
+
 pub struct SnapshotInterpolation;
 
 impl SnapshotInterpolation {
@@ -51,5 +54,19 @@ impl SnapshotInterpolation {
         // add the tolerance
         let safe_zone = multiples + dynamic_adjustment_tolerance;
         safe_zone
+    }
+
+    pub fn insert_if_not_exists<T>(
+        buffer: &mut BTreeSet<T>,
+        buffer_limit: usize,
+        snapshot: T,
+    ) -> bool
+    where
+        T: Snapshot,
+    {
+        if buffer.len() >= buffer_limit { return false; }
+        let before = buffer.len();
+        buffer.insert(snapshot);
+        buffer.len() > before
     }
 }

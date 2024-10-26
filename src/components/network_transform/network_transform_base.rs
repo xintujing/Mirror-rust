@@ -1,13 +1,14 @@
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
+use std::collections::BTreeSet;
 
 
 #[derive(Clone)]
 pub struct NetworkTransformBase {
     pub is_client_with_authority: bool,
 
-    pub client_snapshots: Vec<TransformSnapshot>,
-    pub server_snapshots: Vec<TransformSnapshot>,
+    pub client_snapshots: BTreeSet<TransformSnapshot>,
+    pub server_snapshots: BTreeSet<TransformSnapshot>,
     pub time_stamp_adjustment: f64,
     pub offset: f64,
     // pub network_behaviour_setting: NetworkBehaviourSetting,
