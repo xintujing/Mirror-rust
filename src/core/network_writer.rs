@@ -36,6 +36,12 @@ impl NetworkWriter {
     pub fn get_data(&self) -> Vec<u8> {
         self.data[..self.position].to_vec()
     }
+    pub fn get_position(&self) -> usize {
+        self.position
+    }
+    pub fn set_position(&mut self, value: usize) {
+        self.position = value;
+    }
     pub fn to_array_segment(&self) -> &[u8] {
         &self.data[..self.position]
     }
