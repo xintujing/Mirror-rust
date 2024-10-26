@@ -4,6 +4,7 @@ use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::NetworkTime;
+use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc};
 use atomic::Atomic;
@@ -331,8 +332,10 @@ impl NetworkServer {
     fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         let message = TimeSnapshotMessage::deserialize(reader);
         if let Ok(message) = message {
-            // TODO connection.OnTimeSnapshot(new TimeSnapshot(connection.remoteTimeStamp, NetworkTime.localTime));
+            println!("on_time_snapshot_message: {:?}", message);
         }
+        let snapshot = TimeSnapshot::new(connection.remote_time_stamp, NetworkTime::local_time());
+        connection.on_time_snapshot(snapshot);
     }
 
     // 定义一个函数来注册处理程序
