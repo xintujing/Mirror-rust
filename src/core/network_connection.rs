@@ -201,10 +201,14 @@ impl NetworkConnection {
         for identity in tmp.iter() {
             if identity.scene_id != 0 {
                 // TODO NetworkServer.UnSpawn(netIdentity.gameObject);
-            }else {
+            } else {
                 // TODO NetworkServer.Destroy(netIdentity.gameObject);
             }
         }
         self.owned_identities.clear();
+    }
+
+    pub fn cleanup(&mut self) {
+        // TODO networkCoon 209
     }
 }

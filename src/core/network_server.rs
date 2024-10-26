@@ -143,7 +143,6 @@ impl NetworkServer {
         }
 
         if Self::get_static_active() {
-
             let actual_tick_rate_counter = Self::get_static_actual_tick_rate_counter();
             Self::set_static_actual_tick_rate_counter(actual_tick_rate_counter + 1);
 
@@ -238,17 +237,36 @@ impl NetworkServer {
 
     // 处理 TransportDisconnected 消息
     fn on_transport_disconnected(connection_id: u64) {
-        // TODO
+        if let Some(mut connection) = NETWORK_CONNECTIONS.remove(&connection_id) {
+            connection.1.cleanup();
+            if false {
+                // TODO: OnDisconnectedEvent?.Invoke(conn); 844
+            } else {
+                Self::destroy_player_for_connection(&mut connection.1);
+            }
+        }
+    }
+
+    fn destroy_player_for_connection(conn: &mut NetworkConnection) {
+        conn.destroy_owned_objects();
+        conn.remove_from_observings_observers();
+        conn.identity = None;
     }
 
     // 处理 TransportError 消息
     fn on_transport_error(connection_id: u64, transport_error: TransportError) {
-        // TODO
+        warn!(format!("Server.HandleError: connectionId: {}, error: {:?}", connection_id, transport_error));
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            // TODO OnErrorEvent?.Invoke(conn, error, reason);
+        }
     }
 
     // 处理 ServerTransportException 消息
     fn on_server_transport_exception(connection_id: u64, transport_error: TransportError) {
-        // TODO
+        warn!(format!("Server.HandleTransportException: connectionId: {}, error: {:?}", connection_id, transport_error));
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            // TODO OnTransportExceptionEvent?.Invoke(conn, error, reason);
+        }
     }
 
     // 处理 Connected 消息
@@ -328,13 +346,16 @@ impl NetworkServer {
 
     // 处理 OnCommandMessage 消息
     fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
-        if let Ok(message) = CommandMessage::deserialize(reader) {}
+        if let Ok(message) = CommandMessage::deserialize(reader) {
+            // TODO: on_command_message
+        }
     }
 
     // 处理 OnEntityStateMessage 消息
     fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
         if let Ok(message) = message {
+            // TODO: on_entity_state_message
             println!("on_entity_state_message: {:?}", message);
         }
     }
