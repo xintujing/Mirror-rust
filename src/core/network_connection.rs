@@ -102,8 +102,19 @@ impl NetworkConnection {
         // TODO GetBatchForChannelId(channelId).AddMessage(segment, NetworkTime.localTime);
     }
 
-    pub fn update_time_interpolation(&self) {
-        // todo!()
+    pub fn update_time_interpolation(&mut self) {
+        if self.snapshots.len() > 0 {
+            SnapshotInterpolation::step_time(
+                NetworkTime::get_ping_interval(),
+                &mut self.remote_timeline,
+                self.remote_timescale,
+            );
+
+            SnapshotInterpolation::step_interpolation(
+                &mut self.snapshots,
+                self.remote_timeline,
+            );
+        }
     }
 
     pub fn on_time_snapshot(&mut self, snapshot: TimeSnapshot) {
@@ -128,6 +139,5 @@ impl NetworkConnection {
             0.1, // TODO NetworkClient.snapshotSettings.catchupPositiveThreshold,
             &mut self.delivery_time_ema,
         );
-
     }
 }
