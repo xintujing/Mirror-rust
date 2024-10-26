@@ -237,12 +237,12 @@ impl NetworkServer {
 
     // 处理 TransportDisconnected 消息
     fn on_transport_disconnected(connection_id: u64) {
-        if let Some(mut connection) = NETWORK_CONNECTIONS.remove(&connection_id) {
-            connection.1.cleanup();
+        if let Some((_, mut connection)) = NETWORK_CONNECTIONS.remove(&connection_id) {
+            connection.cleanup();
             if false {
                 // TODO: OnDisconnectedEvent?.Invoke(conn); 844
             } else {
-                Self::destroy_player_for_connection(&mut connection.1);
+                Self::destroy_player_for_connection(&mut connection);
             }
         }
     }
