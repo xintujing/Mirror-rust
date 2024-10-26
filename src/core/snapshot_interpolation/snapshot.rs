@@ -1,4 +1,4 @@
-pub trait Snapshot: Ord {
+pub trait Snapshot: Ord + Clone {
     fn local_time(&self) -> f64;
     fn remote_time(&self) -> f64;
     fn set_local_time(&mut self, local_time: f64);
