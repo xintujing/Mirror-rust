@@ -180,9 +180,7 @@ impl SnapshotInterpolation {
         let binding = buffer.clone();
         let (mut from, mut to, mut t) = Self::sample(&binding, local_timeline);
         if let Some(from) = from {
-            if let Some(_) = to {
-                buffer.remove(from);
-            }
+            buffer.remove(from);
         }
         (from.copied(), to.copied(), t)
     }
