@@ -127,4 +127,74 @@ impl SnapshotInterpolation {
             *local_timescale = Self::timescale(drift, catchup_speed, slowdown_speed, absolute_negative_threshold, absolute_positive_threshold);
         }
     }
+
+    pub fn sample<T>(
+        buffer: &BTreeSet<T>,
+        local_timeline: f64,
+    ) -> (Option<&T>, Option<&T>, f64)
+    where
+        T: Snapshot,
+    {
+        let mut from = None;
+        let mut to = None;
+        let mut t = 0.0;
+
+        for i in 0..buffer.len() - 1 {
+            let first = buffer.iter().nth(i).unwrap();
+            let second = buffer.iter().nth(i + 1).unwrap();
+            if local_timeline >= first.remote_time() && local_timeline <= second.remote_time() {
+                from = Some(first);
+                to = Some(second);
+                t = (local_timeline - first.remote_time()) / (second.remote_time() - first.remote_time());
+                break;
+            }
+        }
+
+        if from.is_none() {
+            if buffer.iter().next().unwrap().remote_time() > local_timeline {
+                from = buffer.iter().next();
+                to = buffer.iter().next();
+                t = 0.0;
+            } else {
+                from = buffer.iter().last();
+                to = buffer.iter().last();
+                t = 0.0;
+            }
+        }
+
+        (from, to, t)
+    }
+
+    pub fn step_time(delta_time: f64, local_timeline: &mut f64, local_timescale: f64) {
+        *local_timeline += delta_time * local_timescale;
+    }
+
+    pub fn step_interpolation<T>(
+        buffer: &mut BTreeSet<T>,
+        local_timeline: f64,
+    ) -> (Option<T>, Option<T>, f64)
+    where
+        T: Snapshot,
+    {
+        let (from, to, t) = Self::sample(buffer, local_timeline);
+        if let Some(from) = from {
+            if let Some(_) = to {
+                buffer.remove(from);
+            }
+        }
+        (from.cloned(), to.cloned(), t)
+    }
+
+    pub fn step<T>(
+        buffer: &mut BTreeSet<T>,
+        delta_time: f64,
+        local_timeline: &mut f64,
+        local_timescale: f64,
+    ) -> (Option<T>, Option<T>, f64)
+    where
+        T: Snapshot,
+    {
+        Self::step_time(delta_time, local_timeline, local_timescale);
+        Self::step_interpolation(buffer, *local_timeline)
+    }
 }
