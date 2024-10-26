@@ -10,7 +10,7 @@ dependencies = [
  "bytemuck",
  "byteorder",
  "bytes",
-    "crossbeam-channel",
+ "crossbeam-channel",
  "dashmap",
  "encoding_rs",
  "hex",
@@ -345,7 +345,7 @@ name = "kcp2k_rust"
 version = "0.1.0"
 dependencies = [
  "bytes",
-    "crossbeam-channel",
+ "crossbeam-channel",
  "dashmap",
  "kcp",
  "rand 0.9.0-alpha.2",
