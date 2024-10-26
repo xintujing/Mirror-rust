@@ -144,7 +144,18 @@ impl NetworkServer {
 
         if Self::get_static_active() {
 
-            // TODO
+            let actual_tick_rate_counter = Self::get_static_actual_tick_rate_counter();
+            Self::set_static_actual_tick_rate_counter(actual_tick_rate_counter + 1);
+
+            let local_time = NetworkTime::local_time();
+
+            if local_time - Self::get_static_actual_tick_rate_start() >= 1.0 {
+                let elapsed = local_time - Self::get_static_actual_tick_rate_start();
+                let actual_tick_rate_counter = Self::get_static_actual_tick_rate_counter();
+                Self::set_static_actual_tick_rate(actual_tick_rate_counter / elapsed as u32);
+                Self::set_static_actual_tick_rate_start(local_time);
+                Self::set_static_actual_tick_rate_counter(0);
+            }
 
             if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
                 late_update_duration.end();
