@@ -1,6 +1,6 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd,Copy)]
 pub struct TimeSnapshot {
     pub remote_time: f64,
     pub local_time: f64,

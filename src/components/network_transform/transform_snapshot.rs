@@ -1,7 +1,7 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
 use nalgebra::{Quaternion, Vector3};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq,Copy)]
 pub struct TransformSnapshot {
     pub remote_time: f64,
     pub local_time: f64,

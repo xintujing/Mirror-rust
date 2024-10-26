@@ -1,10 +1,11 @@
 use crate::core::batcher::Batch;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
+use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::TransportChannel;
 use crate::tools::utils::get_sec_timestamp_f64;
-use dashmap::DashMap;
+use std::collections::BTreeSet;
 
 #[derive(Clone)]
 pub struct NetworkConnection {
@@ -25,7 +26,7 @@ pub struct NetworkConnection {
     pub last_ping_time: f64,
     pub rtt: f64,
     // pub backend_data: Arc<BackendData>,
-    pub snapshots: DashMap<u64, TimeSnapshot>,
+    pub snapshots: BTreeSet<TimeSnapshot>,
     pub snapshot_buffer_size_limit: i32,
     pub drift_ema: ExponentialMovingAverage,
     pub delivery_time_ema: ExponentialMovingAverage,
@@ -54,7 +55,7 @@ impl NetworkConnection {
             remote_time_stamp: ts,
             last_ping_time: ts,
             rtt: 0.0,
-            snapshots: DashMap::new(),
+            snapshots: Default::default(),
             snapshot_buffer_size_limit: 64,
             drift_ema: ExponentialMovingAverage::new(10),
             delivery_time_ema: ExponentialMovingAverage::new(10),
@@ -105,9 +106,28 @@ impl NetworkConnection {
         // todo!()
     }
 
-    pub fn on_time_snapshot(&self, snapshot: TimeSnapshot) {
+    pub fn on_time_snapshot(&mut self, snapshot: TimeSnapshot) {
         if self.snapshots.len() >= self.snapshot_buffer_size_limit as usize {
             return;
         }
+
+        // TODO (optional) dynamic adjustment
+
+        SnapshotInterpolation::insert_and_adjust(
+            &mut self.snapshots,
+            self.snapshot_buffer_size_limit as usize,
+            snapshot,
+            &mut self.remote_timeline,
+            &mut self.remote_timescale,
+            NetworkTime::get_ping_interval(),
+            self.buffer_time,
+            1.0,  // TODO NetworkClient.snapshotSettings.catchupSpeed,
+            1.0, // TODO NetworkClient.snapshotSettings.slowdownSpeed,
+            &mut self.drift_ema,
+            0.1, // TODO NetworkClient.snapshotSettings.catchupNegativeThreshold,
+            0.1, // TODO NetworkClient.snapshotSettings.catchupPositiveThreshold,
+            &mut self.delivery_time_ema,
+        );
+
     }
 }

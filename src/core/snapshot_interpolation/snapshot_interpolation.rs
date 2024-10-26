@@ -1,3 +1,4 @@
+use crate::core::network_time::ExponentialMovingAverage;
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
 use std::collections::BTreeSet;
 
@@ -96,10 +97,10 @@ impl SnapshotInterpolation {
         buffer_time: f64,
         catchup_speed: f64,
         slowdown_speed: f64,
-        drift_ema: &mut f64,
+        drift_ema: &mut ExponentialMovingAverage,
         catchup_negative_threshold: f64,
         catchup_positive_threshold: f64,
-        delivery_time_ema: &mut f64,
+        delivery_time_ema: &mut ExponentialMovingAverage,
     ) where
         T: Snapshot,
     {
@@ -112,15 +113,15 @@ impl SnapshotInterpolation {
                 let previous_local_time = buffer.iter().rev().nth(1).unwrap().local_time();
                 let lastest_local_time = buffer.iter().rev().next().unwrap().local_time();
                 let local_delivery_time = lastest_local_time - previous_local_time;
-                *delivery_time_ema = local_delivery_time;
+                delivery_time_ema.add(local_delivery_time);
             }
 
             *local_timeline = Self::timeline_clamp(*local_timeline, buffer_time, snapshot.remote_time());
 
             let time_diff = snapshot.remote_time() - *local_timeline;
-            *drift_ema = time_diff;
+            drift_ema.add(time_diff);
 
-            let drift = *drift_ema - buffer_time;
+            let drift = drift_ema.value() - buffer_time;
             let absolute_negative_threshold = send_interval * catchup_negative_threshold;
             let absolute_positive_threshold = send_interval * catchup_positive_threshold;
 
@@ -176,13 +177,14 @@ impl SnapshotInterpolation {
     where
         T: Snapshot,
     {
-        let (from, to, t) = Self::sample(buffer, local_timeline);
+        let binding = buffer.clone();
+        let (mut from, mut to, mut t) = Self::sample(&binding, local_timeline);
         if let Some(from) = from {
             if let Some(_) = to {
                 buffer.remove(from);
             }
         }
-        (from.cloned(), to.cloned(), t)
+        (from.copied(), to.copied(), t)
     }
 
     pub fn step<T>(
