@@ -62,11 +62,15 @@ pub struct Transport {
     pub transport_cb_fn: Arc<Mutex<Option<TransportFunc>>>,
 }
 impl Transport {
-    pub unsafe fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
-        ACTIVE_TRANSPORT.as_mut()
+    pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
+        unsafe {
+            ACTIVE_TRANSPORT.as_mut()
+        }
     }
-    pub unsafe fn set_active_transport(transport: Box<dyn TransportTrait>) {
-        ACTIVE_TRANSPORT = Some(transport);
+    pub fn set_active_transport(transport: Box<dyn TransportTrait>) {
+        unsafe {
+            ACTIVE_TRANSPORT = Some(transport);
+        }
     }
 }
 pub trait TransportTrait {

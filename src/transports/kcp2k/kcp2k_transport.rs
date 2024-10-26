@@ -85,9 +85,7 @@ impl Kcp2kTransportTrait for Kcp2kTransport {
             kcp_serv: None,
             kcp_serv_rx: None,
         };
-        unsafe {
-            Transport::set_active_transport(Box::new(kcp2k_transport));
-        }
+        Transport::set_active_transport(Box::new(kcp2k_transport));
     }
 }
 

@@ -1,9 +1,10 @@
-use crate::core::batcher::Batch;
+use crate::core::batcher::{Batch, DataWriter};
+use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
-use crate::core::transport::TransportChannel;
+use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::utils::get_sec_timestamp_f64;
 use std::collections::BTreeSet;
 
@@ -117,6 +118,22 @@ impl NetworkConnection {
         }
     }
 
+    pub fn send_to_transport(&self, batch: &Batch, channel: TransportChannel) {
+        if let Some(transport) = Transport::get_active_transport() {
+            transport.server_send(self.connection_id, batch.get_bytes().to_vec(), channel);
+        }
+    }
+
+    pub fn update_ping(&mut self) {
+        let local_time = NetworkTime::local_time();
+        if local_time >= self.last_ping_time + NetworkTime::get_ping_interval() {
+            self.last_ping_time = local_time;
+            let mut batch = Batch::new();
+            NetworkPingMessage::new(local_time, 0.0).serialize(&mut batch);
+            self.send_to_transport(&batch, TransportChannel::Unreliable);
+        }
+    }
+
     pub fn on_time_snapshot(&mut self, snapshot: TimeSnapshot) {
         if self.snapshots.len() >= self.snapshot_buffer_size_limit as usize {
             return;
@@ -139,5 +156,55 @@ impl NetworkConnection {
             0.1, // TODO NetworkClient.snapshotSettings.catchupPositiveThreshold,
             &mut self.delivery_time_ema,
         );
+    }
+
+    pub fn disconnect(&mut self) {
+        if let Some(transport) = Transport::get_active_transport() {
+            self.is_ready = false;
+            // self.reliable_rpcs_batch.clear();
+            // self.unreliable_rpcs_batch.clear();
+            transport.server_disconnect(self.connection_id);
+        }
+    }
+
+    pub fn add_to_observing_identities(&mut self, identity: NetworkIdentity) {
+        self.observing_identities.push(identity);
+        // TODO NetworkServer.ShowForConnection(netIdentity, this);
+        // NetworkServer::ShowForConnection(self.connection_id, identity.scene_id, identity.asset_id);
+    }
+
+    pub fn remove_from_observing_identities(&mut self, identity: NetworkIdentity, is_destroyed: bool) {
+        self.observing_identities.retain(|x| x.net_id != identity.net_id);
+        if !is_destroyed {
+            // TODO NetworkServer.HideForConnection(netIdentity, this);
+            // NetworkServer::HideForConnection(self.connection_id, identity.scene_id, identity.asset_id);
+        }
+    }
+
+    pub fn remove_from_observings_observers(&mut self) {
+        for identity in self.observing_identities.iter() {
+            //TODO netIdentity.RemoveObserver(this);
+        }
+        self.observing_identities.clear();
+    }
+
+    pub fn add_owned_object(&mut self, identity: NetworkIdentity) {
+        self.owned_identities.push(identity);
+    }
+
+    pub fn remove_owned_object(&mut self, identity: NetworkIdentity) {
+        self.owned_identities.retain(|x| x.net_id != identity.net_id);
+    }
+
+    pub fn destroy_owned_objects(&mut self) {
+        let mut tmp = self.owned_identities.clone();
+        for identity in tmp.iter() {
+            if identity.scene_id != 0 {
+                // TODO NetworkServer.UnSpawn(netIdentity.gameObject);
+            }else {
+                // TODO NetworkServer.Destroy(netIdentity.gameObject);
+            }
+        }
+        self.owned_identities.clear();
     }
 }

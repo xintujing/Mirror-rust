@@ -67,11 +67,11 @@ impl NetworkServer {
 
         NetworkTime::reset_statics();
 
-        unsafe {
-            if let Some(mut transport) = Transport::get_active_transport() {
-                transport.set_transport_cb_fn(Box::new(Self::transport_callback));
-            }
+
+        if let Some(mut transport) = Transport::get_active_transport() {
+            transport.set_transport_cb_fn(Box::new(Self::transport_callback));
         }
+
 
         if Self::get_static_initialized() {
             return;
@@ -93,10 +93,8 @@ impl NetworkServer {
         Self::set_static_max_connections(max_connections);
 
         if Self::get_static_dont_listen() {
-            unsafe {
-                if let Some(mut transport) = Transport::get_active_transport() {
-                    transport.server_start();
-                }
+            if let Some(mut transport) = Transport::get_active_transport() {
+                transport.server_start();
             }
         }
 
@@ -115,10 +113,8 @@ impl NetworkServer {
                 full_update_duration.begin();
             }
         }
-        unsafe {
-            if let Some(mut active_transport) = Transport::get_active_transport() {
-                active_transport.server_early_update();
-            }
+        if let Some(mut active_transport) = Transport::get_active_transport() {
+            active_transport.server_early_update();
         }
 
         //  step each connection's local time interpolation in early update. 1969
@@ -141,10 +137,8 @@ impl NetworkServer {
                 late_update_duration.begin();
             }
         }
-        unsafe {
-            if let Some(mut active_transport) = Transport::get_active_transport() {
-                active_transport.server_late_update();
-            }
+        if let Some(mut active_transport) = Transport::get_active_transport() {
+            active_transport.server_late_update();
         }
 
         if Self::get_static_active() {
@@ -186,30 +180,24 @@ impl NetworkServer {
     fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
             error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
-            unsafe {
-                if let Some(mut transport) = Transport::get_active_transport() {
-                    transport.server_disconnect(connection_id);
-                }
+            if let Some(mut transport) = Transport::get_active_transport() {
+                transport.server_disconnect(connection_id);
             }
             return;
         }
 
         if NETWORK_CONNECTIONS.contains_key(&connection_id) {
             error!(format!("Server.HandleConnect: connectionId {} already exists.", connection_id));
-            unsafe {
-                if let Some(mut transport) = Transport::get_active_transport() {
-                    transport.server_disconnect(connection_id);
-                }
+            if let Some(mut transport) = Transport::get_active_transport() {
+                transport.server_disconnect(connection_id);
             }
             return;
         }
 
         if Self::get_static_network_connections_size() >= Self::get_static_max_connections() {
             error!(format!("Server.HandleConnect: maxConnections reached: {}. Disconnecting connectionId: {}", Self::get_static_max_connections(), connection_id));
-            unsafe {
-                if let Some(mut transport) = Transport::get_active_transport() {
-                    transport.server_disconnect(connection_id);
-                }
+            if let Some(mut transport) = Transport::get_active_transport() {
+                transport.server_disconnect(connection_id);
             }
             return;
         }

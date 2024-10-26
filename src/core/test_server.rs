@@ -97,7 +97,7 @@ impl MirrorServer {
     }
     #[allow(dead_code)]
     pub fn disconnect(&self, connection_id: u64) {
-        debug!(format!("Disconnect {}", connection_id));
+        debug!(format!("disconnect {}", connection_id));
     }
 
     #[allow(dead_code)]
