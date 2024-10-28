@@ -13,5 +13,4 @@ pub mod transport;
 pub mod network_writer;
 pub mod network_writer_extensions;
 mod network_writer_pool;
-mod network_writer_pooled;
 mod batching;

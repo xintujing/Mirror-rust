@@ -1,19 +1,21 @@
-use crate::core::batcher::{Batch, NetworkMessageWriter};
+use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
 use crate::core::batching::batcher::Batcher;
 use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_messages::NetworkMessages;
+use crate::core::network_server::NetworkServer;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
-use crate::core::network_writer_pool::NetworkWriterPooledPool;
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::utils::get_sec_timestamp_f64;
+use bytes::Bytes;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use std::collections::BTreeSet;
-use tklog::error;
+use tklog::{debug, error};
 
 #[derive(Clone)]
 pub struct NetworkConnection {
@@ -26,7 +28,7 @@ pub struct NetworkConnection {
     pub is_authenticated: bool,
     pub authentication_data: Vec<u8>,
     pub address: &'static str,
-    pub identity: Option<NetworkIdentity>,
+    pub identity: NetworkIdentity,
     pub owned_identities: Vec<NetworkIdentity>,
     pub observing_identities: Vec<NetworkIdentity>,
     pub last_message_time: f64,
@@ -58,7 +60,7 @@ impl NetworkConnection {
             is_authenticated: false,
             authentication_data: Default::default(),
             address: "",
-            identity: Some(NetworkIdentity::new(scene_id, asset_id)),
+            identity: NetworkIdentity::new(scene_id, asset_id),
             owned_identities: Default::default(),
             observing_identities: Default::default(),
             last_message_time: ts,
@@ -88,7 +90,7 @@ impl NetworkConnection {
             is_authenticated: false,
             authentication_data: Default::default(),
             address: "",
-            identity: None,
+            identity: NetworkIdentity::new(0, 3541431626),
             owned_identities: Default::default(),
             observing_identities: Default::default(),
             last_message_time: ts,
@@ -113,10 +115,9 @@ impl NetworkConnection {
 
     pub fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
-        T: NetworkMessageWriter,
+        T: NetworkMessageWriter + NetworkMessageReader,
     {
-        let mut binding = NetworkWriterPooledPool::get();
-        let mut writer = binding.get_network_writer();
+        let mut writer = NetworkWriterPool::get();
         message.serialize(&mut writer);
         let max = NetworkMessages::max_message_size(channel);
         if writer.get_position() > max {
@@ -124,6 +125,11 @@ impl NetworkConnection {
             return;
         }
         // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
+
+        // let mut un_batch = UnBatch::new(Bytes::copy_from_slice(writer.get_data().as_slice()));
+        // let len = un_batch.decompress_var_u64_le();
+        // let type_ = un_batch.read_u16_le();
+        // debug!(format!("len: {:?}, type: {:?}", len, type_));
 
         self.send(writer.to_array_segment(), channel);
     }
@@ -153,13 +159,27 @@ impl NetworkConnection {
         }
     }
 
-    pub fn send_to_transport(&self, batch: &Batch, channel: TransportChannel) {
+    pub fn send_to_transport(&self, segment: Vec<u8>, channel: TransportChannel) {
         if let Some(transport) = Transport::get_active_transport() {
-            transport.server_send(self.connection_id, batch.get_bytes().to_vec(), channel);
+            transport.server_send(self.connection_id, segment, channel);
         }
     }
 
-    pub fn update_ping(&mut self) {
+    pub fn update(&mut self) {
+        self.update_ping();
+
+        for mut batch in self.batches.iter_mut() {
+            let mut writer = NetworkWriterPool::get();
+            println!("\n");
+            while batch.get_batch(&mut writer) {
+                self.send_to_transport(writer.get_data(), TransportChannel::from_u8(*batch.key()));
+                writer.set_position(0);
+            }
+            println!("\n");
+        }
+    }
+
+    fn update_ping(&mut self) {
         let local_time = NetworkTime::local_time();
         if local_time >= self.last_ping_time + NetworkTime::get_ping_interval() {
             self.last_ping_time = local_time;
@@ -191,6 +211,11 @@ impl NetworkConnection {
         );
     }
 
+    pub fn is_alive(&self, timeout: f64) -> bool {
+        let local_time = NetworkTime::local_time();
+        local_time < self.last_message_time + timeout
+    }
+
     pub fn disconnect(&mut self) {
         if let Some(transport) = Transport::get_active_transport() {
             self.is_ready = false;
@@ -200,10 +225,9 @@ impl NetworkConnection {
         }
     }
 
-    pub fn add_to_observing_identities(&mut self, identity: NetworkIdentity) {
+    pub fn add_to_observing_identities(&mut self, mut identity: NetworkIdentity) {
+        NetworkServer::show_for_connection(&mut identity, self.connection_id);
         self.observing_identities.push(identity);
-        // TODO NetworkServer.ShowForConnection(netIdentity, this);
-        // NetworkServer::ShowForConnection(self.connection_id, identity.scene_id, identity.asset_id);
     }
 
     pub fn remove_from_observing_identities(&mut self, identity: NetworkIdentity, is_destroyed: bool) {
@@ -215,8 +239,8 @@ impl NetworkConnection {
     }
 
     pub fn remove_from_observings_observers(&mut self) {
-        for identity in self.observing_identities.iter() {
-            //TODO netIdentity.RemoveObserver(this);
+        for identity in self.observing_identities.iter_mut() {
+            identity.remove_observer(self.connection_id);
         }
         self.observing_identities.clear();
     }
@@ -242,6 +266,8 @@ impl NetworkConnection {
     }
 
     pub fn cleanup(&mut self) {
-        // TODO networkCoon 209
+        for mut batch in self.batches.iter_mut() {
+            batch.value_mut().clear();
+        }
     }
 }

@@ -5,7 +5,6 @@ use crate::components::network_transform::network_transform_unreliable::NetworkT
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
 use crate::core::batcher::Batch;
-use crate::core::network_connection::NetworkConnection;
 use bytes::Bytes;
 use dashmap::DashMap;
 use nalgebra::Vector3;
@@ -24,10 +23,11 @@ pub struct NetworkIdentity {
     pub asset_id: u32,
     pub net_id: u32,
     pub owned_type: OwnedType,
-    pub owned: u32,
-    observers: DashMap<u64, NetworkConnection>,
+    pub is_owned: u32,
+    observers: Vec<u64>,
+    pub connection_id_to_client: u64,
     pub is_init: bool,
-    pub is_destroy: bool,
+    pub destroy_called: bool,
     pub visibility: Visibility,
     pub network_behaviours: DashMap<u8, Arc<RwLock<dyn NetworkBehaviourTrait>>>,
 }
@@ -39,10 +39,11 @@ impl NetworkIdentity {
             asset_id,
             net_id: 0,
             owned_type: OwnedType::Client,
-            owned: 0,
+            is_owned: 0,
             observers: Default::default(),
-            is_init: true,
-            is_destroy: false,
+            connection_id_to_client: 0,
+            is_init: false,
+            destroy_called: false,
             visibility: Visibility::Default,
             network_behaviours: Default::default(),
         };
@@ -84,6 +85,10 @@ impl NetworkIdentity {
         network_identity
     }
 
+    pub fn default() -> Self {
+        Self::new(0, 0)
+    }
+
     pub fn new_network_common_component(&self, network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
         let sync_vars = DashMap::new();
         for (index, sync_var) in BACKEND_DATA.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
@@ -96,7 +101,8 @@ impl NetworkIdentity {
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
 
-    pub fn new_spawn_message_payload(&mut self) -> Bytes {
+    pub fn new_spawn_message_payload(&mut self) -> Vec<u8> {
+        // TODO fix
         // mask
         let mut mask = 0u64;
         // 创建 Batch
@@ -118,10 +124,22 @@ impl NetworkIdentity {
         // 写入 components_batch
         batch.write(&components_batch.get_bytes());
         // 返回 batch 的 bytes
-        batch.get_bytes()
+        batch.get_bytes().to_vec()
     }
 
-    pub fn add_observing_network_connection(&mut self, connection: &NetworkConnection) {
-        self.observers.insert(connection.connection_id, connection.clone());
+    pub fn add_observing_network_connection(&mut self, connection_id: u64) {
+        self.observers.push(connection_id);
+    }
+
+    pub fn remove_observer(&mut self, connection_id: u64) {
+        self.observers.retain(|x| *x != connection_id);
+    }
+
+    pub fn set_client_owner(&mut self, connection_id: u64) {
+        // do nothing if it already has an owner
+        if self.connection_id_to_client != 0 {
+            return;
+        }
+        self.connection_id_to_client = connection_id;
     }
 }

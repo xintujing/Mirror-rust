@@ -3,6 +3,7 @@ extern crate kcp2k_rust;
 
 use crate::core::network_server::NetworkServer;
 use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
+use std::thread::sleep;
 
 mod transports;
 mod tools;
@@ -11,8 +12,8 @@ mod core;
 
 fn main() {
 
-    let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
-    m_server.start();
+    // let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
+    // m_server.start();
 
     Kcp2kTransport::awake();
     NetworkServer::listen(99);
@@ -27,5 +28,6 @@ fn main() {
     loop {
         NetworkServer::network_early_update();
         NetworkServer::network_late_update();
+        sleep(std::time::Duration::from_millis(100));
     }
 }

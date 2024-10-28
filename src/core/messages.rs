@@ -27,6 +27,10 @@ pub struct TimeSnapshotMessage {}
 impl TimeSnapshotMessage {
     #[allow(dead_code)]
     pub const FULL_NAME: &'static str = "Mirror.TimeSnapshotMessage";
+    #[allow(dead_code)]
+    pub fn new() -> Self {
+        Self {}
+    }
 }
 impl NetworkMessageReader for TimeSnapshotMessage {
     fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {

@@ -1,9 +1,12 @@
 use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, TimeSnapshotMessage};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
+use crate::core::network_identity::Visibility::Default;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -12,9 +15,10 @@ use bytes::Bytes;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
+use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{error, warn};
+use tklog::{debug, error, warn};
 
 lazy_static! {
     static ref INITIALIZED: Atomic<bool> = Atomic::new(false);
@@ -136,6 +140,7 @@ impl NetworkServer {
             if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
                 late_update_duration.begin();
             }
+            Self::broadcast();
         }
         if let Some(mut active_transport) = Transport::get_active_transport() {
             active_transport.server_late_update();
@@ -164,6 +169,78 @@ impl NetworkServer {
         }
     }
 
+    // Broadcast
+    fn broadcast() {
+        let mut connection_copy = NETWORK_CONNECTIONS.clone();
+        connection_copy.iter_mut().for_each(|mut connection| {
+            // check for inactivity. disconnects if necessary.
+            if Self::disconnect_if_inactive(&mut connection) {
+                return;
+            }
+
+            if connection.is_ready {
+                // send messages
+                connection.send_network_message(TimeSnapshotMessage::new(), TransportChannel::Unreliable);
+
+                // broadcast to connection
+                Self::broadcast_to_connection(&mut connection);
+            }
+            connection.update();
+        });
+    }
+
+    fn broadcast_to_connection(connection: &mut NetworkConnection) {
+        connection.observing_identities.iter_mut().for_each(|mut identity| {
+            identity.new_spawn_message_payload();
+            // TODO SerializeForConnection
+        });
+    }
+
+    fn disconnect_if_inactive(connection: &mut NetworkConnection) -> bool {
+        if Self::get_static_disconnect_inactive_connections() &&
+            !connection.is_alive(Self::get_static_disconnect_inactive_timeout() as f64) {
+            warn!(format!("Server.DisconnectIfInactive: connectionId: {} is inactive. Disconnecting.", connection.connection_id));
+            connection.disconnect();
+            return true;
+        }
+        false
+    }
+
+    // show / hide for connection //////////////////////////////////////////
+    pub fn show_for_connection(identity: &mut NetworkIdentity, connection_id: u64) {
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            if connection.is_ready {
+                Self::send_spawn_message(identity, &mut connection);
+            }
+        }
+    }
+
+    fn send_spawn_message(identity: &mut NetworkIdentity, connection: &mut NetworkConnection) {
+        let is_local_player = identity.net_id == connection.identity.net_id;
+        let is_owner = identity.connection_id_to_client == connection.connection_id;
+        // position
+        let position = Vector3::new(0.0, 0.0, 0.0);
+
+        // rotation
+        let rotation = Quaternion::new(1.0, 0.0, 0.0, 0.0);
+
+        // scale
+        let scale = Vector3::new(1.0, 1.0, 1.0);
+
+        let payload = identity.new_spawn_message_payload();
+
+        let message = SpawnMessage::new(identity.net_id,
+                                        is_local_player,
+                                        is_owner,
+                                        identity.scene_id,
+                                        identity.asset_id,
+                                        position,
+                                        rotation,
+                                        scale,
+                                        payload);
+        connection.send_network_message(message, TransportChannel::Reliable);
+    }
+
     // 处理 TransportCallback
     fn transport_callback(tbc: TransportCallback) {
         match tbc.r#type {
@@ -177,6 +254,7 @@ impl NetworkServer {
                 Self::on_transport_disconnected(tbc.connection_id)
             }
             TransportCallbackType::OnServerError => {
+                error!(format!("Server.HandleError: connectionId: {}, error: {:?}", tbc.connection_id, tbc.error));
                 Self::on_transport_error(tbc.connection_id, tbc.error)
             }
             TransportCallbackType::OnServerTransportException => {
@@ -249,7 +327,7 @@ impl NetworkServer {
     fn destroy_player_for_connection(conn: &mut NetworkConnection) {
         conn.destroy_owned_objects();
         conn.remove_from_observings_observers();
-        conn.identity = None;
+        conn.identity = NetworkIdentity::default();
     }
 
     // 处理 TransportError 消息
@@ -319,7 +397,7 @@ impl NetworkServer {
         if !connection.is_ready {
             return;
         }
-        println!("spawn_observers_for_connection: {}", connection.connection_id);
+        debug!("spawn_observers_for_connection: ", connection.connection_id);
 
         connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
 
@@ -327,12 +405,12 @@ impl NetworkServer {
         // internally sends a spawn message for each one to the connection.
         SPAWNED.iter_mut().for_each(|mut identity| {
             if identity.visibility == Visibility::Shown {
-                identity.add_observing_network_connection(connection);
+                identity.add_observing_network_connection(connection.connection_id);
             } else if identity.visibility == Visibility::Hidden {
                 // do nothing
             } else if identity.visibility == Visibility::Default {
                 // TODO aoi system
-                identity.add_observing_network_connection(connection);
+                identity.add_observing_network_connection(connection.connection_id);
             }
         });
 
