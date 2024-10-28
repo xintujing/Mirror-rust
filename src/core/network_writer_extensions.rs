@@ -1,6 +1,20 @@
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait, Writeable};
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use tklog::error;
 
+pub struct NetworkWriterExtensions;
+
+impl NetworkWriterExtensions {
+    fn write_string<S: AsRef<str>>(writer: &mut NetworkWriter, value: S) {
+        let bytes = value.as_ref().as_bytes();
+        let length = bytes.len();
+        if length > NetworkWriter::MAX_STRING_LENGTH - writer.get_position() {
+            error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.get_position());
+        }
+        writer.write_blittable(1 + length as u16);
+        writer.write_bytes_all(bytes);
+    }
+}
 
 impl NetworkWriterTrait for NetworkWriter {
     fn write_byte(&mut self, value: u8) {
@@ -237,7 +251,7 @@ impl Writeable for String {
     where
         Self: Sized,
     {
-        Some(|writer, value| NetworkWriter::write_string(writer, value))
+        Some(|writer, value| NetworkWriterExtensions::write_string(writer, value))
     }
 }
 
@@ -246,6 +260,6 @@ impl Writeable for &str {
     where
         Self: Sized,
     {
-        Some(|writer, value| NetworkWriter::write_string(writer, value.to_string()))
+        Some(|writer, value| NetworkWriterExtensions::write_string(writer, value.to_string()))
     }
 }

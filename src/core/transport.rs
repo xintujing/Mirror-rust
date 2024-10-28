@@ -10,6 +10,23 @@ pub enum TransportChannel {
     Unreliable = 2,
 }
 
+impl TransportChannel{
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            1 => TransportChannel::Reliable,
+            2 => TransportChannel::Unreliable,
+            _ => TransportChannel::Reliable,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            TransportChannel::Reliable => 1,
+            TransportChannel::Unreliable => 2,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportCallbackType {

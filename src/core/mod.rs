@@ -1,6 +1,6 @@
 mod network_identity;
-mod messages;
 mod network_messages;
+mod messages;
 pub mod network_connection;
 pub mod batcher;
 pub mod snapshot_interpolation;

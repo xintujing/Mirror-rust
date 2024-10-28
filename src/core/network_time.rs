@@ -1,4 +1,4 @@
-use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::batcher::{NetworkMessageReader, UnBatch};
 use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::transport::TransportChannel;
@@ -90,13 +90,9 @@ impl NetworkTime {
             let unadjusted_error = local_time - message.local_time;
             let adjusted_error = local_time - message.predicted_time_adjusted;
             // new prediction error
-            let mut pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-            // new batch
-            let mut batch = Batch::new();
-            // serialize pong message
-            pong_message.serialize(&mut batch);
+            let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
             // send pong message
-            connection.send(&batch, TransportChannel::Reliable);
+            connection.send_network_message(pong_message, TransportChannel::Reliable);
         }
     }
 

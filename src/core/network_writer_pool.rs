@@ -9,9 +9,9 @@ lazy_static::lazy_static! {
 }
 
 
-pub struct NetworkWriterPool;
+pub struct NetworkWriterPooledPool;
 
-impl NetworkWriterPool {
+impl NetworkWriterPooledPool {
     pub fn count() -> usize {
         NETWORK_WRITER_POOL.lock().unwrap().count()
     }
@@ -36,17 +36,17 @@ mod tests {
     #[test]
     fn test_network_writer_pool() {
         // Initial count should be 1000
-        assert_eq!(NetworkWriterPool::count(), 1000);
+        assert_eq!(NetworkWriterPooledPool::count(), 1000);
 
         // Get 5 writers from the pool
         let mut writers = Vec::new();
         for _ in 0..5 {
-            let writer = NetworkWriterPool::get();
+            let writer = NetworkWriterPooledPool::get();
             writers.push(writer);
         }
 
         // Count should be 995 now
-        assert_eq!(NetworkWriterPool::count(), 995);
+        assert_eq!(NetworkWriterPooledPool::count(), 995);
 
         // Return all writers to the pool
         for writer in writers {
@@ -54,6 +54,6 @@ mod tests {
         }
 
         // Count should be back to 1000
-        assert_eq!(NetworkWriterPool::count(), 1000);
+        assert_eq!(NetworkWriterPooledPool::count(), 1000);
     }
 }

@@ -4,8 +4,8 @@ use tklog::error;
 
 #[derive(Clone)]
 pub struct NetworkWriter {
-    pub data: Vec<u8>,
-    pub position: usize,
+    data: Vec<u8>,
+    position: usize,
 }
 
 impl NetworkWriter {
@@ -98,15 +98,6 @@ impl NetworkWriter {
         } else {
             error!("No writer found for type {}", std::any::type_name::<T>());
         }
-    }
-    fn write_string<S: AsRef<str>>(writer: &mut NetworkWriter, value: S) {
-        let bytes = value.as_ref().as_bytes();
-        let length = bytes.len();
-        if length > NetworkWriter::MAX_STRING_LENGTH - writer.position {
-            error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.position);
-        }
-        writer.write_blittable(1 + length as u16);
-        writer.write_bytes_all(bytes);
     }
 }
 

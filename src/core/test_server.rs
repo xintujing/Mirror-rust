@@ -1,9 +1,10 @@
 use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::core::backend_data::BACKEND_DATA;
-use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
 use crate::core::messages::{AddPlayerMessage, CommandMessage, EntityStateMessage, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, RpcMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::tools::stable_hash::StableHash;
 use crate::tools::utils::{generate_id, to_hex_string};
 use bytes::Bytes;
@@ -79,9 +80,9 @@ impl MirrorServer {
         }
     }
 
-    pub fn send(&self, connection_id: u64, batch: &Batch, channel: Kcp2KChannel) {
+    pub fn send(&self, connection_id: u64, batch: &NetworkWriter, channel: Kcp2KChannel) {
         if let Some(serv) = self.kcp_serv.as_ref() {
-            if let Err(_) = serv.s_send(connection_id, batch.get_bytes(), channel) {
+            if let Err(_) = serv.s_send(connection_id, Bytes::copy_from_slice(batch.get_data().as_slice()), channel) {
                 // TODO: 发送失败
             }
         }
@@ -204,8 +205,8 @@ impl MirrorServer {
                 self.uid_con_map.remove(&v);
             }
             // 通知其它客户端
-            let mut batch = Batch::new();
-            batch.write_f64_le(NetworkTime::local_time());
+            let mut batch = NetworkWriter::new();
+            batch.write_double(NetworkTime::local_time());
             ObjectDestroyMessage::new(net_id).serialize(&mut batch);
             for connect in self.uid_con_map.iter() {
                 self.send(connect.connection_id, &batch, Kcp2KChannel::Reliable);
@@ -215,8 +216,8 @@ impl MirrorServer {
 
     #[allow(dead_code)]
     pub fn switch_scene(&self, con_id: u64, scene_name: String, custom_handling: bool) {
-        let mut batch = Batch::new();
-        batch.write_f64_le(NetworkTime::local_time());
+        let mut batch = NetworkWriter::new();
+        batch.write_double(NetworkTime::local_time());
         SceneMessage::new(scene_name, SceneOperation::Normal, custom_handling).serialize(&mut batch);
         self.send(con_id, &batch, Kcp2KChannel::Reliable);
     }
@@ -245,8 +246,8 @@ impl MirrorServer {
     // 处理 TimeSnapshotMessage 消息
     #[allow(dead_code)]
     pub fn handel_time_snapshot_message(&self, con_id: u64, un_batch: &mut UnBatch, channel: Kcp2KChannel) {
-        let mut batch = Batch::new();
-        batch.write_f64_le(NetworkTime::local_time());
+        let mut batch = NetworkWriter::new();
+        batch.write_double(NetworkTime::local_time());
         TimeSnapshotMessage {}.serialize(&mut batch);
         // println!("handel_time_snapshot_message: {}", get_s_e_t());
         self.send(con_id, &batch, channel);
@@ -268,8 +269,8 @@ impl MirrorServer {
             let local_time = network_ping_message.local_time;
             let predicted_time_adjusted = network_ping_message.predicted_time_adjusted;
 
-            let mut writer = Batch::new();
-            writer.write_f64_le(NetworkTime::local_time());
+            let mut writer = NetworkWriter::new();
+            writer.write_double(NetworkTime::local_time());
             // 准备 NetworkPongMessage 数据
             let s_e_t = NetworkTime::local_time();
             let unadjusted_error = s_e_t - local_time;
@@ -293,12 +294,12 @@ impl MirrorServer {
         // println!("username: {}, password: {}", username, password);
         println!("username: {}", username);
 
-        let mut batch = Batch::new();
-        batch.write_f64_le(NetworkTime::local_time());
-        batch.compress_var_u64_le(5);
-        batch.write_u16_le(56082);
-        batch.write_u8(100);
-        batch.write_u16_le(0);
+        let mut batch = NetworkWriter::new();
+        batch.write_double(NetworkTime::local_time());
+        batch.compress_var_uint(5);
+        batch.write_ushort(56082);
+        batch.write_byte(100);
+        batch.write_ushort(0);
 
         // 认证成功
         self.cid_user_map.insert(con_id, username.clone());
@@ -359,12 +360,12 @@ impl MirrorServer {
         let set = NetworkTime::local_time();
 
         // 创建 cur_batch
-        let mut cur_batch = Batch::new();
-        cur_batch.write_f64_le(set);
+        let mut cur_batch = NetworkWriter::new();
+        cur_batch.write_double(set);
 
         // 创建 other_batch
-        let mut other_batch = Batch::new();
-        other_batch.write_f64_le(set);
+        let mut other_batch = NetworkWriter::new();
+        other_batch.write_double(set);
 
         // rotation
         let rotation = Quaternion::new(1.0, 0.0, 0.0, 0.0);
@@ -383,7 +384,7 @@ impl MirrorServer {
                 // payload
                 let cur_payload = identity.new_spawn_message_payload();
                 // 生成自己
-                let mut cur_spawn_message = SpawnMessage::new(identity.net_id, true, true, identity.scene_id, identity.asset_id, Default::default(), rotation, scale, cur_payload);
+                let mut cur_spawn_message = SpawnMessage::new(identity.net_id, true, true, identity.scene_id, identity.asset_id, Default::default(), rotation, scale, cur_payload.to_vec());
                 cur_spawn_message.serialize(&mut cur_batch);
 
                 //  *****************************************************************************
@@ -409,7 +410,7 @@ impl MirrorServer {
                     let other_payload = identity.new_spawn_message_payload();
                     println!("other_payload1: {}", "031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F");
                     println!("other_payload2: {}", to_hex_string(other_payload.as_ref()));
-                    let mut other_spawn_message = SpawnMessage::new(identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, Bytes::from(other_payload));
+                    let mut other_spawn_message = SpawnMessage::new(identity.net_id, false, false, Default::default(), 3541431626, Default::default(), rotation, scale, other_payload.to_vec());
                     other_spawn_message.serialize(&mut cur_batch);
                     // 发送给其它玩家
                     ObjectSpawnFinishedMessage {}.serialize(&mut other_batch);
@@ -450,11 +451,12 @@ impl MirrorServer {
         let rpc_hash_code_s = BACKEND_DATA.get_rpc_hash_code_s(function_hash);
 
         // 创建 batch
-        let mut batch = Batch::new_with_s_e_t();
+        let mut batch = NetworkWriter::new();
+        batch.write_double(NetworkTime::local_time());
 
         if function_hash == "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code() {
             if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connect| {
-                debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.get_payload().slice(4..).as_ref())));
+                debug!(format!("CmdSetupPlayer {} {}","System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code(), to_hex_string(command_message.get_payload_no_len().as_slice())));
 
                 // 名字 颜色
                 // let payload = hex::decode(format!("{}{}", "022C00000000000000000600000000000000", to_hex_string(&command_message.get_payload().slice(4..)))).unwrap();
@@ -463,7 +465,7 @@ impl MirrorServer {
 
 
                 if let Some(identity) = &cur_connect.identity {
-                    let mut un_batch = UnBatch::new(payload);
+                    let mut un_batch = UnBatch::new(Bytes::copy_from_slice(payload.as_slice()));
                     let _ = un_batch.read_u32_le().unwrap();
 
                     let name = un_batch.read_string_le().unwrap();
@@ -509,7 +511,7 @@ impl MirrorServer {
                         }
                     }
 
-                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch03.get_bytes());
+                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch03.get_bytes().to_vec());
                     entity_state_message.serialize(&mut batch);
 
                     // 场景右上角
@@ -518,7 +520,7 @@ impl MirrorServer {
                     batch04.write_u8(0x13);
                     batch04.write_string_le(format!("{} joined.", name).as_str());
 
-                    let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch04.get_bytes());
+                    let mut cur_spawn_message = SpawnMessage::new(Default::default(), false, false, 14585647484178997735, Default::default(), Default::default(), Default::default(), Default::default(), batch04.get_bytes().to_vec());
                     cur_spawn_message.serialize(&mut batch);
 
                     return HandleConnectResult::Ok;
@@ -531,12 +533,12 @@ impl MirrorServer {
             }
         } else if function_hash == "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)".get_fn_stable_hash_code() {
             if let HandleConnectResult::Ok = self.handel_connect(con_id, |cur_connection| {
-                debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(payload.slice(4..).as_ref())));
+                debug!(format!("CmdChangeActiveWeapon {}", to_hex_string(&payload[4..])));
 
                 // let tmp = cur_connection.identity.components[component_idx as usize].as_any().downcast_ref::<NetworkCommonComponent>().unwrap();
                 // println!("{:?}", tmp);
 
-                let mut un_batch = UnBatch::new(payload);
+                let mut un_batch = UnBatch::new(Bytes::copy_from_slice(payload.as_slice()));
 
                 // len
                 let _ = un_batch.read_u32_le().unwrap();
@@ -556,7 +558,7 @@ impl MirrorServer {
                 batch01.write_i32_le(weapon_index);
 
                 if let Some(identity) = &cur_connection.identity {
-                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch01.get_bytes());
+                    let mut entity_state_message = EntityStateMessage::new(identity.net_id, batch01.get_bytes().to_vec());
                     entity_state_message.serialize(&mut batch);
                     return HandleConnectResult::Ok;
                 }
@@ -569,7 +571,7 @@ impl MirrorServer {
         } else if rpc_hash_code_s.len() > 0 {
             println!("rpc_list: {:?}", BACKEND_DATA.get_method_data_by_hash_code(function_hash).unwrap().rpc_list);
             for rpc_hash_code in rpc_hash_code_s {
-                let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, payload.slice(4..));
+                let mut rpc_message = RpcMessage::new(net_id, component_idx, rpc_hash_code, payload[4..].to_vec());
                 rpc_message.serialize(&mut batch);
             }
             // 遍历所有连接并发送消息

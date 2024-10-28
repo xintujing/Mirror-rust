@@ -1,5 +1,5 @@
 use crate::core::network_writer::NetworkWriter;
-use crate::core::network_writer_pool::NetworkWriterPool;
+use crate::core::network_writer_pool::NetworkWriterPooledPool;
 
 
 #[derive(Clone)]
@@ -19,7 +19,7 @@ impl NetworkWriterPooled {
     }
 
     pub fn dispose(self) {
-        NetworkWriterPool::return_(self);
+        NetworkWriterPooledPool::return_(self);
     }
 
     pub fn get_network_writer(&mut self) -> &mut NetworkWriter {

@@ -1,18 +1,25 @@
-use crate::core::batcher::{Batch, DataWriter};
+use crate::core::batcher::{Batch, NetworkMessageWriter};
+use crate::core::batching::batcher::Batcher;
 use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer_pool::NetworkWriterPooledPool;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::utils::get_sec_timestamp_f64;
+use dashmap::mapref::one::RefMut;
+use dashmap::DashMap;
 use std::collections::BTreeSet;
+use tklog::error;
 
 #[derive(Clone)]
 pub struct NetworkConnection {
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
+    pub batches: DashMap<u8, Batcher>,
     // pub un_batch:UnBatch,
     pub connection_id: u64,
     pub is_ready: bool,
@@ -45,6 +52,7 @@ impl NetworkConnection {
         NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
+            batches: Default::default(),
             connection_id: 0,
             is_ready: false,
             is_authenticated: false,
@@ -74,6 +82,7 @@ impl NetworkConnection {
         NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
+            batches: Default::default(),
             connection_id,
             is_ready: false,
             is_authenticated: false,
@@ -98,10 +107,35 @@ impl NetworkConnection {
         }
     }
 
-    pub fn send(&self, batch: &Batch, channel: TransportChannel) {
+    pub fn send(&mut self, segment: &[u8], channel: TransportChannel) {
+        self.get_batch_for_channel(channel).add_message(segment, NetworkTime::local_time());
+    }
+
+    pub fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
+    where
+        T: NetworkMessageWriter,
+    {
+        let mut binding = NetworkWriterPooledPool::get();
+        let mut writer = binding.get_network_writer();
+        message.serialize(&mut writer);
+        let max = NetworkMessages::max_message_size(channel);
+        if writer.get_position() > max {
+            error!("Message too large to send: {}", writer.get_position());
+            return;
+        }
         // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
 
-        // TODO GetBatchForChannelId(channelId).AddMessage(segment, NetworkTime.localTime);
+        self.send(writer.to_array_segment(), channel);
+    }
+
+    pub fn get_batch_for_channel(&mut self, channel: TransportChannel) -> RefMut<u8, Batcher> {
+        if let Some(batch) = self.batches.get_mut(&channel.to_u8()) {
+            return batch;
+        }
+        let threshold = Transport::get_active_transport().unwrap().get_batch_threshold(channel);
+        let batch = Batcher::new(threshold);
+        self.batches.insert(channel.to_u8(), batch);
+        self.batches.get_mut(&channel.to_u8()).unwrap()
     }
 
     pub fn update_time_interpolation(&mut self) {
@@ -129,9 +163,7 @@ impl NetworkConnection {
         let local_time = NetworkTime::local_time();
         if local_time >= self.last_ping_time + NetworkTime::get_ping_interval() {
             self.last_ping_time = local_time;
-            let mut batch = Batch::new();
-            NetworkPingMessage::new(local_time, 0.0).serialize(&mut batch);
-            self.send_to_transport(&batch, TransportChannel::Unreliable);
+            self.send_network_message(NetworkPingMessage::new(local_time, 0.0), TransportChannel::Unreliable);
         }
     }
 

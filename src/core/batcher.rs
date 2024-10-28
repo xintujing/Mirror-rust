@@ -1,4 +1,5 @@
 use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::NetworkWriter;
 use byteorder::ReadBytesExt;
 use bytes::{BufMut, Bytes, BytesMut};
 use nalgebra::{Quaternion, Vector3};
@@ -686,12 +687,12 @@ impl Debug for Batch {
     }
 }
 
-pub trait DataReader: Sized + Any {
+pub trait NetworkMessageReader: Sized + Any {
     fn deserialize(batch: &mut UnBatch) -> io::Result<Self>;
     fn get_hash_code() -> u16;
 }
 
 
-pub trait DataWriter: Sized + Any {
-    fn serialize(&mut self, batch: &mut Batch);
+pub trait NetworkMessageWriter: Sized + Any {
+    fn serialize(&mut self, write: &mut NetworkWriter);
 }

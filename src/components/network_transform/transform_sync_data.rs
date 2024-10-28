@@ -1,4 +1,5 @@
-use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::batcher::{NetworkMessageReader, NetworkMessageWriter, UnBatch};
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use nalgebra::{Quaternion, Vector3, Vector4};
 use std::fmt::Debug;
 use std::io;
@@ -193,7 +194,7 @@ impl Debug for SyncData {
     }
 }
 
-impl DataReader for SyncData {
+impl NetworkMessageReader for SyncData {
     fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
 
         // 改变的数据
@@ -253,45 +254,45 @@ impl DataReader for SyncData {
     }
 }
 
-impl DataWriter for SyncData {
-    fn serialize(&mut self, batch: &mut Batch) {
-        batch.write_u8(self.changed_data_bytes);
+impl NetworkMessageWriter for SyncData {
+    fn serialize(&mut self, write: &mut NetworkWriter) {
+        write.write_byte(self.changed_data_bytes);
 
         // 位置
         if (self.changed_data_bytes & Changed::PosX.to_u8()) > 0 {
-            batch.write_f32_le(self.position.x);
+            write.write_float(self.position.x);
         }
 
         if (self.changed_data_bytes & Changed::PosY.to_u8()) > 0 {
-            batch.write_f32_le(self.position.y);
+            write.write_float(self.position.y);
         }
 
         if (self.changed_data_bytes & Changed::PosZ.to_u8()) > 0 {
-            batch.write_f32_le(self.position.z);
+            write.write_float(self.position.z);
         }
 
         // rotation
         if (self.changed_data_bytes & Changed::CompressRot.to_u8()) > 0 {
-            batch.write_u32_le(SyncData::compress_quaternion(self.quat_rotation));
+            write.write_uint(SyncData::compress_quaternion(self.quat_rotation));
         } else {
             if (self.changed_data_bytes & Changed::RotX.to_u8()) > 0 {
-                batch.write_f32_le(self.vec_rotation.x);
+                write.write_float(self.vec_rotation.x);
             }
 
             if (self.changed_data_bytes & Changed::RotY.to_u8()) > 0 {
-                batch.write_f32_le(self.vec_rotation.y);
+                write.write_float(self.vec_rotation.y);
             }
 
             if (self.changed_data_bytes & Changed::RotZ.to_u8()) > 0 {
-                batch.write_f32_le(self.vec_rotation.z);
+                write.write_float(self.vec_rotation.z);
             }
         }
 
         // 缩放
         if (self.changed_data_bytes & Changed::Scale.to_u8()) == Changed::Scale.to_u8() {
-            batch.write_f32_le(self.scale.x);
-            batch.write_f32_le(self.scale.y);
-            batch.write_f32_le(self.scale.z);
+            write.write_float(self.scale.x);
+            write.write_float(self.scale.y);
+            write.write_float(self.scale.z);
         }
     }
 }

@@ -1,4 +1,4 @@
-use crate::core::batcher::{Batch, DataReader, DataWriter, UnBatch};
+use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
@@ -321,9 +321,7 @@ impl NetworkServer {
         }
         println!("spawn_observers_for_connection: {}", connection.connection_id);
 
-        let mut batch = Batch::new_with_s_e_t();
-        ObjectSpawnStartedMessage {}.serialize(&mut batch);
-        connection.send(&batch, TransportChannel::Reliable);
+        connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
 
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
@@ -338,9 +336,7 @@ impl NetworkServer {
             }
         });
 
-        let mut batch = Batch::new_with_s_e_t();
-        ObjectSpawnFinishedMessage {}.serialize(&mut batch);
-        connection.send(&batch, TransportChannel::Reliable);
+        connection.send_network_message(ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
     }
 
     // 处理 OnCommandMessage 消息
@@ -372,7 +368,7 @@ impl NetworkServer {
     // 定义一个函数来注册处理程序
     pub fn register_handler<T>(network_message_handler: NetworkMessageHandlerFunc, require_authentication: bool)
     where
-        T: DataReader + Send + Sync + 'static,
+        T: NetworkMessageReader + Send + Sync + 'static,
     {
         let hash_code = T::get_hash_code();
 

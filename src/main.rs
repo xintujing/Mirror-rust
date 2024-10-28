@@ -11,8 +11,8 @@ mod core;
 
 fn main() {
 
-    // let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
-    // m_server.start();
+    let m_server = core::test_server::MirrorServer::new("0.0.0.0:7777".to_string());
+    m_server.start();
 
     Kcp2kTransport::awake();
     NetworkServer::listen(99);
