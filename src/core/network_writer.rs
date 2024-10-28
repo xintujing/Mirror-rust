@@ -200,4 +200,15 @@ mod tests {
         println!("{:?}", data);
         println!("{:?}", batch.get_bytes().to_vec());
     }
+
+    #[test]
+    fn test_pos_write(){
+        let mut writer = NetworkWriter::new();
+        writer.write_byte(1);
+        println!("{} {:?}", writer.get_position(),writer.get_data());
+
+        writer.set_position(0);
+        writer.write_byte(2);
+        println!("{} {:?}", writer.get_position(),writer.get_data());
+    }
 }

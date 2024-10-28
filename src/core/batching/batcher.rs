@@ -33,10 +33,11 @@ impl Batcher {
         let header_size = compress::var_uint_size(message.len() as u64);
         let needed_size = header_size + message.len();
 
-        if let Some(ref mut batch) = self.batch {
+        if let Some(batch) = self.batch.take() {
             if batch.get_position() + needed_size > self.threshold {
-                self.batches.push_back(batch.clone());
-                self.batch = None;
+                self.batches.push_back(batch);
+            } else {
+                self.batch = Some(batch);
             }
         }
 
@@ -48,6 +49,7 @@ impl Batcher {
 
         if let Some(ref mut batch) = self.batch {
             // batch.get_network_writer().compress_var_uint(message.len() as u64);
+            println!("if let Some(ref mut batch) = self.batch: {} {}", message.len(), batch.get_data().len());
             batch.write_bytes(message, 0, message.len());
         }
     }
@@ -65,12 +67,18 @@ impl Batcher {
 
     pub fn get_batch(&mut self, writer: &mut NetworkWriter) -> bool {
         if let Some(first) = self.batches.pop_front() {
+            println!("xxxxxxxxxxx1");
             Self::copy_and_return(first, writer);
             return true;
         }
 
-        if let Some(batch) = self.batch.take() {
-            Self::copy_and_return(batch, writer);
+        println!("xxxxxxxxxxx3 {}", self.batch.is_some());
+
+
+        if let Some(mut batch) = self.batch.take() {
+            println!("xxxxxxxxxxx2");
+            Self::copy_and_return(batch.clone(), writer);
+            batch.reset();
             return true;
         }
 

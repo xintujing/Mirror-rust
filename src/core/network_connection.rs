@@ -117,21 +117,16 @@ impl NetworkConnection {
     where
         T: NetworkMessageWriter + NetworkMessageReader,
     {
-        let mut writer = NetworkWriterPool::get();
-        message.serialize(&mut writer);
-        let max = NetworkMessages::max_message_size(channel);
-        if writer.get_position() > max {
-            error!("Message too large to send: {}", writer.get_position());
-            return;
-        }
-        // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
-
-        // let mut un_batch = UnBatch::new(Bytes::copy_from_slice(writer.get_data().as_slice()));
-        // let len = un_batch.decompress_var_u64_le();
-        // let type_ = un_batch.read_u16_le();
-        // debug!(format!("len: {:?}, type: {:?}", len, type_));
-
-        self.send(writer.to_array_segment(), channel);
+        NetworkWriterPool::get_return(|mut writer| {
+            message.serialize(&mut writer);
+            let max = NetworkMessages::max_message_size(channel);
+            if writer.get_position() > max {
+                error!("Message too large to send: {}", writer.get_position());
+                return;
+            }
+            // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
+            self.send(writer.to_array_segment(), channel);
+        });
     }
 
     pub fn get_batch_for_channel(&mut self, channel: TransportChannel) -> RefMut<u8, Batcher> {
@@ -139,8 +134,8 @@ impl NetworkConnection {
             return batch;
         }
         let threshold = Transport::get_active_transport().unwrap().get_batch_threshold(channel);
-        let batch = Batcher::new(threshold);
-        self.batches.insert(channel.to_u8(), batch);
+        let batcher = Batcher::new(threshold);
+        self.batches.insert(channel.to_u8(), batcher);
         self.batches.get_mut(&channel.to_u8()).unwrap()
     }
 
@@ -168,14 +163,14 @@ impl NetworkConnection {
     pub fn update(&mut self) {
         self.update_ping();
 
-        for mut batch in self.batches.iter_mut() {
-            let mut writer = NetworkWriterPool::get();
-            println!("\n");
-            while batch.get_batch(&mut writer) {
-                self.send_to_transport(writer.get_data(), TransportChannel::from_u8(*batch.key()));
-                writer.set_position(0);
-            }
-            println!("\n");
+        for mut batcher in self.batches.iter_mut() {
+            // using
+            NetworkWriterPool::get_return(|mut writer| {
+                while batcher.get_batch(&mut writer) {
+                    self.send_to_transport(writer.get_data(), TransportChannel::from_u8(*batcher.key()));
+                    writer.set_position(0);
+                }
+            });
         }
     }
 

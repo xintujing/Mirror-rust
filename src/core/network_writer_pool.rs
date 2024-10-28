@@ -1,35 +1,39 @@
 use crate::core::network_writer::NetworkWriter;
 use crate::core::tools::pool::Pool;
-use std::sync::LazyLock;
+use lazy_static::lazy_static;
+use std::sync::{Arc, Mutex};
 
-static mut NETWORK_WRITER_POOL: LazyLock<Pool<NetworkWriter>> = LazyLock::new(|| {
-    Pool::new(|| NetworkWriter::new(), 1000)
-});
-
+lazy_static! {
+    static ref NETWORK_WRITER_POOL: Arc<Mutex<Pool<NetworkWriter>>> = Arc::new(Mutex::new(Pool::new(|| NetworkWriter::new(), 1000)));
+}
 
 #[derive(Clone)]
 pub struct NetworkWriterPool;
 
 impl NetworkWriterPool {
     pub fn count() -> usize {
-        unsafe {
-            NETWORK_WRITER_POOL.count()
-        }
+        NETWORK_WRITER_POOL.lock().unwrap().count()
     }
 
     pub fn get() -> NetworkWriter {
-        unsafe {
-            let mut writer = NETWORK_WRITER_POOL.get();
-            writer.reset();
-            writer
-        }
+        let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
+        writer.reset();
+        writer
+    }
+
+    pub fn get_return<T>(func: T)
+    where
+        T: FnOnce(&mut NetworkWriter),
+    {
+        let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
+        writer.reset();
+        func(&mut writer);
+        NETWORK_WRITER_POOL.lock().unwrap().return_(writer);
     }
 
     #[inline(always)]
     pub fn return_(writer: NetworkWriter) {
-        unsafe {
-            NETWORK_WRITER_POOL.return_(writer);
-        }
+        NETWORK_WRITER_POOL.lock().unwrap().return_(writer);
     }
 }
 
