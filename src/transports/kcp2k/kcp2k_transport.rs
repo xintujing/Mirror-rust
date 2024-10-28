@@ -5,6 +5,7 @@ use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
+use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use std::process::exit;
 use tklog::error;
 
@@ -162,5 +163,20 @@ impl TransportTrait for Kcp2kTransport {
         if let Ok(mut transport_cb_fn) = self.transport.transport_cb_fn.lock() {
             *transport_cb_fn = Some(func);
         }
+    }
+
+    fn get_max_packet_size(&self, channel: TransportChannel) -> usize {
+        match channel {
+            TransportChannel::Reliable => {
+                Kcp2KPeer::unreliable_max_message_size(self.config.mtu as u32)
+            }
+            TransportChannel::Unreliable => {
+                Kcp2KPeer::reliable_max_message_size(self.config.mtu as u32, self.config.receive_window_size as u32)
+            }
+        }
+    }
+
+    fn get_batch_threshold(&self, channel: TransportChannel) -> usize {
+        Kcp2KPeer::unreliable_max_message_size(self.config.mtu as u32)
     }
 }

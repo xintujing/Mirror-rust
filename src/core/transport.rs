@@ -91,4 +91,8 @@ pub trait TransportTrait {
     fn server_stop(&mut self);
     fn shutdown(&mut self);
     fn set_transport_cb_fn(&self, func: TransportFunc);
+    fn get_max_packet_size(&self, channel: TransportChannel) -> usize;
+    fn get_batch_threshold(&self, channel: TransportChannel) -> usize {
+        self.get_max_packet_size(channel)
+    }
 }

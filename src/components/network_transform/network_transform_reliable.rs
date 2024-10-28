@@ -3,7 +3,7 @@ use crate::components::network_transform::network_transform_base::NetworkTransfo
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformReliableSetting};
 use crate::core::batcher::{Batch, UnBatch};
-use crate::core::tools::compress::{scale_to_long0, Compress, Decompress};
+use crate::core::tools::compress::{scale_to_long_0, CompressTrait, DecompressTrait};
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 
@@ -71,7 +71,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             }
         } else {
             if self.network_transform_base.sync_position {
-                let (_, v3) = scale_to_long0(self.sync_data.position, self.position_precision);
+                let (_, v3) = scale_to_long_0(self.sync_data.position, self.position_precision);
                 batch.compress_var_i64_le(v3.x - self.last_serialized_position.x);
                 batch.compress_var_i64_le(v3.y - self.last_serialized_position.y);
                 batch.compress_var_i64_le(v3.z - self.last_serialized_position.z);
@@ -85,7 +85,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 }
             }
             if self.network_transform_base.sync_scale {
-                let (_, v3) = scale_to_long0(self.sync_data.scale, self.scale_precision);
+                let (_, v3) = scale_to_long_0(self.sync_data.scale, self.scale_precision);
                 batch.compress_var_i64_le(v3.x - self.last_serialized_scale.x);
                 batch.compress_var_i64_le(v3.y - self.last_serialized_scale.y);
                 batch.compress_var_i64_le(v3.z - self.last_serialized_scale.z);

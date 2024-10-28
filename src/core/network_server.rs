@@ -14,7 +14,7 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{debug, error, warn};
+use tklog::{error, warn};
 
 lazy_static! {
     static ref INITIALIZED: Atomic<bool> = Atomic::new(false);

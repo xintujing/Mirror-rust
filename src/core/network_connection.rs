@@ -2,6 +2,7 @@ use crate::core::batcher::{Batch, DataWriter};
 use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
+use crate::core::network_writer::NetworkWriter;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
@@ -10,8 +11,8 @@ use std::collections::BTreeSet;
 
 #[derive(Clone)]
 pub struct NetworkConnection {
-    pub reliable_rpcs_batch: Batch,
-    pub unreliable_rpcs_batch: Batch,
+    pub reliable_rpcs_batch: NetworkWriter,
+    pub unreliable_rpcs_batch: NetworkWriter,
     // pub un_batch:UnBatch,
     pub connection_id: u64,
     pub is_ready: bool,
@@ -42,8 +43,8 @@ impl NetworkConnection {
     pub fn new(scene_id: u64, asset_id: u32) -> Self {
         let ts = get_sec_timestamp_f64();
         NetworkConnection {
-            reliable_rpcs_batch: Batch::new(),
-            unreliable_rpcs_batch: Batch::new(),
+            reliable_rpcs_batch: NetworkWriter::new(),
+            unreliable_rpcs_batch: NetworkWriter::new(),
             connection_id: 0,
             is_ready: false,
             is_authenticated: false,
@@ -71,8 +72,8 @@ impl NetworkConnection {
     pub fn network_connection(connection_id: u64) -> Self {
         let ts = get_sec_timestamp_f64();
         NetworkConnection {
-            reliable_rpcs_batch: Batch::new(),
-            unreliable_rpcs_batch: Batch::new(),
+            reliable_rpcs_batch: NetworkWriter::new(),
+            unreliable_rpcs_batch: NetworkWriter::new(),
             connection_id,
             is_ready: false,
             is_authenticated: false,

@@ -1,16 +1,18 @@
+use crate::core::network_writer::NetworkWriterTrait;
 use nalgebra::{Quaternion, Vector3, Vector4};
 
-pub trait Compress {
-    const QUATERNION_MIN_RANGE: f32;
-    const QUATERNION_MAX_RANGE: f32;
-    const TEN_BITS_MAX: u16;
+const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
+const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
+const TEN_BITS_MAX: u16 = 1023;
+pub trait CompressTrait {
     fn compress(&self) -> u32;
 }
 
-impl Compress for Quaternion<f32> {
-    const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
-    const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
-    const TEN_BITS_MAX: u16 = 1023;
+pub trait DecompressTrait {
+    fn decompress(compressed: u32) -> Self;
+}
+
+impl CompressTrait for Quaternion<f32> {
     fn compress(&self) -> u32 {
         let (largest_index, _, mut without_largest) = largest_absolute_component_index(self);
 
@@ -18,29 +20,25 @@ impl Compress for Quaternion<f32> {
             without_largest = -without_largest;
         }
 
-        let a_scaled = scale_float_to_ushort(without_largest.x, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE, 0, Self::TEN_BITS_MAX);
-        let b_scaled = scale_float_to_ushort(without_largest.y, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE, 0, Self::TEN_BITS_MAX);
-        let c_scaled = scale_float_to_ushort(without_largest.z, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE, 0, Self::TEN_BITS_MAX);
+        let a_scaled = scale_float_to_ushort(without_largest.x, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
+        let b_scaled = scale_float_to_ushort(without_largest.y, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
+        let c_scaled = scale_float_to_ushort(without_largest.z, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
 
         // 将它们打包到一个整数中
         (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | (c_scaled as u32)
     }
 }
 
-pub trait Decompress {
-    fn decompress(compressed: u32) -> Self;
-}
-
-impl Decompress for Quaternion<f32> {
+impl DecompressTrait for Quaternion<f32> {
     fn decompress(data: u32) -> Self {
-        let c_scaled = ((data >> 00) & Self::TEN_BITS_MAX as u32) as u16;
-        let b_scaled = ((data >> 10) & Self::TEN_BITS_MAX as u32) as u16;
-        let a_scaled = ((data >> 20) & Self::TEN_BITS_MAX as u32) as u16;
+        let c_scaled = ((data >> 00) & TEN_BITS_MAX as u32) as u16;
+        let b_scaled = ((data >> 10) & TEN_BITS_MAX as u32) as u16;
+        let a_scaled = ((data >> 20) & TEN_BITS_MAX as u32) as u16;
         let largest_index = data >> 30;
 
-        let a = scale_ushort_to_float(a_scaled, 0, Self::TEN_BITS_MAX, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE);
-        let b = scale_ushort_to_float(b_scaled, 0, Self::TEN_BITS_MAX, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE);
-        let c = scale_ushort_to_float(c_scaled, 0, Self::TEN_BITS_MAX, Self::QUATERNION_MIN_RANGE, Self::QUATERNION_MAX_RANGE);
+        let a = scale_ushort_to_float(a_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
+        let b = scale_ushort_to_float(b_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
+        let c = scale_ushort_to_float(c_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
 
         let d = (1.0 - a * a - b * b - c * c).max(0.0).sqrt();
 
@@ -104,33 +102,60 @@ fn quaternion_normalize_safe(v4: Vector4<f32>) -> Quaternion<f32> {
     }
 }
 
-
-pub fn scale_to_long0(value: Vector3<f32>, precision: f32) -> (bool, Vector3<i64>) {
+pub fn scale_to_long_0(value: Vector3<f32>, precision: f32) -> (bool, Vector3<i64>) {
     let mut quantized = Vector3::new(0, 0, 0);
-    let (result, x, y, z) = scale_to_long1(value, precision);
+    let (result, x, y, z) = scale_to_long_1(value, precision);
     quantized.x = x;
     quantized.y = y;
     quantized.z = z;
     (result, quantized)
 }
 
-pub fn scale_to_long1(value: Vector3<f32>, precision: f32) -> (bool, i64, i64, i64) {
+pub fn scale_to_long_1(value: Vector3<f32>, precision: f32) -> (bool, i64, i64, i64) {
     let mut result = true;
-    let (res, x) = scale_to_long2(value.x, precision);
+    let (res, x) = scale_to_long_2(value.x, precision);
     result &= res;
-    let (res, y) = scale_to_long2(value.y, precision);
+    let (res, y) = scale_to_long_2(value.y, precision);
     result &= res;
-    let (res, z) = scale_to_long2(value.z, precision);
+    let (res, z) = scale_to_long_2(value.z, precision);
     result &= res;
     (result, x, y, z)
 }
 
-pub fn scale_to_long2(value: f32, precision: f32) -> (bool, i64) {
+pub fn scale_to_long_2(value: f32, precision: f32) -> (bool, i64) {
     if precision == 0.0 {
         panic!("precision cannot be 0");
     }
     let quantized = (value / precision).round() as i64;
     (true, quantized)
+}
+
+pub fn var_uint_size(value: u64) -> usize {
+    if value <= 240 {
+        return 1;
+    }
+    if value <= 2287 {
+        return 2;
+    }
+    if value <= 67823 {
+        return 3;
+    }
+    if value <= 16777215 {
+        return 4;
+    }
+    if value <= 4294967295 {
+        return 5;
+    }
+    if value <= 1099511627775 {
+        return 6;
+    }
+    if value <= 281474976710655 {
+        return 7;
+    }
+    if value <= 72057594037927935 {
+        return 8;
+    }
+    9
 }
 
 
