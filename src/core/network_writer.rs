@@ -142,17 +142,17 @@ pub trait NetworkWriterTrait {
 
     fn write_bytes_and_size(writer: &mut NetworkWriter, value: &[u8], offset: usize, count: usize);
 
-    fn write_vector2<T>(writer: &mut NetworkWriter, value: Vector2<T>);
-    fn write_vector2_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector2<T>>);
+    fn write_vector2(writer: &mut NetworkWriter, value: Vector2<f32>);
+    fn write_vector2_nullable(writer: &mut NetworkWriter, value: Option<Vector2<f32>>);
 
-    fn write_vector3<T>(writer: &mut NetworkWriter, value: Vector3<T>);
-    fn write_vector3_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector3<T>>);
+    fn write_vector3(writer: &mut NetworkWriter, value: Vector3<f32>);
+    fn write_vector3_nullable(writer: &mut NetworkWriter, value: Option<Vector3<f32>>);
 
-    fn write_vector4<T>(writer: &mut NetworkWriter, value: Vector4<T>);
-    fn write_vector4_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector4<T>>);
+    fn write_vector4(writer: &mut NetworkWriter, value: Vector4<f32>);
+    fn write_vector4_nullable(writer: &mut NetworkWriter, value: Option<Vector4<f32>>);
 
-    fn write_quaternion<T>(writer: &mut NetworkWriter, value: Quaternion<T>);
-    fn write_quaternion_nullable<T>(writer: &mut NetworkWriter, value: Option<Quaternion<T>>);
+    fn write_quaternion(writer: &mut NetworkWriter, value: Quaternion<f32>);
+    fn write_quaternion_nullable(writer: &mut NetworkWriter, value: Option<Quaternion<f32>>);
 
 }
 
@@ -178,22 +178,24 @@ impl fmt::Display for NetworkWriter {
 mod tests {
     use super::*;
     use crate::core::batcher::Batch;
+    use crate::core::network_writer_extensions::NetworkWriterExtensions;
 
     #[test]
     fn test_write_blittable() {
         let mut writer = NetworkWriter::new();
-        writer.write_blittable(42u32);
-        writer.write_blittable(3u8);
-        writer.write_blittable(true);
-        writer.write("Hello, world!");
+        // writer.write_blittable(42u32);
+        // writer.write_blittable(3u8);
+        // writer.write_blittable(true);
+        NetworkWriterExtensions::write_vector3(&mut writer, Vector3::new(1.0, 2.0, 3.0));
         let data = writer.get_data();
         println!("{}", writer);
 
         let mut batch = Batch::new();
-        batch.write_u32_le(42);
-        batch.write_u8(3);
-        batch.write_bool(true);
-        batch.write_string_le("Hello, world!");
+        // batch.write_u32_le(42);
+        // batch.write_u8(3);
+        // batch.write_bool(true);
+        // batch.write_string_le("Hello, world!");
+        batch.write_vector3_f32_le(Vector3::new(1.0, 2.0, 3.0));
 
         println!("{:?}", data);
         println!("{:?}", batch.get_bytes().to_vec());

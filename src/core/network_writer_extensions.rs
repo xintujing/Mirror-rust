@@ -111,36 +111,62 @@ impl NetworkWriterTrait for NetworkWriterExtensions {
         writer.write_bytes(value, offset, count);
     }
 
-    fn write_vector2<T>(writer: &mut NetworkWriter, value: Vector2<T>) {
-        writer.write_blittable(value);
+    fn write_vector2(writer: &mut NetworkWriter, value: Vector2<f32>) {
+        writer.write_blittable(value.x);
+        writer.write_blittable(value.y);
     }
 
-    fn write_vector2_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector2<T>>) {
-       writer.write_blittable_nullable(value);
+    fn write_vector2_nullable(writer: &mut NetworkWriter, value: Option<Vector2<f32>>) {
+        value.map(|v| {
+            writer.write_blittable(v.x);
+            writer.write_blittable(v.y);
+        });
     }
 
-    fn write_vector3<T>(writer: &mut NetworkWriter, value: Vector3<T>) {
-        writer.write_blittable(value);
+    fn write_vector3(writer: &mut NetworkWriter, value: Vector3<f32>) {
+        writer.write_blittable(value.x);
+        writer.write_blittable(value.y);
+        writer.write_blittable(value.z);
     }
 
-    fn write_vector3_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector3<T>>) {
-        writer.write_blittable_nullable(value);
+    fn write_vector3_nullable(writer: &mut NetworkWriter, value: Option<Vector3<f32>>) {
+        value.map(|v| {
+            writer.write_blittable(v.x);
+            writer.write_blittable(v.y);
+            writer.write_blittable(v.z);
+        });
     }
 
-    fn write_vector4<T>(writer: &mut NetworkWriter, value: Vector4<T>) {
-        writer.write_blittable(value);
+    fn write_vector4(writer: &mut NetworkWriter, value: Vector4<f32>) {
+        writer.write_blittable(value.x);
+        writer.write_blittable(value.y);
+        writer.write_blittable(value.z);
+        writer.write_blittable(value.w);
     }
 
-    fn write_vector4_nullable<T>(writer: &mut NetworkWriter, value: Option<Vector4<T>>) {
-        writer.write_blittable_nullable(value);
+    fn write_vector4_nullable(writer: &mut NetworkWriter, value: Option<Vector4<f32>>) {
+        value.map(|v| {
+            writer.write_blittable(v.x);
+            writer.write_blittable(v.y);
+            writer.write_blittable(v.z);
+            writer.write_blittable(v.w);
+        });
     }
 
-    fn write_quaternion<T>(writer: &mut NetworkWriter, value: Quaternion<T>) {
-        writer.write_blittable(value);
+    fn write_quaternion(writer: &mut NetworkWriter, value: Quaternion<f32>) {
+        writer.write_blittable(value.coords.x);
+        writer.write_blittable(value.coords.y);
+        writer.write_blittable(value.coords.z);
+        writer.write_blittable(value.coords.w);
     }
 
-    fn write_quaternion_nullable<T>(writer: &mut NetworkWriter, value: Option<Quaternion<T>>) {
-        writer.write_blittable_nullable(value);
+    fn write_quaternion_nullable(writer: &mut NetworkWriter, value: Option<Quaternion<f32>>) {
+        value.map(|v| {
+            writer.write_blittable(v.coords.x);
+            writer.write_blittable(v.coords.y);
+            writer.write_blittable(v.coords.z);
+            writer.write_blittable(v.coords.w);
+        });
     }
 }
 
