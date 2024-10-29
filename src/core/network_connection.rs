@@ -228,8 +228,7 @@ impl NetworkConnection {
     pub fn remove_from_observing_identities(&mut self, identity: NetworkIdentity, is_destroyed: bool) {
         self.observing_identities.retain(|x| x.net_id != identity.net_id);
         if !is_destroyed {
-            // TODO NetworkServer.HideForConnection(netIdentity, this);
-            // NetworkServer::HideForConnection(self.connection_id, identity.scene_id, identity.asset_id);
+            NetworkServer::hide_for_connection(&identity, self.connection_id);
         }
     }
 

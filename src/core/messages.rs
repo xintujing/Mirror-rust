@@ -529,6 +529,25 @@ impl ObjectHideMessage {
     }
 }
 
+impl NetworkMessageWriter for ObjectHideMessage {
+    fn serialize(&mut self, writer: &mut NetworkWriter) {
+        writer.compress_var_uint(6);
+        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_uint(self.net_id);
+    }
+}
+
+impl NetworkMessageReader for ObjectHideMessage {
+    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+        let net_id = reader.read_u32_le()?;
+        Ok(ObjectHideMessage { net_id })
+    }
+
+    fn get_hash_code() -> u16 {
+        Self::FULL_NAME.get_stable_hash_code16()
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct EntityStateMessage {
     pub net_id: u32,

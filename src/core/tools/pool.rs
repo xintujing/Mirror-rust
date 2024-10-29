@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
 pub struct Pool<T> {
+    capacity: usize,
     objects_stack: VecDeque<T>,
     object_generator: Box<dyn Fn() -> T + Send + Sync>,
 }
@@ -15,6 +16,7 @@ impl<T> Pool<T> {
             objects.push_back(object_generator());
         }
         Self {
+            capacity: initial_capacity,
             objects_stack: objects,
             object_generator: Box::new(object_generator),
         }
@@ -28,6 +30,9 @@ impl<T> Pool<T> {
 
     #[inline(always)]
     pub fn return_(&mut self, item: T) {
+        if self.objects_stack.len() >= self.capacity {
+            return;
+        }
         self.objects_stack.push_back(item);
     }
 

@@ -1,5 +1,5 @@
 use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::Visibility::Default;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
@@ -212,6 +212,13 @@ impl NetworkServer {
             if connection.is_ready {
                 Self::send_spawn_message(identity, &mut connection);
             }
+        }
+    }
+
+    pub fn hide_for_connection(identity: &NetworkIdentity, connection_id: u64) {
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            let object_hide_message = ObjectHideMessage::new(identity.net_id);
+            connection.send_network_message(object_hide_message, TransportChannel::Reliable);
         }
     }
 

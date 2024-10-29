@@ -96,7 +96,7 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_active(&self) -> bool {
-        todo!()
+        self.server_active
     }
 
     fn server_start(&mut self) {
@@ -177,6 +177,7 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn get_batcher_threshold(&self, channel: TransportChannel) -> usize {
+        let _ = channel;
         Kcp2KPeer::unreliable_max_message_size(self.config.mtu as u32)
     }
 }
