@@ -128,7 +128,7 @@ impl TransportTrait for Kcp2kTransport {
                 tcb.error = Self::from_kcp2k_error_code(e);
             }
         }
-        if let Ok(mut transport_cb_fn) = self.transport.transport_cb_fn.lock() {
+        if let Ok(transport_cb_fn) = self.transport.transport_cb_fn.lock() {
             if let Some(func) = transport_cb_fn.as_ref() {
                 func(tcb);
             }

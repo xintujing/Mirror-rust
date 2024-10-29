@@ -1,11 +1,11 @@
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
 use crate::core::network_server::NetworkServer;
-use crate::core::transport::{Transport, TransportTrait};
+use crate::core::transport::Transport;
 use atomic::Atomic;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use nalgebra::{Transform, Vector3};
+use nalgebra::Vector3;
 use std::sync::atomic::Ordering;
 use tklog::{info, warn};
 

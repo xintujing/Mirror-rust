@@ -2,7 +2,7 @@ use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use std::{fmt, ptr};
 use tklog::error;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct NetworkWriter {
     data: Vec<u8>,
     position: usize,

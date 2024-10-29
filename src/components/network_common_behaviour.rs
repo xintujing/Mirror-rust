@@ -36,7 +36,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         batch
     }
 
-    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {}
+    fn deserialize(&mut self, _un_batch: &mut UnBatch, initial_state: bool) {}
 
     fn get_network_behaviour(&self) -> &NetworkBehaviour {
         &self.network_behaviour

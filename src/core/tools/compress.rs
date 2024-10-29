@@ -1,4 +1,3 @@
-use crate::core::network_writer::NetworkWriterTrait;
 use nalgebra::{Quaternion, Vector3, Vector4};
 
 const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;

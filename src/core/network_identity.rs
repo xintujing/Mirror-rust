@@ -12,13 +12,12 @@ use nalgebra::Vector3;
 use std::default::Default;
 use std::sync::{Arc, RwLock};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub enum OwnedType { Client, Server }
 
-#[derive(Clone)]
 pub struct NetworkIdentitySerialization {
     pub tick: u32,
     pub owner_writer: NetworkWriter,
@@ -39,7 +38,6 @@ impl NetworkIdentitySerialization {
     }
 }
 
-#[derive(Clone)]
 pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
@@ -57,7 +55,7 @@ pub struct NetworkIdentity {
 
 impl NetworkIdentity {
     pub fn new(scene_id: u64, asset_id: u32) -> Self {
-        let mut network_identity = NetworkIdentity {
+        let network_identity = NetworkIdentity {
             scene_id,
             asset_id,
             net_id: 0,

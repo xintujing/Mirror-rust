@@ -1,4 +1,4 @@
-use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
+use crate::core::batcher::{NetworkMessageReader, NetworkMessageWriter};
 use crate::core::batching::batcher::Batcher;
 use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
@@ -11,13 +11,11 @@ use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpo
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::utils::get_sec_timestamp_f64;
-use bytes::Bytes;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use std::collections::BTreeSet;
-use tklog::{debug, error};
+use tklog::error;
 
-#[derive(Clone)]
 pub struct NetworkConnection {
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
@@ -110,15 +108,15 @@ impl NetworkConnection {
     }
 
     pub fn send(&mut self, segment: &[u8], channel: TransportChannel) {
-        self.add_message_to_batcher_for_channel(segment, channel);
+        self.get_batch_for_channel_id(channel).add_message(segment, NetworkTime::local_time());
     }
 
     pub fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
         T: NetworkMessageWriter + NetworkMessageReader + Send,
     {
-        NetworkWriterPool::get_return(|mut writer| {
-            message.serialize(&mut writer);
+        NetworkWriterPool::get_return(|writer| {
+            message.serialize(writer);
             let max = NetworkMessages::max_message_size(channel);
             if writer.get_position() > max {
                 error!("Message too large to send: {}", writer.get_position());
@@ -129,15 +127,14 @@ impl NetworkConnection {
         });
     }
 
-    fn add_message_to_batcher_for_channel(&mut self, segment: &[u8], channel: TransportChannel) {
-        if let Some(mut batch) = self.batches.get_mut(&channel.to_u8()) {
-            batch.add_message(segment, NetworkTime::local_time());
-            return;
+    fn get_batch_for_channel_id(&mut self, channel: TransportChannel) -> RefMut<u8, Batcher> {
+        if let Some(batch) = self.batches.get_mut(&channel.to_u8()) {
+            return batch;
         }
         let threshold = Transport::get_active_transport().unwrap().get_batcher_threshold(channel);
-        let mut batcher = Batcher::new(threshold);
-        batcher.add_message(segment, NetworkTime::local_time());
+        let batcher = Batcher::new(threshold);
         self.batches.insert(channel.to_u8(), batcher);
+        self.batches.get_mut(&channel.to_u8()).unwrap()
     }
 
     pub fn update_time_interpolation(&mut self) {
@@ -248,8 +245,7 @@ impl NetworkConnection {
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        let mut tmp = self.owned_identities.clone();
-        for identity in tmp.iter() {
+        for identity in self.owned_identities.iter() {
             if identity.scene_id != 0 {
                 // TODO NetworkServer.UnSpawn(netIdentity.gameObject);
             } else {

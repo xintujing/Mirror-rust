@@ -1,12 +1,9 @@
-use crate::core::batcher::{Batch, NetworkMessageReader, NetworkMessageWriter, UnBatch};
+use crate::core::batcher::{NetworkMessageReader, UnBatch};
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
-use crate::core::network_identity::Visibility::Default;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::NetworkTime;
-use crate::core::network_writer::NetworkWriter;
-use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -72,7 +69,7 @@ impl NetworkServer {
         NetworkTime::reset_statics();
 
 
-        if let Some(mut transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::get_active_transport() {
             transport.set_transport_cb_fn(Box::new(Self::transport_callback));
         }
 
@@ -97,7 +94,7 @@ impl NetworkServer {
         Self::set_static_max_connections(max_connections);
 
         if Self::get_static_dont_listen() {
-            if let Some(mut transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::get_active_transport() {
                 transport.server_start();
             }
         }
@@ -117,7 +114,7 @@ impl NetworkServer {
                 full_update_duration.begin();
             }
         }
-        if let Some(mut active_transport) = Transport::get_active_transport() {
+        if let Some(active_transport) = Transport::get_active_transport() {
             active_transport.server_early_update();
         }
 
@@ -171,8 +168,7 @@ impl NetworkServer {
 
     // Broadcast
     fn broadcast() {
-        let mut connection_copy = NETWORK_CONNECTIONS.clone();
-        connection_copy.iter_mut().for_each(|mut connection| {
+        NETWORK_CONNECTIONS.iter_mut().for_each(|mut connection| {
             // check for inactivity. disconnects if necessary.
             if Self::disconnect_if_inactive(&mut connection) {
                 return;
@@ -190,7 +186,7 @@ impl NetworkServer {
     }
 
     fn broadcast_to_connection(connection: &mut NetworkConnection) {
-        connection.observing_identities.iter_mut().for_each(|mut identity| {
+        connection.observing_identities.iter_mut().for_each(|identity| {
             identity.new_spawn_message_payload();
             // TODO SerializeForConnection
         });
