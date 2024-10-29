@@ -16,7 +16,6 @@ impl NetworkWriterPool {
     }
 
     pub fn get() -> NetworkWriter {
-        // 长度
         let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
         writer.reset();
         writer

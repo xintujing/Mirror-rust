@@ -7,6 +7,7 @@ pub struct Batcher {
     threshold: usize,
     batches: VecDeque<NetworkWriter>,
     batcher: Option<NetworkWriter>,
+    batch_timestamp: f64,
 }
 
 impl Batcher {
@@ -17,6 +18,7 @@ impl Batcher {
             threshold,
             batches: VecDeque::new(),
             batcher: None,
+            batch_timestamp: 0.0,
         }
     }
 
@@ -29,11 +31,18 @@ impl Batcher {
     }
 
     pub fn add_message(&mut self, message: &[u8], timestamp: f64) {
+        if self.batcher.is_some() && self.batch_timestamp != timestamp {
+            self.batch_timestamp = 0.0;
+            self.batches.push_back(self.batcher.take().unwrap());
+        }
+
+
         let header_size = compress::var_uint_size(message.len() as u64);
         let needed_size = header_size + message.len();
 
         if let Some(batcher) = self.batcher.take() {
             if batcher.get_position() + needed_size > self.threshold {
+                self.batch_timestamp = 0.0;
                 self.batches.push_back(batcher);
             } else {
                 self.batcher = Some(batcher);
@@ -41,8 +50,9 @@ impl Batcher {
         }
 
         if self.batcher.is_none() {
+            self.batch_timestamp = timestamp;
             let mut batcher = NetworkWriterPool::get();
-            batcher.write_double(timestamp);
+            batcher.write_double(self.batch_timestamp);
             self.batcher = Some(batcher);
         }
 
