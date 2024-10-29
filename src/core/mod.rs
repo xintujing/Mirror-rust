@@ -14,3 +14,6 @@ pub mod network_writer;
 pub mod network_writer_extensions;
 mod network_writer_pool;
 mod batching;
+mod network_manager;
+mod network_authenticator;
+mod connection_quality;

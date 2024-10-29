@@ -84,6 +84,11 @@ impl Transport {
             ACTIVE_TRANSPORT.as_mut()
         }
     }
+    pub fn active_transport_exists() -> bool {
+        unsafe {
+            ACTIVE_TRANSPORT.is_some()
+        }
+    }
     pub fn set_active_transport(transport: Box<dyn TransportTrait>) {
         unsafe {
             ACTIVE_TRANSPORT = Some(transport);

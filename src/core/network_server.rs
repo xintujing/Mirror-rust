@@ -290,7 +290,7 @@ impl NetworkServer {
         }
 
         if Self::get_static_network_connections_size() >= Self::get_static_max_connections() {
-            error!(format!("Server.HandleConnect: maxConnections reached: {}. Disconnecting connectionId: {}", Self::get_static_max_connections(), connection_id));
+            error!(format!("Server.HandleConnect: max_connections reached: {}. Disconnecting connectionId: {}", Self::get_static_max_connections(), connection_id));
             if let Some(mut transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
