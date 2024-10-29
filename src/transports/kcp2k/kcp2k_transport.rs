@@ -92,7 +92,7 @@ impl Kcp2kTransportTrait for Kcp2kTransport {
 
 impl TransportTrait for Kcp2kTransport {
     fn available(&self) -> bool {
-        todo!()
+        true
     }
 
     fn server_active(&self) -> bool {

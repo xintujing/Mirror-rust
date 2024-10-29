@@ -5,6 +5,7 @@ use crate::components::network_transform::network_transform_unreliable::NetworkT
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
 use crate::core::batcher::Batch;
+use crate::core::network_writer::NetworkWriter;
 use bytes::Bytes;
 use dashmap::DashMap;
 use nalgebra::Vector3;
@@ -18,6 +19,27 @@ pub enum Visibility { Default, Hidden, Shown }
 pub enum OwnedType { Client, Server }
 
 #[derive(Clone)]
+pub struct NetworkIdentitySerialization {
+    pub tick: u32,
+    pub owner_writer: NetworkWriter,
+    pub observers_writer: NetworkWriter,
+}
+
+impl NetworkIdentitySerialization {
+    pub fn new(tick: u32) -> Self {
+        NetworkIdentitySerialization {
+            tick,
+            owner_writer: NetworkWriter::new(),
+            observers_writer: NetworkWriter::new(),
+        }
+    }
+    pub fn reset_writers(&mut self) {
+        self.owner_writer.reset();
+        self.observers_writer.reset();
+    }
+}
+
+#[derive(Clone)]
 pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
@@ -29,6 +51,7 @@ pub struct NetworkIdentity {
     pub is_init: bool,
     pub destroy_called: bool,
     pub visibility: Visibility,
+    pub last_serialization: NetworkIdentitySerialization,
     pub network_behaviours: DashMap<u8, Arc<RwLock<dyn NetworkBehaviourTrait>>>,
 }
 
@@ -45,6 +68,7 @@ impl NetworkIdentity {
             is_init: false,
             destroy_called: false,
             visibility: Visibility::Default,
+            last_serialization: NetworkIdentitySerialization::new(0),
             network_behaviours: Default::default(),
         };
 
