@@ -66,23 +66,6 @@ impl NetworkTime {
     }
 
     #[allow(dead_code)]
-    pub fn update_client() {
-        if Self::local_time() >= LAST_PING_TIME.load(Ordering::Relaxed) + PING_INTERVAL.load(Ordering::Relaxed) {
-            Self::send_ping();
-        }
-    }
-
-    #[allow(dead_code)]
-    fn send_ping() {
-        let local_time = Self::local_time();
-        let predicted_time = Self::predicted_time();
-        let ping_message = NetworkPingMessage::new(local_time, predicted_time);
-        // Simulate sending ping message
-        LAST_PING_TIME.store(Instant::now().elapsed().as_secs_f64(), Ordering::Relaxed);
-        // TODO: Send ping message
-    }
-
-    #[allow(dead_code)]
     pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
         let _ = channel;
         println!("on_server_ping");
@@ -107,7 +90,6 @@ impl NetworkTime {
             _RTT.write().unwrap().add(new_rtt);
         }
     }
-
 
     #[allow(dead_code)]
     pub fn get_static_instant() -> Instant {
