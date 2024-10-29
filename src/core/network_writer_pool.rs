@@ -16,6 +16,7 @@ impl NetworkWriterPool {
     }
 
     pub fn get() -> NetworkWriter {
+        // 长度
         let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
         writer.reset();
         writer
@@ -25,14 +26,13 @@ impl NetworkWriterPool {
     where
         T: FnOnce(&mut NetworkWriter),
     {
-        let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
-        writer.reset();
+        let mut writer = Self::get();
         func(&mut writer);
-        NETWORK_WRITER_POOL.lock().unwrap().return_(writer);
+        Self::return_(writer);
     }
 
-    #[inline(always)]
-    pub fn return_(writer: NetworkWriter) {
+    pub fn return_(mut writer: NetworkWriter) {
+        writer.reset();
         NETWORK_WRITER_POOL.lock().unwrap().return_(writer);
     }
 }

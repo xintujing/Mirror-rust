@@ -2,7 +2,7 @@ use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use std::{fmt, ptr};
 use tklog::error;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NetworkWriter {
     data: Vec<u8>,
     position: usize,
@@ -202,13 +202,13 @@ mod tests {
     }
 
     #[test]
-    fn test_pos_write(){
+    fn test_pos_write() {
         let mut writer = NetworkWriter::new();
         writer.write_byte(1);
-        println!("{} {:?}", writer.get_position(),writer.get_data());
+        println!("{} {:?}", writer.get_position(), writer.get_data());
 
         writer.set_position(0);
         writer.write_byte(2);
-        println!("{} {:?}", writer.get_position(),writer.get_data());
+        println!("{} {:?}", writer.get_position(), writer.get_data());
     }
 }

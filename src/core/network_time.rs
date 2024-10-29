@@ -85,6 +85,7 @@ impl NetworkTime {
     #[allow(dead_code)]
     pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
         let _ = channel;
+        println!("on_server_ping");
         if let Ok(message) = NetworkPingMessage::deserialize(un_batch) {
             let local_time = Self::local_time();
             let unadjusted_error = local_time - message.local_time;

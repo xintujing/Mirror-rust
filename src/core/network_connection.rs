@@ -110,12 +110,12 @@ impl NetworkConnection {
     }
 
     pub fn send(&mut self, segment: &[u8], channel: TransportChannel) {
-        self.get_batch_for_channel(channel).add_message(segment, NetworkTime::local_time());
+        self.add_message_to_batcher_for_channel(segment, channel);
     }
 
     pub fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
-        T: NetworkMessageWriter + NetworkMessageReader,
+        T: NetworkMessageWriter + NetworkMessageReader + Send,
     {
         NetworkWriterPool::get_return(|mut writer| {
             message.serialize(&mut writer);
@@ -129,14 +129,15 @@ impl NetworkConnection {
         });
     }
 
-    pub fn get_batch_for_channel(&mut self, channel: TransportChannel) -> RefMut<u8, Batcher> {
-        if let Some(batch) = self.batches.get_mut(&channel.to_u8()) {
-            return batch;
+    fn add_message_to_batcher_for_channel(&mut self, segment: &[u8], channel: TransportChannel) {
+        if let Some(mut batch) = self.batches.get_mut(&channel.to_u8()) {
+            batch.add_message(segment, NetworkTime::local_time());
+            return;
         }
-        let threshold = Transport::get_active_transport().unwrap().get_batch_threshold(channel);
-        let batcher = Batcher::new(threshold);
+        let threshold = Transport::get_active_transport().unwrap().get_batcher_threshold(channel);
+        let mut batcher = Batcher::new(threshold);
+        batcher.add_message(segment, NetworkTime::local_time());
         self.batches.insert(channel.to_u8(), batcher);
-        self.batches.get_mut(&channel.to_u8()).unwrap()
     }
 
     pub fn update_time_interpolation(&mut self) {
@@ -165,10 +166,9 @@ impl NetworkConnection {
 
         for mut batcher in self.batches.iter_mut() {
             // using
-            NetworkWriterPool::get_return(|mut writer| {
-                while batcher.get_batch(&mut writer) {
+            NetworkWriterPool::get_return(|writer| {
+                while batcher.get_batcher_writer(writer) {
                     self.send_to_transport(writer.get_data(), TransportChannel::from_u8(*batcher.key()));
-                    writer.set_position(0);
                 }
             });
         }
