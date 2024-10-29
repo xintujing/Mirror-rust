@@ -17,3 +17,5 @@ mod batching;
 mod network_manager;
 mod network_authenticator;
 mod connection_quality;
+mod network_reader;
+mod network_reader_extensions;
