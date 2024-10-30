@@ -1,4 +1,4 @@
-use crate::components::network_behaviour::NetworkBehaviourTrait;
+use crate::components::network_behaviour_base::NetworkBehaviourTrait;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::tools::stable_hash::StableHash;
@@ -14,7 +14,7 @@ pub enum RemoteCallType {
     ClientRpc,
 }
 
-pub type RemoteCallDelegateType = Box<dyn Fn(RwLockWriteGuard<dyn NetworkBehaviourTrait>, &mut NetworkWriter, u64) + Send + Sync>;
+pub type RemoteCallDelegateType = Box<dyn Fn(&mut Box<dyn NetworkBehaviourTrait>, &mut NetworkWriter, u64) + Send + Sync>;
 
 pub struct RemoteCallDelegate {
     pub method_name: String,
@@ -105,7 +105,7 @@ impl RemoteProcedureCalls {
         (false, None)
     }
 
-    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader:&mut NetworkWriter, component: RwLockWriteGuard<dyn NetworkBehaviourTrait>, connection_id: u64) -> bool {
+    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader:&mut NetworkWriter, component: &mut Box<dyn NetworkBehaviourTrait>, connection_id: u64) -> bool {
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {

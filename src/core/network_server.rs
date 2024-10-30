@@ -4,6 +4,8 @@ use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -186,10 +188,20 @@ impl NetworkServer {
     }
 
     fn broadcast_to_connection(connection: &mut NetworkConnection) {
-        connection.observing_identities.iter_mut().for_each(|identity| {
-            identity.new_spawn_message_payload();
-            // TODO SerializeForConnection
-        });
+        let len = connection.observing_identities.len();
+        for i in 0..len {
+            let identity = &mut connection.observing_identities[i];
+            let serialization = Self::serialize_for_connection(identity, connection.connection_id);
+            if serialization.get_position() > 0 {
+                let message = EntityStateMessage::new(identity.net_id, serialization.to_bytes());
+                connection.send_network_message(message, TransportChannel::Reliable);
+            }
+        }
+    }
+    fn serialize_for_connection(identity: &mut NetworkIdentity, connection_id: u64) -> NetworkWriter {
+        // TODO NetworkIdentitySerialization serialization = identity.GetServerSerializationAtTick(Time.frameCount);
+        let writer = NetworkWriter::new();
+        writer
     }
 
     fn disconnect_if_inactive(connection: &mut NetworkConnection) -> bool {
@@ -219,6 +231,10 @@ impl NetworkServer {
     }
 
     fn send_spawn_message(identity: &mut NetworkIdentity, connection: &mut NetworkConnection) {
+        if identity.server_only {
+            return;
+        }
+
         let is_local_player = identity.net_id == connection.identity.net_id;
         let is_owner = identity.connection_id_to_client == connection.connection_id;
         // position
@@ -230,18 +246,37 @@ impl NetworkServer {
         // scale
         let scale = Vector3::new(1.0, 1.0, 1.0);
 
-        let payload = identity.new_spawn_message_payload();
+        NetworkWriterPool::get_return(|owner_writer| {
+            NetworkWriterPool::get_return(|observers_writer| {
+                let payload = Self::create_spawn_message_payload(identity.connection_id_to_client == connection.connection_id, identity, owner_writer, observers_writer);
+                let message = SpawnMessage::new(identity.net_id,
+                                                is_local_player,
+                                                is_owner,
+                                                identity.scene_id,
+                                                identity.asset_id,
+                                                position,
+                                                rotation,
+                                                scale,
+                                                payload);
+                connection.send_network_message(message, TransportChannel::Reliable);
+            });
+        });
+    }
 
-        let message = SpawnMessage::new(identity.net_id,
-                                        is_local_player,
-                                        is_owner,
-                                        identity.scene_id,
-                                        identity.asset_id,
-                                        position,
-                                        rotation,
-                                        scale,
-                                        payload);
-        connection.send_network_message(message, TransportChannel::Reliable);
+    fn create_spawn_message_payload(is_owner: bool, identity: &mut NetworkIdentity, owner_writer: &mut NetworkWriter, observers_writer: &mut NetworkWriter) -> Vec<u8> {
+        if identity.network_behaviours.len() == 0 {
+            return Vec::new();
+        }
+
+        identity.serialize_server(true, owner_writer, observers_writer);
+
+        let owner_segment = owner_writer.to_bytes();
+        let observers_segment = observers_writer.to_bytes();
+
+        if is_owner {
+            return owner_segment;
+        }
+        observers_segment
     }
 
     // 处理 TransportCallback

@@ -1,28 +1,32 @@
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
-use crate::core::batcher::{Batch, UnBatch};
+use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
+use crate::core::batcher::UnBatch;
+use crate::core::network_reader::NetworkReader;
+use crate::core::network_writer::NetworkWriter;
 use std::any::Any;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NetworkAnimator {
-    pub network_behaviour: NetworkBehaviour,
+    pub network_behaviour: NetworkBehaviourBase,
 }
 
 impl NetworkBehaviourTrait for NetworkAnimator {
+    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase {
+        self.network_behaviour.get_network_behaviour_base()
+    }
+
     fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {
         todo!()
     }
 
-    fn serialize(&mut self, initial_state: bool) -> Batch {
+    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         todo!()
     }
 
-    fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
         todo!()
     }
 
-    fn get_network_behaviour(&self) -> &NetworkBehaviour {
-        todo!()
-    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

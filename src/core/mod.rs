@@ -18,6 +18,6 @@ mod network_writer_pool;
 mod batching;
 mod network_authenticator;
 mod connection_quality;
-mod network_reader;
+pub mod network_reader;
 mod network_reader_extensions;
 mod remote_calls;
