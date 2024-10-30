@@ -2,6 +2,7 @@ use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::tools::compress;
 use std::collections::VecDeque;
+use tklog::warn;
 
 pub struct Batcher {
     threshold: usize,
@@ -32,20 +33,21 @@ impl Batcher {
 
     pub fn add_message(&mut self, message: &[u8], timestamp: f64) {
         if self.batcher.is_some() && self.batch_timestamp != timestamp {
-            self.batch_timestamp = 0.0;
-            self.batches.push_back(self.batcher.take().unwrap());
+            if let Some(batcher) = self.batcher.take() {
+                self.batch_timestamp = 0.0;
+                self.batches.push_back(batcher);
+            }
         }
-
 
         let header_size = compress::var_uint_size(message.len() as u64);
         let needed_size = header_size + message.len();
 
-        if let Some(batcher) = self.batcher.take() {
+        if let Some(ref batcher) = self.batcher {
             if batcher.get_position() + needed_size > self.threshold {
-                self.batch_timestamp = 0.0;
-                self.batches.push_back(batcher);
-            } else {
-                self.batcher = Some(batcher);
+                if let Some(batcher) = self.batcher.take() {
+                    self.batch_timestamp = 0.0;
+                    self.batches.push_back(batcher);
+                }
             }
         }
 
@@ -76,7 +78,8 @@ impl Batcher {
 
     fn copy_and_return_batcher(batcher: NetworkWriter, writer: &mut NetworkWriter) {
         if writer.get_position() != 0 {
-            panic!("Writer must be empty");
+            warn!("Writer must be empty");
+            writer.reset();
         }
         let segment = batcher.to_array_segment();
         writer.write_bytes(segment, 0, segment.len());
