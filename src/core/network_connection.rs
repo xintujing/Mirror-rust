@@ -49,7 +49,7 @@ pub struct NetworkConnection {
 
 impl NetworkConnection {
     pub fn new(scene_id: u64, asset_id: u32) -> Self {
-        let ts = get_sec_timestamp_f64();
+        let ts = NetworkTime::local_time();
         NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
@@ -79,7 +79,7 @@ impl NetworkConnection {
     }
 
     pub fn network_connection(connection_id: u64) -> Self {
-        let ts = get_sec_timestamp_f64();
+        let ts = NetworkTime::local_time();
         NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),

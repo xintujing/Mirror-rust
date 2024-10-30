@@ -101,6 +101,7 @@ impl NetworkTime {
 
     #[allow(dead_code)]
     pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
+        println!("on_server_pong");
         if let Ok(message) = NetworkPongMessage::deserialize(un_batch) {
             if message.local_time > Self::local_time() {
                 return;

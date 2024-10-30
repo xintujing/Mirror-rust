@@ -104,13 +104,23 @@ impl NetworkManager {
         true
     }
 
-    fn start_server(&mut self) {
+    pub fn start_server(&mut self) {
         if NetworkServer::get_static_active() {
             warn!("Server already started.");
             return;
         }
 
         self.mode = NetworkManagerMode::Server;
+
+        self.setup_server();
+
+        self.on_start_server();
+
+        if self.is_server_online_scene_change_needed() {
+            // TODO  SceneManager.LoadScene(onlineScene);
+        } else {
+            // TODO NetworkServer.SpawnObjects();
+        }
     }
 
     fn setup_server(&mut self) {
@@ -202,6 +212,8 @@ pub trait NetworkManagerTrait {
     fn start(&mut self);
     fn update(&mut self);
     fn late_update(&mut self);
+    fn on_start_server(&mut self);
+    fn server_change_scene(&mut self, new_scene_name: &str);
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -243,5 +255,21 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn late_update(&mut self) {
         Self::update_scene();
+    }
+
+    fn on_start_server(&mut self) {}
+    fn server_change_scene(&mut self, new_scene_name: &str) {
+        // TODO  SceneManager.LoadScene(newSceneName);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::core::network_manager::NetworkManager;
+
+    #[test]
+    fn test_network_manager() {
+        NetworkManager::set_network_scene_name("test");
+        println!("{}", NetworkManager::get_network_scene_name());
     }
 }

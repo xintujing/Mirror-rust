@@ -1,6 +1,7 @@
 extern crate atomic;
 extern crate kcp2k_rust;
 
+use crate::core::network_manager::NetworkManager;
 use crate::core::network_server::NetworkServer;
 use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 
@@ -15,7 +16,14 @@ fn main() {
     // m_server.start();
 
     Kcp2kTransport::awake();
-    NetworkServer::listen(99);
+
+    NetworkManager::set_singleton(Box::new(NetworkManager::new()));
+
+    let singleton = NetworkManager::get_singleton();
+
+    singleton.awake();
+
+    singleton.start();
 
     NetworkServer::for_each_network_connection(|mut item| {
         println!("connection hash: {} address: {}", item.key(), item.address);
