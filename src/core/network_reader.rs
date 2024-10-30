@@ -1,5 +1,6 @@
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use std::fmt;
+use tklog::warn;
 
 pub struct NetworkReader {
     data: Vec<u8>,
@@ -14,20 +15,32 @@ impl NetworkReader {
             position: 0,
         }
     }
-
     pub fn remaining(&self) -> usize {
         self.data.len() - self.position
     }
-
     pub fn capacity(&self) -> usize {
         self.data.len()
     }
-
-    pub fn set_data(&mut self, data: Vec<u8>) {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.data[..self.position].to_vec()
+    }
+    pub fn to_array_segment(&self) -> &[u8] {
+        &self.data[..self.position]
+    }
+    pub fn get_position(&self) -> usize {
+        self.position
+    }
+    pub fn set_position(&mut self, value: usize) {
+        self.position = value;
+    }
+    pub fn set_bytes(&mut self, data: Vec<u8>) {
         self.data = data;
         self.position = 0;
     }
-
+    pub fn set_array_segment(&mut self, data: &[u8]) {
+        self.data = data.to_vec();
+        self.position = 0;
+    }
     pub fn read_blittable<T>(&mut self) -> T {
         let size = size_of::<T>();
         if self.remaining() < size {
@@ -40,7 +53,6 @@ impl NetworkReader {
         self.position += size;
         value
     }
-
     pub fn read_blittable_nullable<T>(&mut self) -> Option<T> {
         let is_null = self.read_byte() == 0;
         if is_null {
@@ -49,33 +61,30 @@ impl NetworkReader {
             Some(self.read_blittable())
         }
     }
-
-    pub fn read_byte(&mut self) -> u8 {
-        let value = self.data[self.position];
-        self.position += 1;
-        value
-    }
-
     pub fn read_bytes(&mut self, count: usize) -> Vec<u8> {
         if self.remaining() < count {
-            panic!("Not enough data to read");
+            warn!("Not enough data to read");
+            return Vec::new();
         }
         let value = self.data[self.position..self.position + count].to_vec();
         self.position += count;
         value
     }
-    pub fn read_bytes_segment(&mut self, count: usize) -> &[u8] {
+    pub fn read_remaining_bytes(&mut self) -> Vec<u8> {
+        self.read_bytes(self.remaining())
+    }
+    pub fn read_array_segment(&mut self, count: usize) -> &[u8] {
         if self.remaining() < count {
-            panic!("Not enough data to read");
+            warn!("Not enough data to read");
+            return &[];
         }
         let value = &self.data[self.position..self.position + count];
         self.position += count;
         value
     }
-    pub fn read_bytes_all(&mut self) -> Vec<u8> {
-        self.read_bytes(self.remaining())
+    pub fn read_remaining_array_segment(&mut self) -> &[u8] {
+        self.read_array_segment(self.remaining())
     }
-
     pub fn read<T: Readable>(&mut self) -> T {
         if let Some(reader_fn) = T::get_reader() {
             reader_fn(self)

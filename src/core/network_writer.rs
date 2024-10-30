@@ -1,3 +1,4 @@
+use log::warn;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use std::{fmt, ptr};
 use tklog::error;
@@ -35,17 +36,31 @@ impl NetworkWriter {
             self.data.resize(new_capacity, 0);
         }
     }
-    pub fn get_data(&self) -> Vec<u8> {
+    pub fn to_bytes(&self) -> Vec<u8> {
         self.data[..self.position].to_vec()
+    }
+    pub fn to_array_segment(&self) -> &[u8] {
+        &self.data[..self.position]
+    }
+    pub fn position_sub(&mut self, value: usize) {
+        if value > self.position {
+            warn!("Cannot seek before the beginning of the buffer");
+            return;
+        }
+        self.position -= value;
+    }
+    pub fn position_add(&mut self, value: usize) {
+        if self.position + value > self.capacity() {
+            warn!("Cannot seek past the end of the buffer");
+            return;
+        }
+        self.position += value;
     }
     pub fn get_position(&self) -> usize {
         self.position
     }
     pub fn set_position(&mut self, value: usize) {
         self.position = value;
-    }
-    pub fn to_array_segment(&self) -> &[u8] {
-        &self.data[..self.position]
     }
     pub fn write_blittable<T: Copy>(&mut self, value: T) {
         // Check if the type is blittable (i.e., it has a defined layout)
@@ -79,18 +94,27 @@ impl NetworkWriter {
             self.write_blittable(value);
         }
     }
-    pub fn write_byte(&mut self, value: u8) {
-        self.ensure_capacity(self.position + 1);
-        self.data[self.position] = value;
-        self.position += 1;
-    }
-    pub fn write_bytes(&mut self, value: &[u8], offset: usize, count: usize) {
+    pub fn write_bytes(&mut self, value: Vec<u8>, offset: usize, count: usize) {
         self.ensure_capacity(self.position + count);
         self.data[self.position..self.position + count].copy_from_slice(&value[offset..offset + count]);
         self.position += count;
     }
-    pub fn write_bytes_all(&mut self, value: &[u8]) {
-        self.write_bytes(value, 0, value.len());
+    pub fn write_bytes_all(&mut self, value: Vec<u8>) {
+        let count = value.len();
+        self.ensure_capacity(self.position + count);
+        self.data[self.position..self.position + count].copy_from_slice(&value[..count]);
+        self.position += count;
+    }
+    pub fn write_array_segment(&mut self, value: &[u8], offset: usize, count: usize) {
+        self.ensure_capacity(self.position + count);
+        self.data[self.position..self.position + count].copy_from_slice(&value[offset..offset + count]);
+        self.position += count;
+    }
+    pub fn write_array_segment_all(&mut self, value: &[u8]) {
+        let count = value.len();
+        self.ensure_capacity(self.position + count);
+        self.data[self.position..self.position + count].copy_from_slice(&value[..count]);
+        self.position += count;
     }
     pub fn write<T: Writeable>(&mut self, value: T) {
         if let Some(write_fn) = T::get_writer() {
@@ -187,7 +211,7 @@ mod tests {
         // writer.write_blittable(3u8);
         // writer.write_blittable(true);
         writer.write_vector3(Vector3::new(1.0, 2.0, 3.0));
-        let data = writer.get_data();
+        let data = writer.to_bytes();
         println!("{}", writer);
 
         let mut batch = Batch::new();
@@ -205,10 +229,10 @@ mod tests {
     fn test_pos_write() {
         let mut writer = NetworkWriter::new();
         writer.write_byte(1);
-        println!("{} {:?}", writer.get_position(), writer.get_data());
+        println!("{} {:?}", writer.get_position(), writer.to_bytes());
 
         writer.set_position(0);
         writer.write_byte(2);
-        println!("{} {:?}", writer.get_position(), writer.get_data());
+        println!("{} {:?}", writer.get_position(), writer.to_bytes());
     }
 }

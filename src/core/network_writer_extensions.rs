@@ -12,7 +12,7 @@ impl NetworkWriterExtensions {
             error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.get_position());
         }
         writer.write_blittable(1 + length as u16);
-        writer.write_bytes_all(bytes);
+        writer.write_array_segment_all(bytes);
     }
 }
 
@@ -120,7 +120,7 @@ impl NetworkWriterTrait for NetworkWriter {
             return;
         }
         Self::write_uint(self, 1 + count as u32);
-        self.write_bytes(value, offset, count);
+        self.write_array_segment(value, offset, count);
     }
 
     fn write_vector2(&mut self, value: Vector2<f32>) {

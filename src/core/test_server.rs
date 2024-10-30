@@ -82,7 +82,7 @@ impl MirrorServer {
 
     pub fn send(&self, connection_id: u64, batch: &NetworkWriter, channel: Kcp2KChannel) {
         if let Some(serv) = self.kcp_serv.as_ref() {
-            if let Err(_) = serv.s_send(connection_id, Bytes::copy_from_slice(batch.get_data().as_slice()), channel) {
+            if let Err(_) = serv.s_send(connection_id, Bytes::copy_from_slice(batch.to_bytes().as_slice()), channel) {
                 // TODO: 发送失败
             }
         }

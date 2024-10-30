@@ -176,7 +176,7 @@ impl NetworkConnection {
             // using
             NetworkWriterPool::get_return(|writer| {
                 while batcher.get_batcher_writer(writer) {
-                    self.send_to_transport(writer.get_data(), TransportChannel::from_u8(*batcher.key()));
+                    self.send_to_transport(writer.to_bytes(), TransportChannel::from_u8(*batcher.key()));
                 }
             });
         }

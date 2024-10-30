@@ -256,7 +256,7 @@ impl NetworkMessageWriter for CommandMessage {
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
         writer.write_uint(1 + self.payload.len() as u32);
-        writer.write_bytes_all(self.payload.as_slice());
+        writer.write_array_segment_all(self.payload.as_slice());
     }
 }
 
@@ -314,7 +314,7 @@ impl NetworkMessageWriter for RpcMessage {
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
         writer.write_uint(1 + self.payload.len() as u32);
-        writer.write_bytes_all(self.payload.as_slice());
+        writer.write_array_segment_all(self.payload.as_slice());
     }
 }
 
@@ -407,7 +407,7 @@ impl NetworkMessageWriter for SpawnMessage {
         writer.write_quaternion(self.rotation);
         writer.write_vector3(self.scale);
         writer.write_uint(1 + self.payload.len() as u32);
-        writer.write_bytes_all(self.payload.as_slice());
+        writer.write_array_segment_all(self.payload.as_slice());
     }
 }
 
@@ -586,7 +586,7 @@ impl NetworkMessageWriter for EntityStateMessage {
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
         writer.write_uint(1 + self.payload.len() as u32);
-        writer.write_bytes_all(self.payload.as_slice());
+        writer.write_array_segment_all(self.payload.as_slice());
     }
 }
 

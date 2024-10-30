@@ -60,7 +60,7 @@ impl Batcher {
 
         if let Some(ref mut batcher) = self.batcher {
             // batcher.compress_var_uint(message.len() as u64);
-            batcher.write_bytes(message, 0, message.len());
+            batcher.write_array_segment(message, 0, message.len());
         }
     }
 
@@ -82,7 +82,7 @@ impl Batcher {
             writer.reset();
         }
         let segment = batcher.to_array_segment();
-        writer.write_bytes(segment, 0, segment.len());
+        writer.write_array_segment(segment, 0, segment.len());
         NetworkWriterPool::return_(batcher);
     }
 
