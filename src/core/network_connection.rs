@@ -9,7 +9,8 @@ use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
-use crate::core::transport::{Transport, TransportChannel};
+use crate::core::transport::{Transport, TransportChannel, TransportTrait};
+use crate::tools::logger::warn;
 use crate::tools::utils::get_sec_timestamp_f64;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
@@ -131,10 +132,20 @@ impl NetworkConnection {
         if let Some(batch) = self.batches.get_mut(&channel.to_u8()) {
             return batch;
         }
-        let threshold = Transport::get_active_transport().unwrap().get_batcher_threshold(channel);
+        let threshold = match Transport::get_active_transport() {
+            None => {
+                warn("get threshold failed");
+                1500
+            }
+            Some(active_transport) => active_transport.get_batcher_threshold(channel)
+        };
         let batcher = Batcher::new(threshold);
         self.batches.insert(channel.to_u8(), batcher);
-        self.batches.get_mut(&channel.to_u8()).unwrap()
+        if let Some(batch) = self.batches.get_mut(&channel.to_u8()) {
+            batch
+        } else {
+            panic!("get batch failed");
+        }
     }
 
     pub fn update_time_interpolation(&mut self) {

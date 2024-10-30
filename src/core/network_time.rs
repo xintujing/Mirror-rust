@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use std::time::Instant;
+use tklog::warn;
 
 lazy_static! {
     // 全局启动时间锚点
@@ -28,7 +29,12 @@ impl NetworkTime {
 
     #[allow(dead_code)]
     pub fn local_time() -> f64 {
-        START_INSTANT.read().unwrap().elapsed().as_secs_f64()
+        if let Ok(start_instant) = START_INSTANT.read() {
+            start_instant.elapsed().as_secs_f64()
+        } else {
+            warn!("NetworkTime::local_time() failed to get start_instant");
+            Instant::now().elapsed().as_secs_f64()
+        }
     }
 
     #[allow(dead_code)]
@@ -38,17 +44,32 @@ impl NetworkTime {
 
     #[allow(dead_code)]
     pub fn prediction_error_unadjusted() -> f64 {
-        _PREDICTION_ERROR_UNADJUSTED.read().unwrap().value()
+        if let Ok(prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.read() {
+            prediction_error_unadjusted.value()
+        } else {
+            warn!("NetworkTime::prediction_error_unadjusted() failed to get prediction_error_unadjusted");
+            0.0
+        }
     }
 
     #[allow(dead_code)]
     pub fn rtt() -> f64 {
-        _RTT.read().unwrap().value()
+        if let Ok(rtt) = _RTT.read() {
+            rtt.value()
+        } else {
+            warn!("NetworkTime::rtt() failed to get rtt");
+            0.0
+        }
     }
 
     #[allow(dead_code)]
     pub fn rtt_variance() -> f64 {
-        _RTT.read().unwrap().variance()
+        if let Ok(rtt) = _RTT.read() {
+            rtt.variance()
+        } else {
+            warn!("NetworkTime::rtt_variance() failed to get rtt");
+            0.0
+        }
     }
 
     #[allow(dead_code)]
@@ -85,7 +106,11 @@ impl NetworkTime {
                 return;
             }
             let new_rtt = Self::local_time() - message.local_time;
-            _RTT.write().unwrap().add(new_rtt);
+            if let Ok(mut rtt) = _RTT.write() {
+                rtt.add(new_rtt);
+            } else {
+                warn!("NetworkTime::on_server_pong() failed to get rtt");
+            }
         }
     }
 
@@ -94,6 +119,7 @@ impl NetworkTime {
         if let Ok(start_instant) = START_INSTANT.read() {
             *start_instant
         } else {
+            warn!("NetworkTime::get_static_instant() failed to get start_instant");
             Instant::now()
         }
     }
@@ -102,6 +128,8 @@ impl NetworkTime {
     pub fn set_static_instant(instant: Instant) {
         if let Ok(mut start_instant) = START_INSTANT.write() {
             *start_instant = instant;
+        }else {
+            warn!("NetworkTime::set_static_instant() failed to get start_instant");
         }
     }
 
@@ -160,7 +188,6 @@ impl ExponentialMovingAverage {
 #[test]
 fn test_network_time() {
     NetworkTime::reset_statics();
-    sleep(std::time::Duration::from_secs(3));
     let local_time = NetworkTime::local_time();
     println!("local_time: {}", local_time);
     assert!(local_time > 0.0);

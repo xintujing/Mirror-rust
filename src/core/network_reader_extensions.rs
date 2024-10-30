@@ -1,12 +1,18 @@
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait, Readable};
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use tklog::warn;
 
 pub struct NetworkReaderExtensions;
 impl NetworkReaderExtensions {
     fn read_string(reader: &mut NetworkReader) -> String {
         let length = reader.read_blittable::<u16>() as usize;
         let bytes = reader.read_bytes(length);
-        String::from_utf8(bytes).unwrap()
+        if let Ok(string) = String::from_utf8(bytes) {
+            string
+        } else {
+            warn!("NetworkReaderExtensions::read_string() failed to convert bytes to string");
+            String::new()
+        }
     }
 }
 impl NetworkReaderTrait for NetworkReader {

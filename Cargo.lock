@@ -16,6 +16,7 @@ dependencies = [
  "hex",
  "kcp2k_rust",
  "lazy_static",
+ "log",
  "nalgebra",
  "rust_multistack",
  "serde",

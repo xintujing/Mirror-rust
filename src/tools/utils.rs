@@ -92,8 +92,7 @@ pub fn hex_string_to_f64(hex_string: &str) -> f64 {
         f64_bytes[i] = u8::from_str_radix(
             &format!("{}{}", bytes[i * 2] as char, bytes[i * 2 + 1] as char),
             16,
-        )
-            .unwrap();
+        ).unwrap();
     }
     f64::from_be_bytes(f64_bytes)
 }

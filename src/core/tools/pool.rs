@@ -24,7 +24,6 @@ impl<T> Pool<T> {
 
     #[inline(always)]
     pub fn get(&mut self) -> T {
-        // println!("get: {}", self.objects_stack.len());
         self.objects_stack.pop_back().unwrap_or_else(|| (self.object_generator)())
     }
 

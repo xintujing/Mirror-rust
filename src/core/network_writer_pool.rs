@@ -2,6 +2,7 @@ use crate::core::network_writer::NetworkWriter;
 use crate::core::tools::pool::Pool;
 use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
+use tklog::warn;
 
 lazy_static! {
     static ref NETWORK_WRITER_POOL: Arc<Mutex<Pool<NetworkWriter>>> = Arc::new(Mutex::new(Pool::new(|| NetworkWriter::new(), 1000)));
@@ -12,13 +13,23 @@ pub struct NetworkWriterPool;
 
 impl NetworkWriterPool {
     pub fn count() -> usize {
-        NETWORK_WRITER_POOL.lock().unwrap().count()
+        if let Ok(pool) = NETWORK_WRITER_POOL.lock() {
+            pool.count()
+        } else {
+            warn!("NetworkWriterPool::count() failed to lock NETWORK_WRITER_POOL");
+            0
+        }
     }
 
     pub fn get() -> NetworkWriter {
-        let mut writer = NETWORK_WRITER_POOL.lock().unwrap().get();
-        writer.reset();
-        writer
+        if let Ok(mut pool) = NETWORK_WRITER_POOL.lock() {
+            let mut writer = pool.get();
+            writer.reset();
+            writer
+        } else {
+            warn!("NetworkWriterPool::get() failed to lock NETWORK_WRITER_POOL");
+            NetworkWriter::new()
+        }
     }
 
     pub fn get_return<T>(func: T)
@@ -31,8 +42,12 @@ impl NetworkWriterPool {
     }
 
     pub fn return_(mut writer: NetworkWriter) {
-        writer.reset();
-        NETWORK_WRITER_POOL.lock().unwrap().return_(writer);
+        if let Ok(mut pool) = NETWORK_WRITER_POOL.lock() {
+            writer.reset();
+            pool.return_(writer);
+        } else {
+            warn!("NetworkWriterPool::return_() failed to lock NETWORK_WRITER_POOL");
+        }
     }
 }
 

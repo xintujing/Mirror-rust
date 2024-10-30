@@ -151,7 +151,10 @@ impl NetworkManager {
     // ********************************************************************
     pub fn get_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
         unsafe {
-            SINGLETON.as_mut().unwrap()
+            if let Some(ref mut singleton) = SINGLETON {
+                return singleton;
+            }
+            panic!("NetworkManager singleton not found.");
         }
     }
 
@@ -163,7 +166,7 @@ impl NetworkManager {
 
     pub fn set_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
         unsafe {
-            SINGLETON = Some(network_manager);
+            SINGLETON.replace(network_manager);
         }
     }
     pub fn get_network_scene_name() -> &'static str {

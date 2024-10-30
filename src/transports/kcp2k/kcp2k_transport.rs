@@ -59,17 +59,19 @@ impl Kcp2kTransport {
         }
     }
     fn recv_data(&mut self) {
-        // 服务器接收
-        if let Ok(cb) = self.kcp_serv_rx.as_ref().unwrap().try_recv() {
-            let mut tcb = TransportCallback::default();
-            tcb.r#type = Self::from_kcp2k_callback_type(cb.callback_type);
-            tcb.connection_id = cb.connection_id;
-            tcb.data = cb.data.to_vec();
-            tcb.channel = Self::from_kcp2k_channel(cb.channel);
-            tcb.error = Self::from_kcp2k_error_code(cb.error_code);
-            if let Ok(on_server_connected) = self.transport.transport_cb_fn.lock() {
-                if let Some(func) = on_server_connected.as_ref() {
-                    func(tcb);
+        // 服务器接收数据
+        if let Some(ref kcp_serv_rx) = self.kcp_serv_rx {
+            if let Ok(cb) = kcp_serv_rx.try_recv() {
+                let mut tcb = TransportCallback::default();
+                tcb.r#type = Self::from_kcp2k_callback_type(cb.callback_type);
+                tcb.connection_id = cb.connection_id;
+                tcb.data = cb.data.to_vec();
+                tcb.channel = Self::from_kcp2k_channel(cb.channel);
+                tcb.error = Self::from_kcp2k_error_code(cb.error_code);
+                if let Ok(transport_cb_fn) = self.transport.transport_cb_fn.lock() {
+                    if let Some(func) = transport_cb_fn.as_ref() {
+                        func(tcb);
+                    }
                 }
             }
         }
