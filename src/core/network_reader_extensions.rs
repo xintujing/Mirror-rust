@@ -227,6 +227,11 @@ impl NetworkReaderTrait for NetworkReader {
         }
     }
 
+    fn decompress_var_int(&mut self) -> i64 {
+        let data = self.decompress_var_uint() as i64;
+        (data >> 1) ^ -(data & 1)
+    }
+
     fn decompress_var_uint(&mut self) -> u64 {
         let a0 = self.read_byte() as u64;
         if a0 < 241 {
@@ -272,7 +277,7 @@ impl NetworkReaderTrait for NetworkReader {
         if a0 == 255 {
             return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40) + (a7 << 48) + (a8 << 56);
         }
-        panic!("DecompressVarInt failure: {}", a0);
+        panic!("DecompressVarUInt failure: {}", a0);
     }
 }
 

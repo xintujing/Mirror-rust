@@ -151,7 +151,7 @@ impl NetworkWriterTrait for NetworkWriter {
         if let Some(v) = value {
             self.write_blittable(v.x);
             self.write_blittable(v.y);
-        }else {
+        } else {
             self.write_byte(0);
         }
     }
@@ -167,7 +167,7 @@ impl NetworkWriterTrait for NetworkWriter {
             self.write_blittable(v.x);
             self.write_blittable(v.y);
             self.write_blittable(v.z);
-        }else {
+        } else {
             self.write_byte(0);
         }
     }
@@ -185,7 +185,7 @@ impl NetworkWriterTrait for NetworkWriter {
             self.write_blittable(v.y);
             self.write_blittable(v.z);
             self.write_blittable(v.w);
-        }else {
+        } else {
             self.write_byte(0);
         }
     }
@@ -203,9 +203,14 @@ impl NetworkWriterTrait for NetworkWriter {
             self.write_blittable(v.coords.y);
             self.write_blittable(v.coords.z);
             self.write_blittable(v.coords.w);
-        }else {
+        } else {
             self.write_byte(0);
         }
+    }
+
+    fn compress_var_int(&mut self, value: i64) {
+        let zigzagged = ((value >> 63) ^ (value << 1)) as u64;
+        self.compress_var_uint(zigzagged);
     }
 
     fn compress_var_uint(&mut self, value: u64) {

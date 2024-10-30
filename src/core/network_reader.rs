@@ -174,6 +174,7 @@ pub trait NetworkReaderTrait {
     fn read_quaternion(&mut self) -> Quaternion<f32>;
     fn read_quaternion_nullable(&mut self) -> Option<Quaternion<f32>>;
 
+    fn decompress_var_int(&mut self) -> i64;
     fn decompress_var_uint(&mut self) -> u64;
 }
 
