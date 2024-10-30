@@ -1,7 +1,8 @@
-use log::warn;
+use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use rust_decimal::Decimal;
 use std::{fmt, ptr};
-use tklog::error;
+use tklog::{error, warn};
 
 #[derive(Debug)]
 pub struct NetworkWriter {
@@ -162,11 +163,14 @@ pub trait NetworkWriterTrait {
     fn write_double(&mut self, value: f64);
     fn write_double_nullable(&mut self, value: Option<f64>);
 
+    fn write_decimal(&mut self, value: Decimal);
+    fn write_decimal_nullable(&mut self, value: Option<Decimal>);
+    fn write_half(&mut self, value: f16);
+
     fn write_str(&mut self, value: &str);
     fn write_string(&mut self, value: String);
-
-    fn write_bytes_and_size(&mut self, value: &[u8], offset: usize, count: usize);
-
+    fn write_bytes_and_size(&mut self, value: Vec<u8>, offset: usize, count: usize);
+    fn write_array_segment_and_size(&mut self, value: &[u8], offset: usize, count: usize);
     fn write_vector2(&mut self, value: Vector2<f32>);
     fn write_vector2_nullable(&mut self, value: Option<Vector2<f32>>);
 

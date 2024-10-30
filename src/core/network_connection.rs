@@ -9,7 +9,7 @@ use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
-use crate::core::transport::{Transport, TransportChannel, TransportTrait};
+use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
 use crate::tools::utils::get_sec_timestamp_f64;
 use dashmap::mapref::one::RefMut;

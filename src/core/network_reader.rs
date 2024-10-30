@@ -1,4 +1,6 @@
+use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use rust_decimal::Decimal;
 use std::fmt;
 use tklog::warn;
 
@@ -12,6 +14,12 @@ impl NetworkReader {
     pub fn new(data: Vec<u8>) -> Self {
         NetworkReader {
             data,
+            position: 0,
+        }
+    }
+    pub fn new_with_array_segment(data: &[u8]) -> Self {
+        NetworkReader {
+            data: data.to_vec(),
             position: 0,
         }
     }
@@ -85,7 +93,7 @@ impl NetworkReader {
     pub fn read_remaining_array_segment(&mut self) -> &[u8] {
         self.read_array_segment(self.remaining())
     }
-    pub fn read<T: Readable>(&mut self) -> T {
+    pub fn read<T: Readable<TYPE=T>>(&mut self) -> T {
         if let Some(reader_fn) = T::get_reader() {
             reader_fn(self)
         } else {
@@ -95,7 +103,8 @@ impl NetworkReader {
 }
 
 pub trait Readable {
-    fn get_reader<T>() -> Option<fn(&mut NetworkReader) -> T>
+    type TYPE;
+    fn get_reader() -> Option<fn(&mut NetworkReader) -> Self::TYPE>
     where
         Self: Sized;
 }
@@ -137,10 +146,21 @@ pub trait NetworkReaderTrait {
     fn read_double(&mut self) -> f64;
     fn read_double_nullable(&mut self) -> Option<f64>;
 
-    fn read_str(&mut self) -> String;
     fn read_string(&mut self) -> String;
 
+    fn read_var_int(&mut self) -> i32;
+    fn read_var_uint(&mut self) -> u32;
+    fn read_var_long(&mut self) -> i64;
+    fn read_var_ulong(&mut self) -> u64;
+
+    fn read_decimal(&mut self) -> Decimal;
+    fn read_decimal_nullable(&mut self) -> Option<Decimal>;
+
+    fn read_half(&mut self) -> f16;
+
     fn read_bytes_and_size(&mut self) -> Vec<u8>;
+
+    fn read_array_segment_and_size(&mut self) -> &[u8];
 
     fn read_vector2(&mut self) -> Vector2<f32>;
     fn read_vector2_nullable(&mut self) -> Option<Vector2<f32>>;

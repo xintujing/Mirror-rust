@@ -1,11 +1,13 @@
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait, Readable};
+use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use rust_decimal::Decimal;
 use tklog::warn;
 
 pub struct NetworkReaderExtensions;
 impl NetworkReaderExtensions {
     fn read_string(reader: &mut NetworkReader) -> String {
-        let length = reader.read_blittable::<u16>() as usize;
+        let length = reader.read_ushort() as usize - 1;
         let bytes = reader.read_bytes(length);
         if let Ok(string) = String::from_utf8(bytes) {
             string
@@ -112,69 +114,193 @@ impl NetworkReaderTrait for NetworkReader {
         self.read_blittable_nullable::<f64>()
     }
 
-    fn read_str(&mut self) -> String {
+    fn read_string(&mut self) -> String {
+        self.read()
+    }
+
+    fn read_var_int(&mut self) -> i32 {
         todo!()
     }
 
-    fn read_string(&mut self) -> String {
+    fn read_var_uint(&mut self) -> u32 {
         todo!()
+    }
+
+    fn read_var_long(&mut self) -> i64 {
+        todo!()
+    }
+
+    fn read_var_ulong(&mut self) -> u64 {
+        todo!()
+    }
+
+    fn read_decimal(&mut self) -> Decimal {
+        self.read_blittable::<Decimal>()
+    }
+
+    fn read_decimal_nullable(&mut self) -> Option<Decimal> {
+        self.read_blittable_nullable::<Decimal>()
+    }
+
+    fn read_half(&mut self) -> f16 {
+        f16::from_bits(self.read_ushort())
     }
 
     fn read_bytes_and_size(&mut self) -> Vec<u8> {
-        todo!()
+        let count = self.decompress_var_uint() as usize;
+        if count == 0 {
+            return Vec::new();
+        }
+        self.read_bytes(count - 1)
+    }
+
+    fn read_array_segment_and_size(&mut self) -> &[u8] {
+        let count = self.decompress_var_uint() as usize;
+        if count == 0 {
+            return &[];
+        }
+        self.read_array_segment(count - 1)
     }
 
     fn read_vector2(&mut self) -> Vector2<f32> {
-        todo!()
+        let x = self.read_float();
+        let y = self.read_float();
+        Vector2::new(x, y)
     }
 
     fn read_vector2_nullable(&mut self) -> Option<Vector2<f32>> {
-        todo!()
+        let has_value = self.read_bool();
+        if has_value {
+            Some(self.read_vector2())
+        } else {
+            None
+        }
     }
 
     fn read_vector3(&mut self) -> Vector3<f32> {
-        todo!()
+        let x = self.read_float();
+        let y = self.read_float();
+        let z = self.read_float();
+        Vector3::new(x, y, z)
     }
 
     fn read_vector3_nullable(&mut self) -> Option<Vector3<f32>> {
-        todo!()
+        let has_value = self.read_bool();
+        if has_value {
+            Some(self.read_vector3())
+        } else {
+            None
+        }
     }
 
     fn read_vector4(&mut self) -> Vector4<f32> {
-        todo!()
+        let x = self.read_float();
+        let y = self.read_float();
+        let z = self.read_float();
+        let w = self.read_float();
+        Vector4::new(x, y, z, w)
     }
 
     fn read_vector4_nullable(&mut self) -> Option<Vector4<f32>> {
-        todo!()
+        let has_value = self.read_bool();
+        if has_value {
+            Some(self.read_vector4())
+        } else {
+            None
+        }
     }
 
     fn read_quaternion(&mut self) -> Quaternion<f32> {
-        todo!()
+        let x = self.read_float();
+        let y = self.read_float();
+        let z = self.read_float();
+        let w = self.read_float();
+        Quaternion::new(w, x, y, z)
     }
 
     fn read_quaternion_nullable(&mut self) -> Option<Quaternion<f32>> {
-        todo!()
+        let has_value = self.read_bool();
+        if has_value {
+            Some(self.read_quaternion())
+        } else {
+            None
+        }
     }
 
     fn decompress_var_uint(&mut self) -> u64 {
-        todo!()
+        let a0 = self.read_byte() as u64;
+        if a0 < 241 {
+            return a0;
+        }
+
+        let a1 = self.read_byte() as u64;
+        if a0 <= 248 {
+            return 240 + ((a0 - 241) << 8) + a1;
+        }
+
+        let a2 = self.read_byte() as u64;
+        if a0 == 249 {
+            return 2288 + (a1 << 8) + a2;
+        }
+
+        let a3 = self.read_byte() as u64;
+        if a0 == 250 {
+            return a1 + (a2 << 8) + (a3 << 16);
+        }
+
+        let a4 = self.read_byte() as u64;
+        if a0 == 251 {
+            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24);
+        }
+
+        let a5 = self.read_byte() as u64;
+        if a0 == 252 {
+            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32);
+        }
+
+        let a6 = self.read_byte() as u64;
+        if a0 == 253 {
+            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40);
+        }
+
+        let a7 = self.read_byte() as u64;
+        if a0 == 254 {
+            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40) + (a7 << 48);
+        }
+
+        let a8 = self.read_byte() as u64;
+        if a0 == 255 {
+            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40) + (a7 << 48) + (a8 << 56);
+        }
+        panic!("DecompressVarInt failure: {}", a0);
     }
 }
 
 impl Readable for String {
-    fn get_reader<T>() -> Option<fn(&mut NetworkReader) -> T>
+    type TYPE = String;
+
+    fn get_reader() -> Option<fn(&mut NetworkReader) -> Self::TYPE>
     where
         Self: Sized,
     {
-        todo!()
+        Some(|reader: &mut NetworkReader| -> Self::TYPE {
+            NetworkReaderExtensions::read_string(reader)
+        })
     }
 }
 
-impl Readable for &str {
-    fn get_reader<T>() -> Option<fn(&mut NetworkReader) -> T>
-    where
-        Self: Sized,
-    {
-        todo!()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::network_reader::NetworkReader;
+    use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+
+    #[test]
+    fn read_string() {
+        let mut writer = NetworkWriter::new();
+        writer.write_string("Hello, World!".to_string());
+        let mut reader = NetworkReader::new(writer.to_bytes());
+        let value = reader.read_string();
+        assert_eq!(value, "Hello, World!");
     }
 }

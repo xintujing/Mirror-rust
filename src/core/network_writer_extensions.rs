@@ -1,5 +1,7 @@
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait, Writeable};
+use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
+use rust_decimal::Decimal;
 use tklog::error;
 
 pub struct NetworkWriterExtensions;
@@ -107,6 +109,18 @@ impl NetworkWriterTrait for NetworkWriter {
         self.write_blittable_nullable(value);
     }
 
+    fn write_decimal(&mut self, value: Decimal) {
+        self.write_blittable(value);
+    }
+
+    fn write_decimal_nullable(&mut self, value: Option<Decimal>) {
+        self.write_blittable_nullable(value);
+    }
+
+    fn write_half(&mut self, value: f16) {
+        self.write_ushort(value.to_bits());
+    }
+
     fn write_str(&mut self, value: &str) {
         self.write(value);
     }
@@ -114,12 +128,17 @@ impl NetworkWriterTrait for NetworkWriter {
         self.write(value);
     }
 
-    fn write_bytes_and_size(&mut self, value: &[u8], offset: usize, count: usize) {
+    fn write_bytes_and_size(&mut self, value: Vec<u8>, offset: usize, count: usize) {
         if value.len() == 0 {
-            self.write_blittable(0u16);
+            self.compress_var_uint(0);
             return;
         }
-        Self::write_uint(self, 1 + count as u32);
+        self.compress_var_uint(1 + count as u64);
+        self.write_bytes(value, offset, count);
+    }
+
+    fn write_array_segment_and_size(&mut self, value: &[u8], offset: usize, count: usize) {
+        self.compress_var_uint(1 + count as u64);
         self.write_array_segment(value, offset, count);
     }
 
@@ -129,10 +148,12 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn write_vector2_nullable(&mut self, value: Option<Vector2<f32>>) {
-        value.map(|v| {
+        if let Some(v) = value {
             self.write_blittable(v.x);
             self.write_blittable(v.y);
-        });
+        }else {
+            self.write_byte(0);
+        }
     }
 
     fn write_vector3(&mut self, value: Vector3<f32>) {
@@ -142,11 +163,13 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn write_vector3_nullable(&mut self, value: Option<Vector3<f32>>) {
-        value.map(|v| {
+        if let Some(v) = value {
             self.write_blittable(v.x);
             self.write_blittable(v.y);
             self.write_blittable(v.z);
-        });
+        }else {
+            self.write_byte(0);
+        }
     }
 
     fn write_vector4(&mut self, value: Vector4<f32>) {
@@ -157,12 +180,14 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn write_vector4_nullable(&mut self, value: Option<Vector4<f32>>) {
-        value.map(|v| {
+        if let Some(v) = value {
             self.write_blittable(v.x);
             self.write_blittable(v.y);
             self.write_blittable(v.z);
             self.write_blittable(v.w);
-        });
+        }else {
+            self.write_byte(0);
+        }
     }
 
     fn write_quaternion(&mut self, value: Quaternion<f32>) {
@@ -173,12 +198,14 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn write_quaternion_nullable(&mut self, value: Option<Quaternion<f32>>) {
-        value.map(|v| {
+        if let Some(v) = value {
             self.write_blittable(v.coords.x);
             self.write_blittable(v.coords.y);
             self.write_blittable(v.coords.z);
             self.write_blittable(v.coords.w);
-        });
+        }else {
+            self.write_byte(0);
+        }
     }
 
     fn compress_var_uint(&mut self, value: u64) {
