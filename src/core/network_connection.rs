@@ -11,7 +11,6 @@ use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpo
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
-use crate::tools::utils::get_sec_timestamp_f64;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use std::collections::BTreeSet;
@@ -35,7 +34,6 @@ pub struct NetworkConnection {
 
     pub last_ping_time: f64,
     pub rtt: f64,
-    // pub backend_data: Arc<BackendData>,
     pub snapshots: BTreeSet<TimeSnapshot>,
     pub snapshot_buffer_size_limit: i32,
     pub drift_ema: ExponentialMovingAverage,
@@ -177,6 +175,7 @@ impl NetworkConnection {
             NetworkWriterPool::get_return(|writer| {
                 while batcher.get_batcher_writer(writer) {
                     self.send_to_transport(writer.to_bytes(), TransportChannel::from_u8(*batcher.key()));
+                    writer.reset();
                 }
             });
         }

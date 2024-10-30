@@ -320,7 +320,7 @@ impl NetworkServer {
         if let Some((_, mut connection)) = NETWORK_CONNECTIONS.remove(&connection_id) {
             connection.cleanup();
             if false {
-                // TODO: OnDisconnectedEvent?.Invoke(conn); 844
+                // TODO: OnDisconnectedEvent?.invoke(conn); 844
             } else {
                 Self::destroy_player_for_connection(&mut connection);
             }
@@ -337,7 +337,7 @@ impl NetworkServer {
     fn on_transport_error(connection_id: u64, transport_error: TransportError) {
         warn!(format!("Server.HandleError: connectionId: {}, error: {:?}", connection_id, transport_error));
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            // TODO OnErrorEvent?.Invoke(conn, error, reason);
+            // TODO OnErrorEvent?.invoke(conn, error, reason);
         }
     }
 
@@ -345,14 +345,14 @@ impl NetworkServer {
     fn on_server_transport_exception(connection_id: u64, transport_error: TransportError) {
         warn!(format!("Server.HandleTransportException: connectionId: {}, error: {:?}", connection_id, transport_error));
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            // TODO OnTransportExceptionEvent?.Invoke(conn, error, reason);
+            // TODO OnTransportExceptionEvent?.invoke(conn, error, reason);
         }
     }
 
     // 处理 Connected 消息
     fn on_connected(connection: NetworkConnection) {
         Self::add_connection(connection);
-        // TODO: OnConnectedEvent?.Invoke(conn);
+        // TODO: OnConnectedEvent?.invoke(conn);
     }
 
     // 添加连接

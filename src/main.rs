@@ -1,6 +1,3 @@
-extern crate atomic;
-extern crate kcp2k_rust;
-
 use crate::core::network_manager::NetworkManager;
 use crate::core::network_server::NetworkServer;
 use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};

@@ -6,11 +6,17 @@ use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
 use crate::core::batcher::Batch;
 use crate::core::network_writer::NetworkWriter;
+use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
+use atomic::Atomic;
 use bytes::Bytes;
+use dashmap::mapref::multiple::RefMutMulti;
+use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use nalgebra::Vector3;
 use std::default::Default;
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, LazyLock, RwLock};
+use tklog::error;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
@@ -23,6 +29,10 @@ pub struct NetworkIdentitySerialization {
     pub owner_writer: NetworkWriter,
     pub observers_writer: NetworkWriter,
 }
+
+static mut NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);
+pub type ClientAuthorityCallback = Box<dyn Fn(u64, NetworkIdentity, bool) + Send + Sync>;
+pub static mut CLIENT_AUTHORITY_CALLBACK: Option<ClientAuthorityCallback> = None;
 
 impl NetworkIdentitySerialization {
     pub fn new(tick: u32) -> Self {
@@ -50,6 +60,9 @@ pub struct NetworkIdentity {
     pub destroy_called: bool,
     pub visibility: Visibility,
     pub last_serialization: NetworkIdentitySerialization,
+    pub scene_ids: DashMap<u64, NetworkIdentity>,
+    pub has_spawned: bool,
+    pub spawned_from_instantiate: bool,
     pub network_behaviours: DashMap<u8, Arc<RwLock<dyn NetworkBehaviourTrait>>>,
 }
 
@@ -67,51 +80,108 @@ impl NetworkIdentity {
             destroy_called: false,
             visibility: Visibility::Default,
             last_serialization: NetworkIdentitySerialization::new(0),
+            scene_ids: Default::default(),
+            has_spawned: false,
+            spawned_from_instantiate: false,
             network_behaviours: Default::default(),
         };
-
-        if network_identity.scene_id != 0 {
-            // TODO: Implement this
-        }
-        // 如果 asset_id 不为 0
-        if network_identity.asset_id != 0 {
-            for component in BACKEND_DATA.get_network_identity_data_network_behaviour_components_by_asset_id(network_identity.asset_id) {
-                // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
-                if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
-                    // scale
-                    let scale = Vector3::new(1.0, 1.0, 1.0);
-                    // 创建 NetworkTransform
-                    let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
-                    // 添加到 components
-                    network_identity.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_transform)));
-                    continue;
-                }
-                // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
-                if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
-                    // scale
-                    let scale = Vector3::new(1.0, 1.0, 1.0);
-                    // 创建 NetworkTransform
-                    let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
-                    // 添加到 components
-                    network_identity.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_transform)));
-                    continue;
-                }
-                if component.sub_class == "QuickStart.PlayerScript" {
-                    // 创建 NetworkCommonComponent
-                    let network_common = network_identity.new_network_common_component(component);
-                    // 添加到 components
-                    network_identity.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_common)));
-                }
-            }
-        }
         network_identity
     }
-
     pub fn default() -> Self {
         Self::new(0, 0)
     }
+    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkWriter, connection_id: u64) {
+        if let Some(network_behaviour) = self.network_behaviours.get(&component_index) {
+            if let Ok(network_behaviour) = network_behaviour.write() {
+                if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, network_behaviour, connection_id) {
+                    error!("Failed to invoke remote call for function hash: ", function_hash);
+                }
+            }
+        }
+    }
+    pub fn reset_statics() {
+        Self::reset_server_statics();
+    }
+    pub fn reset_server_statics() {
+        Self::set_static_next_network_id(1);
+    }
+    pub fn get_scene_identity(&self, scene_id: u64) -> Option<RefMut<u64, NetworkIdentity>> {
+        if let Some(scene_identity) = self.scene_ids.get_mut(&scene_id) {
+            return Some(scene_identity);
+        }
+        None
+    }
+    pub fn initialize_network_behaviours(&mut self) {
+        for component in BACKEND_DATA.get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
+            // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
+            if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
+                // scale
+                let scale = Vector3::new(1.0, 1.0, 1.0);
+                // 创建 NetworkTransform
+                let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
+                // 添加到 components
+                self.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_transform)));
+                continue;
+            }
+            // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
+            if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
+                // scale
+                let scale = Vector3::new(1.0, 1.0, 1.0);
+                // 创建 NetworkTransform
+                let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
+                // 添加到 components
+                self.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_transform)));
+                continue;
+            }
+            if component.sub_class == "QuickStart.PlayerScript" {
+                // 创建 NetworkCommonComponent
+                let network_common = Self::new_network_common_component(component);
+                // 添加到 components
+                self.network_behaviours.insert(component.index, Arc::new(RwLock::new(network_common)));
+            }
+        }
+        self.validate_components();
+    }
+    pub fn awake(&mut self) {
+        self.initialize_network_behaviours();
+        if self.has_spawned {
+            error!("NetworkIdentity has already spawned.");
+            self.spawned_from_instantiate = true;
+            // TODO Destroy
+        }
+        self.has_spawned = true;
+    }
+    pub fn on_validate(&mut self) {
+        self.has_spawned = false;
+    }
+    pub fn on_destroy(&mut self) {
+        if self.spawned_from_instantiate {
+            return;
+        }
 
-    pub fn new_network_common_component(&self, network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
+        if !self.destroy_called {
+            // TODO NetworkServer.Destroy(gameObject);
+        }
+    }
+    pub fn validate_components(&self) {
+        if self.network_behaviours.len() == 0 {
+            error!("NetworkIdentity has no components.");
+        } else if self.network_behaviours.len() > 64 {
+            error!("NetworkIdentity has too many components. Max is 64.");
+        }
+    }
+    pub fn on_start_server(&mut self) {
+        // TODO OnStartServer
+    }
+    pub fn on_stop_server(&mut self) {
+        // TODO OnStopServer
+    }
+    fn server_dirty_masks(&mut self,initial_state: bool) {
+        let mut owner_mask: u64 = 0;
+        let mut observers_mask: u64 = 0;
+
+    }
+    pub fn new_network_common_component(network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
         let sync_vars = DashMap::new();
         for (index, sync_var) in BACKEND_DATA.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
             sync_vars.insert(index as u8, SyncVar::new(
@@ -122,7 +192,6 @@ impl NetworkIdentity {
         }
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
-
     pub fn new_spawn_message_payload(&mut self) -> Vec<u8> {
         // TODO fix
         // mask
@@ -152,7 +221,6 @@ impl NetworkIdentity {
     pub fn add_observing_network_connection(&mut self, connection_id: u64) {
         self.observers.push(connection_id);
     }
-
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
     }
@@ -163,5 +231,24 @@ impl NetworkIdentity {
             return;
         }
         self.connection_id_to_client = connection_id;
+    }
+
+    pub fn get_static_next_network_id() -> u32 {
+        unsafe {
+            let id = NEXT_NETWORK_ID.load(Ordering::Relaxed);
+            NEXT_NETWORK_ID.store(id + 1, Ordering::Relaxed);
+            id
+        }
+    }
+    pub fn set_static_next_network_id(id: u32) {
+        unsafe {
+            NEXT_NETWORK_ID.store(id, Ordering::Relaxed);
+        }
+    }
+
+    pub fn set_static_client_authority_callback(callback: ClientAuthorityCallback) {
+        unsafe {
+            CLIENT_AUTHORITY_CALLBACK = Some(callback);
+        }
     }
 }

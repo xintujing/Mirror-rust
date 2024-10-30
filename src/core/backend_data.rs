@@ -206,6 +206,9 @@ impl BackendData {
     }
     #[allow(dead_code)]
     pub fn get_network_identity_data_by_asset_id(&self, asset_id: u32) -> Option<&NetworkIdentityData> {
+        if asset_id == 0 {
+            return None;
+        }
         for network_identity_data in &self.network_identities {
             if network_identity_data.asset_id == asset_id {
                 return Some(network_identity_data);
@@ -215,6 +218,9 @@ impl BackendData {
     }
     #[allow(dead_code)]
     pub fn get_network_identity_data_by_scene_id(&self, scene_id: u64) -> Option<&NetworkIdentityData> {
+        if scene_id == 0 {
+            return None;
+        }
         for network_identity_data in &self.network_identities {
             if network_identity_data.scene_id == scene_id {
                 return Some(network_identity_data);
@@ -224,6 +230,9 @@ impl BackendData {
     }
     #[allow(dead_code)]
     pub fn get_network_identity_data_network_behaviour_components_by_asset_id(&self, asset_id: u32) -> Vec<&NetworkBehaviourComponent> {
+        if asset_id == 0 {
+            return Vec::new();
+        }
         let mut network_behaviour_components = Vec::new();
         if let Some(network_identity_data) = self.get_network_identity_data_by_asset_id(asset_id) {
             network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
@@ -232,6 +241,9 @@ impl BackendData {
     }
     #[allow(dead_code)]
     pub fn get_network_identity_data_network_behaviour_components_by_scene_id(&self, scene_id: u64) -> Vec<&NetworkBehaviourComponent> {
+        if scene_id == 0 {
+            return Vec::new();
+        }
         let mut network_behaviour_components = Vec::new();
         if let Some(network_identity_data) = self.get_network_identity_data_by_scene_id(scene_id) {
             network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
@@ -280,5 +292,7 @@ mod tests {
         for x in backend_data.get_sync_var_data_s_by_sub_class("QuickStart.PlayerScript") {
             println!("{:?}", x);
         }
+
+        println!("{:?}", backend_data.get_network_identity_data_by_asset_id(0));
     }
 }
