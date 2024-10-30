@@ -5,21 +5,24 @@ edition = "2021"
 
 [dependencies]
 kcp2k_rust = { path = "src/transports/kcp2k/kcp2k-rust" }
-bytes = "1.7.1"
+bytes = "1.8.0"
 byteorder = "1.5.0"
-bytemuck = "1.18.0"
-serde = { version = "1.0.210", features = ["derive"] }
-nalgebra = "0.33.0"
-encoding_rs = "0.8.34"
+bytemuck = "1.19.0"
+serde = { version = "1.0.214", features = ["derive"] }
+nalgebra = "0.33.2"
+encoding_rs = "0.8.35"
 hex = "0.4.3"
 dashmap = "6.1.0"
-tklog = "0.2.1"
+tklog = "0.2.4"
 rust_multistack = "0.29.0"
-serde_json = "1.0"
+serde_json = "1.0.132"
 atomic = "0.6"
 lazy_static = "1.5.0"
 crossbeam-channel = "0.5.13"
-log = "0.4.22"
+rust_decimal = "1.36.0"
+half = "2.4.1"
 
-[build]
-rustflags = ["-A", "warnings"]
+[profile.dev]
+opt-level = 0      # 优化级别
+debug = false       # 开启调试信息
+overflow-checks = true
