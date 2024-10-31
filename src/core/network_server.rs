@@ -407,7 +407,9 @@ impl NetworkServer {
     }
 
     fn unpack_and_invoke(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) -> bool {
+        // 解包消息id
         let message_id = NetworkMessages::unpack_id(reader);
+        // 如果消息id在 NETWORK_MESSAGE_HANDLERS 中
         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
             (handler.func)(connection, reader, channel);
             connection.last_message_time = NetworkTime::local_time();
