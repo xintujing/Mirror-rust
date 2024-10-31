@@ -35,6 +35,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync {
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
     // Deserialize
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool);
+    fn on_start_server(&mut self);
+    fn on_stop_server(&mut self);
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -84,6 +86,14 @@ impl NetworkBehaviourTrait for NetworkBehaviourBase {
     }
 
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+        todo!()
+    }
+
+    fn on_start_server(&mut self) {
+        todo!()
+    }
+
+    fn on_stop_server(&mut self) {
         todo!()
     }
 

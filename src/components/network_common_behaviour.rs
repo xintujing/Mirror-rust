@@ -44,6 +44,14 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         todo!()
     }
 
+    fn on_start_server(&mut self) {
+        todo!()
+    }
+
+    fn on_stop_server(&mut self) {
+        todo!()
+    }
+
 
     fn as_any(&self) -> &dyn Any {
         self

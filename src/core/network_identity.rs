@@ -183,10 +183,14 @@ impl NetworkIdentity {
         }
     }
     pub fn on_start_server(&mut self) {
-        // TODO OnStartServer
+        self.network_behaviours.iter_mut().for_each(|component| {
+            component.on_start_server()
+        });
     }
     pub fn on_stop_server(&mut self) {
-        // TODO OnStopServer
+        self.network_behaviours.iter_mut().for_each(|component| {
+            component.on_stop_server()
+        });
     }
     fn server_dirty_masks(&mut self, initial_state: bool) -> (u64, u64) {
         let mut owner_mask: u64 = 0;
@@ -211,7 +215,7 @@ impl NetworkIdentity {
     fn is_dirty(mask: u64, index: u8) -> bool {
         (mask & (1 << index)) != 0
     }
-    pub fn serialize_server(&mut self,initial_state: bool, owner_writer: &mut NetworkWriter, observers_writer: &mut NetworkWriter) {
+    pub fn serialize_server(&mut self, initial_state: bool, owner_writer: &mut NetworkWriter, observers_writer: &mut NetworkWriter) {
         self.validate_components();
         let (owner_mask, observers_mask) = self.server_dirty_masks(initial_state);
 
@@ -228,7 +232,7 @@ impl NetworkIdentity {
                 let owner_dirty = Self::is_dirty(owner_mask, i as u8);
                 let observers_dirty = Self::is_dirty(observers_mask, i as u8);
                 if owner_dirty || observers_dirty {
-                    NetworkWriterPool::get_return(|temp|{
+                    NetworkWriterPool::get_return(|temp| {
                         component.serialize(temp, initial_state);
                         let segment = temp.to_bytes();
                         if owner_dirty {
@@ -241,7 +245,6 @@ impl NetworkIdentity {
                 }
             }
         }
-
     }
     pub fn new_network_common_component(network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
         let sync_vars = DashMap::new();
@@ -254,29 +257,6 @@ impl NetworkIdentity {
         }
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
-    // pub fn new_spawn_message_payload(&mut self) -> Vec<u8> {
-    //     // TODO fix
-    //     // mask
-    //     let mut mask = 0u64;
-    //     // 创建 Batch
-    //     let mut batch = Batch::new();
-    //     // 创建 所有 components 的 Batch
-    //     let mut components_batch = Batch::new();
-    //     // 遍历 components
-    //     for network_behaviour in self.network_behaviours.iter_mut() {
-    //         mask |= 1 << network_behaviour.get_network_behaviour_base().component_index;
-    //         let component_bytes = network_behaviour.serialize(true).get_bytes();
-    //         let safety = (component_bytes.len() & 0xFF) as u8;
-    //         components_batch.write_u8(safety);
-    //         components_batch.write(&component_bytes);
-    //     }
-    //     // 写入 mask
-    //     batch.compress_var_u64_le(mask);
-    //     // 写入 components_batch
-    //     batch.write(&components_batch.get_bytes());
-    //     // 返回 batch 的 bytes
-    //     batch.get_bytes().to_vec()
-    // }
 
     pub fn add_observing_network_connection(&mut self, connection_id: u64) {
         self.observers.push(connection_id);

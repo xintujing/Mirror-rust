@@ -55,6 +55,14 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         todo!()
     }
 
+    fn on_start_server(&mut self) {
+        todo!()
+    }
+
+    fn on_stop_server(&mut self) {
+        todo!()
+    }
+
     // fn serialize(&mut self, initial_state: bool) -> Batch {
     //     let mut batch = Batch::new();
     //     if initial_state {
