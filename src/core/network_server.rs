@@ -191,17 +191,34 @@ impl NetworkServer {
         let len = connection.observing_identities.len();
         for i in 0..len {
             let identity = &mut connection.observing_identities[i];
-            let serialization = Self::serialize_for_connection(identity, connection.connection_id);
-            if serialization.get_position() > 0 {
-                let message = EntityStateMessage::new(identity.net_id, serialization.to_bytes());
-                connection.send_network_message(message, TransportChannel::Reliable);
+            let net_id = identity.net_id; // 提取 `net_id`
+            if true {
+                if let Some(serialization) = Self::serialize_for_connection(identity, connection.connection_id) {
+                    let message = EntityStateMessage::new(net_id, serialization.to_bytes());
+                    connection.send_network_message(message, TransportChannel::Reliable);
+                }
+            } else {
+                warn!(format!("Server.BroadcastToConnection: identity is null. Removing from observing list. connectionId: {}, netId: {}", connection.connection_id, identity.net_id));
+                connection.observing_identities.retain(|idy| idy.net_id != net_id);
             }
         }
     }
-    fn serialize_for_connection(identity: &mut NetworkIdentity, connection_id: u64) -> NetworkWriter {
+    fn serialize_for_connection(identity: &mut NetworkIdentity, connection_id: u64) -> Option<&mut NetworkWriter> {
         // TODO NetworkIdentitySerialization serialization = identity.GetServerSerializationAtTick(Time.frameCount);
-        let writer = NetworkWriter::new();
-        writer
+        let owned = identity.connection_id_to_client == connection_id;
+
+        let serialization = identity.get_server_serialization_at_tick(0);
+
+        if owned {
+            if serialization.owner_writer.get_position() > 0 {
+                return Some(&mut serialization.owner_writer);
+            }
+        } else {
+            if serialization.observers_writer.get_position() > 0 {
+                return Some(&mut serialization.observers_writer);
+            }
+        }
+        None
     }
 
     fn disconnect_if_inactive(connection: &mut NetworkConnection) -> bool {

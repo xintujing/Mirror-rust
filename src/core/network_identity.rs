@@ -95,13 +95,6 @@ impl NetworkIdentity {
         Self::new(0, 0)
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkWriter, connection_id: u64) {
-        // if let Some(network_behaviour) = self.network_behaviours.get(&component_index) {
-        //     if let Ok(network_behaviour) = network_behaviour.write() {
-        //         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, network_behaviour, connection_id) {
-        //             error!("Failed to invoke remote call for function hash: ", function_hash);
-        //         }
-        //     }
-        // }
         if component_index as usize >= self.network_behaviours.len() {
             error!("Component index out of bounds: {}", component_index);
             return;
@@ -245,6 +238,20 @@ impl NetworkIdentity {
                 }
             }
         }
+    }
+    pub fn get_server_serialization_at_tick(&mut self, tick: u32) -> &mut NetworkIdentitySerialization {
+        if self.last_serialization.tick != tick {
+            self.last_serialization.reset_writers();
+            NetworkWriterPool::get_return(|owner_writer| {
+                NetworkWriterPool::get_return(|observers_writer| {
+                    self.serialize_server(false, owner_writer, observers_writer);
+                    self.last_serialization.owner_writer.write_array_segment_all(owner_writer.to_array_segment());
+                    self.last_serialization.observers_writer.write_array_segment_all(observers_writer.to_array_segment());
+                });
+            });
+            self.last_serialization.tick = tick;
+        }
+        &mut self.last_serialization
     }
     pub fn new_network_common_component(network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
         let sync_vars = DashMap::new();
