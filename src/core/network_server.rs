@@ -2,6 +2,7 @@ use crate::core::batching::un_batcher::UnBatcher;
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
+use crate::core::network_manager::GameObject;
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
 use crate::core::network_reader_pool::NetworkReaderPool;
@@ -348,7 +349,7 @@ impl NetworkServer {
             }
             return;
         }
-        let connection = NetworkConnection::network_connection(connection_id);
+        let connection = NetworkConnection::new(connection_id);
         Self::on_connected(connection);
     }
 
@@ -433,10 +434,40 @@ impl NetworkServer {
         }
     }
 
-    fn destroy_player_for_connection(conn: &mut NetworkConnection) {
-        conn.destroy_owned_objects();
-        conn.remove_from_observings_observers();
-        conn.identity = NetworkIdentity::default();
+    fn destroy_player_for_connection(connection: &mut NetworkConnection) {
+        connection.destroy_owned_objects();
+        connection.remove_from_observings_observers();
+        connection.identity = NetworkIdentity::default();
+    }
+
+    pub fn add_player_for_connection(connection: &mut NetworkConnection, player: GameObject) -> bool {
+        if let Some(mut identity) = player.get_component() {
+            if !connection.identity.is_null() {
+                warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready));
+                return false;
+            }
+            identity.set_client_owner(connection.connection_id);
+            connection.identity = identity;
+            Self::set_client_ready(connection);
+            Self::respawn(&mut connection.identity);
+            return true;
+        }
+        warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",player));
+        false
+    }
+
+    fn spawn(obj: &mut GameObject) {
+        // TODO SpawnObject
+    }
+    fn respawn(identity: &mut NetworkIdentity) {
+        if identity.net_id == 0 {
+            warn!(format!("Server.Respawn: netId is zero. Please set a valid netId on {:?}",identity.game_object));
+            // Self::spawn(&mut identity.game_object, connection);
+            return;
+        }
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&identity.connection_id_to_client) {
+            Self::send_spawn_message(identity, &mut connection);
+        }
     }
 
     // 处理 TransportError 消息

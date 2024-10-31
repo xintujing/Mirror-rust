@@ -1,35 +1,89 @@
+use crate::core::backend_data::BACKEND_DATA;
 use crate::core::connection_quality::ConnectionQualityMethod;
+use crate::core::messages::AddPlayerMessage;
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
+use crate::core::network_connection::NetworkConnection;
+use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_reader::NetworkReader;
 use crate::core::network_server::NetworkServer;
-use crate::core::transport::Transport;
+use crate::core::transport::{Transport, TransportChannel};
 use atomic::Atomic;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use std::sync::atomic::Ordering;
-use tklog::{info, warn};
+use tklog::{error, info, warn};
 
 static mut SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 static mut NETWORK_SCENE_NAME: &'static str = "";
 
 
 lazy_static! {
-    pub static ref START_POSITIONS: DashMap<u32,Vector3<f32>> = DashMap::new();
+    pub static ref START_POSITIONS: Vec<Transform> = Vec::new();
     pub static ref START_POSITIONS_INDEX: Atomic<u32> = Atomic::new(0);
 }
 
-#[derive(Clone)]
+#[derive(Debug, PartialOrd, PartialEq)]
 pub enum PlayerSpawnMethod {
     Random,
     RoundRobin,
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub enum NetworkManagerMode {
     Offline,
     Server,
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Transform {
+    pub positions: Vector3<f32>,
+    pub rotation: Vector3<f32>,
+    pub scale: Vector3<f32>,
+}
+
+impl Transform {
+    pub fn new(positions: Vector3<f32>, rotation: Vector3<f32>, scale: Vector3<f32>) -> Self {
+        Self {
+            positions,
+            rotation,
+            scale,
+        }
+    }
+
+    pub fn default() -> Self {
+        Self {
+            positions: Default::default(),
+            rotation: Default::default(),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct GameObject {
+    pub name: String,
+    pub player_prefab: String,
+    pub transform: Transform,
+}
+
+impl GameObject {
+    pub fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            player_prefab: "".to_string(),
+            transform: Transform::default(),
+        }
+    }
+    pub fn get_component(&self) -> Option<NetworkIdentity> {
+        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(self.player_prefab.as_str()) {
+            let mut identity = NetworkIdentity::new(asset_id);
+            identity.game_object = self.clone();
+            return Some(identity);
+        }
+        None
+    }
+}
 
 pub struct NetworkManager {
     pub mode: NetworkManagerMode,
@@ -141,6 +195,34 @@ impl NetworkManager {
 
     fn register_server_messages() {
         // TODO NetworkServer.RegisterHandler<NetworkPingMessage>(OnPingMessage);
+        NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
+    }
+
+    fn on_server_add_player_internal(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
+        // TODO  on_server_add_player_internal
+        let singleton = Self::get_singleton();
+        let network_manager = singleton.get_network_manager();
+
+        if network_manager.auto_create_player && network_manager.player_prefab == "" {
+            error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            return;
+        }
+
+
+        if network_manager.auto_create_player {
+            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(network_manager.player_prefab.as_str()) {
+                if let None = BACKEND_DATA.get_network_identity_data_by_asset_id(asset_id) {
+                    error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
+                    return;
+                }
+            }
+        }
+
+        if connection.identity.net_id != 0 {
+            error!("There is already a player for this connection.");
+            return;
+        }
+        network_manager.on_server_add_player(connection);
     }
 
     fn update_scene() {
@@ -189,18 +271,37 @@ impl NetworkManager {
             NETWORK_SCENE_NAME = name;
         }
     }
-    pub fn get_next_start_position() -> Vector3<f32> {
-        let index = START_POSITIONS_INDEX.fetch_add(1, Ordering::SeqCst);
-        let pos = START_POSITIONS.get(&index);
-        match pos {
-            Some(p) => p.clone(),
-            // todo 实现生成 位置
-            None => Vector3::new(0.0, 0.0, 0.0),
-        }
-    }
 }
 
 pub trait NetworkManagerTrait {
+    fn get_start_position(&mut self) -> Option<Transform> {
+        if START_POSITIONS.len() == 0 {
+            return None;
+        }
+
+        if self.get_network_manager().player_spawn_method == PlayerSpawnMethod::Random {
+            let index = rand::random::<u32>() % START_POSITIONS.len() as u32;
+            return Some(START_POSITIONS[index as usize].clone());
+        }
+        let index = START_POSITIONS_INDEX.load(Ordering::Relaxed);
+        START_POSITIONS_INDEX.store(index + 1 % START_POSITIONS.len() as u32, Ordering::Relaxed);
+        Some(START_POSITIONS[index as usize].clone())
+    }
+    fn on_server_add_player(&mut self, connection: &mut NetworkConnection) {
+        let mut start_position = Transform::default();
+        if let Some(sp) = self.get_start_position() {
+            start_position = sp;
+        }
+
+        let player = GameObject {
+            name: self.get_network_manager().player_prefab.clone(),
+            player_prefab: self.get_network_manager().player_prefab.clone(),
+            transform: start_position,
+        };
+
+        NetworkServer::add_player_for_connection(connection, player);
+    }
+    fn get_network_manager(&mut self) -> &mut NetworkManager;
     fn is_network_active(&self) -> bool {
         NetworkServer::get_static_active()
     }
@@ -217,6 +318,10 @@ pub trait NetworkManagerTrait {
 }
 
 impl NetworkManagerTrait for NetworkManager {
+    fn get_network_manager(&mut self) -> &mut NetworkManager {
+        self
+    }
+
     fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
         self.mode = mode;
     }

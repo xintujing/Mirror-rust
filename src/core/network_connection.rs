@@ -47,38 +47,7 @@ pub struct NetworkConnection {
 }
 
 impl NetworkConnection {
-    pub fn new(scene_id: u64, asset_id: u32) -> Self {
-        let ts = NetworkTime::local_time();
-        NetworkConnection {
-            reliable_rpcs_batch: NetworkWriter::new(),
-            unreliable_rpcs_batch: NetworkWriter::new(),
-            batches: Default::default(),
-            // un_batcher: UnBatcher::new(),
-            connection_id: 0,
-            is_ready: false,
-            is_authenticated: false,
-            authentication_data: Default::default(),
-            address: "",
-            identity: NetworkIdentity::new(scene_id, asset_id),
-            owned_identities: Default::default(),
-            observing_identities: Default::default(),
-            last_message_time: ts,
-            remote_time_stamp: ts,
-            last_ping_time: ts,
-            rtt: 0.0,
-            snapshots: Default::default(),
-            snapshot_buffer_size_limit: 64,
-            drift_ema: ExponentialMovingAverage::new(10),
-            delivery_time_ema: ExponentialMovingAverage::new(10),
-            remote_timeline: 0.0,
-            remote_timescale: 0.0,
-            buffer_time_multiplier: 2.0,
-            buffer_time: 0.0,
-            _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
-        }
-    }
-
-    pub fn network_connection(connection_id: u64) -> Self {
+    pub fn new(connection_id: u64) -> Self {
         let ts = NetworkTime::local_time();
         NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
@@ -90,7 +59,7 @@ impl NetworkConnection {
             is_authenticated: false,
             authentication_data: Default::default(),
             address: "",
-            identity: NetworkIdentity::new(0, 3541431626),
+            identity: NetworkIdentity::default(),
             owned_identities: Default::default(),
             observing_identities: Default::default(),
             last_message_time: ts,
@@ -260,9 +229,9 @@ impl NetworkConnection {
     pub fn destroy_owned_objects(&mut self) {
         for identity in self.owned_identities.iter() {
             if identity.scene_id != 0 {
-                // TODO NetworkServer.UnSpawn(netIdentity.gameObject);
+                // TODO NetworkServer.UnSpawn(netIdentity.game_object);
             } else {
-                // TODO NetworkServer.Destroy(netIdentity.gameObject);
+                // TODO NetworkServer.Destroy(netIdentity.game_object);
             }
         }
         self.owned_identities.clear();

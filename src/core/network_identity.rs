@@ -4,6 +4,7 @@ use crate::components::network_transform::network_transform_reliable::NetworkTra
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
+use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
@@ -54,6 +55,7 @@ pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
     pub net_id: u32,
+    pub game_object:GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
     pub is_owned: u32,
@@ -70,11 +72,12 @@ pub struct NetworkIdentity {
 }
 
 impl NetworkIdentity {
-    pub fn new(scene_id: u64, asset_id: u32) -> Self {
+    pub fn new(asset_id: u32) -> Self {
         let network_identity = NetworkIdentity {
-            scene_id,
+            scene_id: 0,
             asset_id,
             net_id: 0,
+            game_object: GameObject::default(),
             server_only: false,
             owned_type: OwnedType::Client,
             is_owned: 0,
@@ -92,7 +95,10 @@ impl NetworkIdentity {
         network_identity
     }
     pub fn default() -> Self {
-        Self::new(0, 0)
+        Self::new(0)
+    }
+    pub fn is_null(&self) -> bool {
+        self.net_id == 0 && self.asset_id == 0 && self.scene_id == 0
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
@@ -165,7 +171,7 @@ impl NetworkIdentity {
         }
 
         if !self.destroy_called {
-            // TODO NetworkServer.Destroy(gameObject);
+            // TODO NetworkServer.Destroy(game_object);
         }
     }
     pub fn validate_components(&self) {

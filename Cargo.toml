@@ -21,6 +21,7 @@ lazy_static = "1.5.0"
 crossbeam-channel = "0.5.13"
 rust_decimal = "1.36.0"
 half = "2.4.1"
+rand = "0.9.0-alpha.2"
 
 [profile.dev]
 opt-level = 0      # 优化级别

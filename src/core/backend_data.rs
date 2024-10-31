@@ -259,6 +259,14 @@ impl BackendData {
         }
         None
     }
+    pub fn get_asset_id_by_scene_name(&self, asset_name: &str) -> Option<u32> {
+        for asset in &self.assets {
+            if asset.value == asset_name {
+                return Some(asset.key);
+            }
+        }
+        None
+    }
     #[allow(dead_code)]
     pub fn get_sync_var_data_s_by_sub_class(&self, sub_class: &str) -> Vec<&SyncVarData> {
         let mut sync_var_data_s = Vec::new();
