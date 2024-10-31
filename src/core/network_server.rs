@@ -204,10 +204,9 @@ impl NetworkServer {
         }
     }
     fn serialize_for_connection(identity: &mut NetworkIdentity, connection_id: u64) -> Option<&mut NetworkWriter> {
-        // TODO NetworkIdentitySerialization serialization = identity.GetServerSerializationAtTick(Time.frameCount);
         let owned = identity.connection_id_to_client == connection_id;
 
-        let serialization = identity.get_server_serialization_at_tick(0);
+        let serialization = identity.get_server_serialization_at_tick(Self::get_static_tick_rate());
 
         if owned {
             if serialization.owner_writer.get_position() > 0 {
@@ -251,6 +250,7 @@ impl NetworkServer {
         if identity.server_only {
             return;
         }
+        // TODO  fix pos
 
         let is_local_player = identity.net_id == connection.identity.net_id;
         let is_owner = identity.connection_id_to_client == connection.connection_id;
@@ -351,18 +351,29 @@ impl NetworkServer {
     // 处理 TransportData 消息
     fn on_transport_data(connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
         //
-        let mut reader = UnBatch::new(Bytes::copy_from_slice(data.as_slice()));
-        let remote_time_stamp = reader.read_f64_le().unwrap_or_else(|_| 0.0);
+        // let mut reader = UnBatch::new(Bytes::copy_from_slice(data.as_slice()));
+        // let remote_time_stamp = reader.read_f64_le().unwrap_or_else(|_| 0.0);
+        // if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+        //     while let Ok(mut batch) = reader.read_next() {
+        //         let message_id = batch.read_u16_le().unwrap();
+        //         // println!("remote_time_stamp: {}, message_id: {}", remote_time_stamp, message_id);
+        //         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
+        //             (handler.func)(&mut connection, &mut batch, channel);
+        //         }
+        //         if IS_LOADING_SCENE.load(Ordering::Relaxed) && batch.remaining() > NetworkMessages::ID_SIZE {
+        //             connection.remote_time_stamp = remote_time_stamp;
+        //         }
+        //     }
+        // }
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            while let Ok(mut batch) = reader.read_next() {
-                let message_id = batch.read_u16_le().unwrap();
-                // println!("remote_time_stamp: {}, message_id: {}", remote_time_stamp, message_id);
-                if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
-                    (handler.func)(&mut connection, &mut batch, channel);
+            if !connection.un_batcher.add_batch(data.as_slice()) {
+                if Self::get_static_exceptions_disconnect() {
+                    error!(format!("Server.HandleData: connectionId: {} failed to add batch. Disconnecting.", connection_id));
+                    connection.disconnect();
+                }else {
+                    warn!(format!("Server.HandleData: connectionId: {} failed to add batch.", connection_id));
                 }
-                if IS_LOADING_SCENE.load(Ordering::Relaxed) && batch.remaining() > NetworkMessages::ID_SIZE {
-                    connection.remote_time_stamp = remote_time_stamp;
-                }
+                return;
             }
         }
     }
@@ -475,7 +486,7 @@ impl NetworkServer {
     // 处理 OnCommandMessage 消息
     fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
         if let Ok(message) = CommandMessage::deserialize(reader) {
-            // TODO: on_command_message
+            // TODO: OnCommandMessage
         }
     }
 
