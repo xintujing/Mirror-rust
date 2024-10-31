@@ -1,7 +1,6 @@
 use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
 use crate::components::SyncVar;
 use crate::core::backend_data::NetworkBehaviourSetting;
-use crate::core::batcher::UnBatch;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use dashmap::DashMap;
@@ -30,7 +29,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         self.network_behaviour.get_network_behaviour_base()
     }
 
-    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
+    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         for i in 0..self.sync_vars.len() as u8 {

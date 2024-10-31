@@ -22,12 +22,10 @@ impl<T> Pool<T> {
         }
     }
 
-    #[inline(always)]
     pub fn get(&mut self) -> T {
         self.objects_stack.pop_back().unwrap_or_else(|| (self.object_generator)())
     }
 
-    #[inline(always)]
     pub fn return_(&mut self, item: T) {
         if self.objects_stack.len() >= self.capacity {
             return;

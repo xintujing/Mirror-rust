@@ -1,6 +1,6 @@
-use crate::core::batcher::{NetworkMessageReader, UnBatch};
 use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnection;
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
 use crate::core::transport::TransportChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
@@ -86,32 +86,31 @@ impl NetworkTime {
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
+    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
-        if let Ok(message) = NetworkPingMessage::deserialize(un_batch) {
-            let local_time = Self::local_time();
-            let unadjusted_error = local_time - message.local_time;
-            let adjusted_error = local_time - message.predicted_time_adjusted;
-            // new prediction error
-            let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-            // send pong message
-            connection.send_network_message(pong_message, TransportChannel::Reliable);
-        }
+        println!("on_server_ping");
+        let message = NetworkPingMessage::deserialize(un_batch);
+        let local_time = Self::local_time();
+        let unadjusted_error = local_time - message.local_time;
+        let adjusted_error = local_time - message.predicted_time_adjusted;
+        // new prediction error
+        let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
+        // send pong message
+        connection.send_network_message(pong_message, TransportChannel::Reliable);
     }
 
     #[allow(dead_code)]
-    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut UnBatch, channel: TransportChannel) {
+    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
         println!("on_server_pong");
-        if let Ok(message) = NetworkPongMessage::deserialize(un_batch) {
-            if message.local_time > Self::local_time() {
-                return;
-            }
-            let new_rtt = Self::local_time() - message.local_time;
-            if let Ok(mut rtt) = _RTT.write() {
-                rtt.add(new_rtt);
-            } else {
-                warn!("NetworkTime::on_server_pong() failed to get rtt");
-            }
+        let message = NetworkPongMessage::deserialize(un_batch);
+        if message.local_time > Self::local_time() {
+            return;
+        }
+        let new_rtt = Self::local_time() - message.local_time;
+        if let Ok(mut rtt) = _RTT.write() {
+            rtt.add(new_rtt);
+        } else {
+            warn!("NetworkTime::on_server_pong() failed to get rtt");
         }
     }
 
@@ -129,7 +128,7 @@ impl NetworkTime {
     pub fn set_static_instant(instant: Instant) {
         if let Ok(mut start_instant) = START_INSTANT.write() {
             *start_instant = instant;
-        }else {
+        } else {
             warn!("NetworkTime::set_static_instant() failed to get start_instant");
         }
     }

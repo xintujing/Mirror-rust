@@ -1,8 +1,10 @@
-use crate::core::batcher::{NetworkMessageReader, UnBatch};
+use crate::core::batching::un_batcher::UnBatcher;
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_messages::NetworkMessages;
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
+use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
@@ -350,32 +352,69 @@ impl NetworkServer {
 
     // 处理 TransportData 消息
     fn on_transport_data(connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
-        //
-        // let mut reader = UnBatch::new(Bytes::copy_from_slice(data.as_slice()));
-        // let remote_time_stamp = reader.read_f64_le().unwrap_or_else(|_| 0.0);
-        // if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-        //     while let Ok(mut batch) = reader.read_next() {
-        //         let message_id = batch.read_u16_le().unwrap();
-        //         // println!("remote_time_stamp: {}, message_id: {}", remote_time_stamp, message_id);
-        //         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
-        //             (handler.func)(&mut connection, &mut batch, channel);
-        //         }
-        //         if IS_LOADING_SCENE.load(Ordering::Relaxed) && batch.remaining() > NetworkMessages::ID_SIZE {
-        //             connection.remote_time_stamp = remote_time_stamp;
-        //         }
-        //     }
-        // }
+        let mut transport_data_un_batcher = UnBatcher::new();
+
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            if !connection.un_batcher.add_batch(data.as_slice()) {
+            // 添加数据到 transport_data_un_batcher
+            if !transport_data_un_batcher.add_batch_with_bytes(data) {
                 if Self::get_static_exceptions_disconnect() {
                     error!(format!("Server.HandleData: connectionId: {} failed to add batch. Disconnecting.", connection_id));
                     connection.disconnect();
-                }else {
+                } else {
                     warn!(format!("Server.HandleData: connectionId: {} failed to add batch.", connection_id));
                 }
                 return;
             }
+
+            // 如果没有加载场景
+            if !Self::get_static_is_loading_scene() {
+                // 处理消息
+                while let Some((message, remote_time_stamp)) = transport_data_un_batcher.get_next_message() {
+                    NetworkReaderPool::get_with_array_segment_return(&message, |reader| {
+                        // 如果消息长度大于 NetworkMessages::ID_SIZE
+                        if reader.remaining() >= NetworkMessages::ID_SIZE {
+                            // 更新远程时间戳
+                            connection.remote_time_stamp = remote_time_stamp;
+                            // 处理消息
+                            if !Self::unpack_and_invoke(&mut connection, reader, channel) {
+                                if Self::get_static_exceptions_disconnect() {
+                                    error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
+                                    connection.disconnect();
+                                } else {
+                                    warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
+                                }
+                                return;
+                            }
+                        } else {
+                            if Self::get_static_exceptions_disconnect() {
+                                error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
+                                connection.disconnect();
+                            } else {
+                                warn!(format!("Server.HandleData: connectionId: {} message too small.", connection_id));
+                            }
+                            return;
+                        }
+                    });
+                }
+
+                if transport_data_un_batcher.batches_count() > 0 {
+                    error!(format!("Server.HandleData: connectionId: {} unprocessed batches: {}", connection_id, transport_data_un_batcher.batches_count()));
+                }
+            }
+        } else {
+            error!(format!("Server.HandleData: Unknown connectionId: {}", connection_id));
         }
+    }
+
+    fn unpack_and_invoke(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) -> bool {
+        let message_id = NetworkMessages::unpack_id(reader);
+        if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
+            (handler.func)(connection, reader, channel);
+            connection.last_message_time = NetworkTime::local_time();
+            return true;
+        }
+        warn!(format!("Server.HandleData: connectionId: {} unknown message id: {}", connection.connection_id, message_id));
+        false
     }
 
     // 处理 TransportDisconnected 消息
@@ -446,11 +485,10 @@ impl NetworkServer {
     }
 
     // 处理 ReadyMessage 消息
-    fn on_client_ready_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
+    fn on_client_ready_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
-        if let Ok(_) = ReadyMessage::deserialize(reader) {
-            Self::set_client_ready(connection);
-        }
+        let _ = ReadyMessage::deserialize(reader);
+        Self::set_client_ready(connection);
     }
     // 设置客户端准备就绪
     fn set_client_ready(connection: &mut NetworkConnection) {
@@ -484,27 +522,22 @@ impl NetworkServer {
     }
 
     // 处理 OnCommandMessage 消息
-    fn on_command_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
-        if let Ok(message) = CommandMessage::deserialize(reader) {
-            // TODO: OnCommandMessage
-        }
+    fn on_command_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
+        let message = CommandMessage::deserialize(reader);
+        // TODO: OnCommandMessage
     }
 
     // 处理 OnEntityStateMessage 消息
-    fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
+    fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
-        if let Ok(message) = message {
-            // TODO: on_entity_state_message
-            println!("on_entity_state_message: {:?}", message);
-        }
+        // TODO: on_entity_state_message
+        println!("on_entity_state_message: {:?}", message);
     }
 
     // 处理 OnTimeSnapshotMessage 消息
-    fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut UnBatch, channel: TransportChannel) {
+    fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = TimeSnapshotMessage::deserialize(reader);
-        if let Ok(message) = message {
-            println!("on_time_snapshot_message: {:?}", message);
-        }
+        println!("on_time_snapshot_message: {:?}", message);
         let snapshot = TimeSnapshot::new(connection.remote_time_stamp, NetworkTime::local_time());
         connection.on_time_snapshot(snapshot);
     }

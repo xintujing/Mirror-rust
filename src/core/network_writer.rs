@@ -1,6 +1,7 @@
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
+use std::any::Any;
 use std::{fmt, ptr};
 use tklog::{error, warn};
 
@@ -203,32 +204,17 @@ impl fmt::Display for NetworkWriter {
     }
 }
 
+pub trait NetworkMessageWriter: Sized + Any {
+    fn serialize(&mut self, write: &mut NetworkWriter);
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::batcher::Batch;
 
     #[test]
-    fn test_write_blittable() {
-        let mut writer = NetworkWriter::new();
-        // writer.write_blittable(42u32);
-        // writer.write_blittable(3u8);
-        // writer.write_blittable(true);
-        writer.write_vector3(Vector3::new(1.0, 2.0, 3.0));
-        let data = writer.to_bytes();
-        println!("{}", writer);
+    fn test_write_blittable() {}
 
-        let mut batch = Batch::new();
-        // batch.write_u32_le(42);
-        // batch.write_u8(3);
-        // batch.write_bool(true);
-        // batch.write_string_le("Hello, world!");
-        batch.write_vector3_f32_le(Vector3::new(1.0, 2.0, 3.0));
-
-        println!("{:?}", data);
-        println!("{:?}", batch.get_bytes().to_vec());
-    }
 
     #[test]
     fn test_pos_write() {

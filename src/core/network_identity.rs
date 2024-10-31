@@ -4,7 +4,6 @@ use crate::components::network_transform::network_transform_reliable::NetworkTra
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
-use crate::core::batcher::Batch;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;

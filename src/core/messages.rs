@@ -1,12 +1,11 @@
-use crate::core::batcher::{NetworkMessageReader, NetworkMessageWriter, UnBatch};
 use crate::core::network_connection::NetworkConnection;
-use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
+use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
 use crate::core::tools::stable_hash::StableHash;
 use crate::core::transport::TransportChannel;
 use nalgebra::{Quaternion, Vector3};
-use std::io;
 
-pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut UnBatch, TransportChannel) + Send + Sync>;
+pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut NetworkReader, TransportChannel) + Send + Sync>;
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,
@@ -33,9 +32,9 @@ impl TimeSnapshotMessage {
     }
 }
 impl NetworkMessageReader for TimeSnapshotMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(TimeSnapshotMessage {})
+        TimeSnapshotMessage {}
     }
 
     fn get_hash_code() -> u16 {
@@ -57,9 +56,9 @@ impl ReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.ReadyMessage";
 }
 impl NetworkMessageReader for ReadyMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(ReadyMessage {})
+        ReadyMessage {}
     }
 
     fn get_hash_code() -> u16 {
@@ -81,9 +80,9 @@ impl NotReadyMessage {
     pub const FULL_NAME: &'static str = "Mirror.NotReadyMessage";
 }
 impl NetworkMessageReader for NotReadyMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(NotReadyMessage {})
+        NotReadyMessage {}
     }
 
     fn get_hash_code() -> u16 {
@@ -105,9 +104,9 @@ impl AddPlayerMessage {
     pub const FULL_NAME: &'static str = "Mirror.AddPlayerMessage";
 }
 impl NetworkMessageReader for AddPlayerMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(AddPlayerMessage {})
+        AddPlayerMessage {}
     }
 
     fn get_hash_code() -> u16 {
@@ -165,15 +164,15 @@ impl SceneMessage {
     }
 }
 impl NetworkMessageReader for SceneMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let scene_name = reader.read_string_le()?;
-        let operation = SceneOperation::from(reader.read_u8()?);
-        let custom_handling = reader.read_bool()?;
-        Ok(SceneMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let scene_name = reader.read_string();
+        let operation = SceneOperation::from(reader.read_byte());
+        let custom_handling = reader.read_bool();
+        SceneMessage {
             scene_name,
             operation,
             custom_handling,
-        })
+        }
     }
 
     fn get_hash_code() -> u16 {
@@ -225,20 +224,19 @@ impl CommandMessage {
     pub fn get_payload_no_len(&self) -> Vec<u8> {
         self.payload[4..].to_vec()
     }
-
 }
 impl NetworkMessageReader for CommandMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<CommandMessage> {
-        let net_id = reader.read_u32_le()?;
-        let component_index = reader.read_u8()?;
-        let function_hash = reader.read_u16_le()?;
-        let payload = reader.read_remaining()?;
-        Ok(CommandMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        let component_index = reader.read_byte();
+        let function_hash = reader.read_ushort();
+        let payload = reader.read_remaining_bytes();
+        Self {
             net_id,
             component_index,
             function_hash,
-            payload: payload.to_vec(),
-        })
+            payload,
+        }
     }
 
     fn get_hash_code() -> u16 {
@@ -286,17 +284,17 @@ impl RpcMessage {
     }
 }
 impl NetworkMessageReader for RpcMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let net_id = reader.read_u32_le()?;
-        let component_index = reader.read_u8()?;
-        let function_hash = reader.read_u16_le()?;
-        let payload = reader.read_remaining()?;
-        Ok(RpcMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        let component_index = reader.read_byte();
+        let function_hash = reader.read_ushort();
+        let payload = reader.read_remaining_bytes();
+        Self {
             net_id,
             component_index,
             function_hash,
-            payload: payload.to_vec(),
-        })
+            payload,
+        }
     }
 
     fn get_hash_code() -> u16 {
@@ -363,17 +361,17 @@ impl SpawnMessage {
     }
 }
 impl NetworkMessageReader for SpawnMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let net_id = reader.read_u32_le()?;
-        let is_local_player = reader.read_bool()?;
-        let is_owner = reader.read_bool()?;
-        let scene_id = reader.read_u64_le()?;
-        let asset_id = reader.read_u32_le()?;
-        let position = reader.read_vector3_f32_le()?;
-        let rotation = reader.read_quaternion_f32_le()?;
-        let scale = reader.read_vector3_f32_le()?;
-        let payload = reader.read_remaining()?;
-        Ok(SpawnMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        let is_local_player = reader.read_bool();
+        let is_owner = reader.read_bool();
+        let scene_id = reader.read_ulong();
+        let asset_id = reader.read_uint();
+        let position = reader.read_vector3();
+        let rotation = reader.read_quaternion();
+        let scale = reader.read_vector3();
+        let payload = reader.read_remaining_bytes();
+        Self {
             net_id,
             is_local_player,
             is_owner,
@@ -382,8 +380,8 @@ impl NetworkMessageReader for SpawnMessage {
             position,
             rotation,
             scale,
-            payload: payload.to_vec(),
-        })
+            payload,
+        }
     }
 
     fn get_hash_code() -> u16 {
@@ -440,9 +438,9 @@ impl ObjectSpawnStartedMessage {
     }
 }
 impl NetworkMessageReader for ObjectSpawnStartedMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(ObjectSpawnStartedMessage {})
+        ObjectSpawnStartedMessage {}
     }
 
     fn get_hash_code() -> u16 {
@@ -468,9 +466,9 @@ impl ObjectSpawnFinishedMessage {
     }
 }
 impl NetworkMessageReader for ObjectSpawnFinishedMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
-        Ok(ObjectSpawnFinishedMessage {})
+        Self {}
     }
 
     fn get_hash_code() -> u16 {
@@ -498,9 +496,9 @@ impl ObjectDestroyMessage {
     }
 }
 impl NetworkMessageReader for ObjectDestroyMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let net_id = reader.read_u32_le()?;
-        Ok(ObjectDestroyMessage { net_id })
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        Self { net_id }
     }
 
     fn get_hash_code() -> u16 {
@@ -538,9 +536,9 @@ impl NetworkMessageWriter for ObjectHideMessage {
 }
 
 impl NetworkMessageReader for ObjectHideMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let net_id = reader.read_u32_le()?;
-        Ok(ObjectHideMessage { net_id })
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        Self { net_id }
     }
 
     fn get_hash_code() -> u16 {
@@ -567,10 +565,10 @@ impl EntityStateMessage {
     }
 }
 impl NetworkMessageReader for EntityStateMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let net_id = reader.read_u32_le()?;
-        let payload = reader.read_remaining()?;
-        Ok(EntityStateMessage { net_id, payload: payload.to_vec() })
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        let payload = reader.read_remaining_bytes();
+        Self { net_id, payload }
     }
 
     fn get_hash_code() -> u16 {
@@ -607,13 +605,13 @@ impl NetworkPingMessage {
     }
 }
 impl NetworkMessageReader for NetworkPingMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let local_time = reader.read_f64_le()?;
-        let predicted_time_adjusted = reader.read_f64_le()?;
-        Ok(NetworkPingMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let local_time = reader.read_double();
+        let predicted_time_adjusted = reader.read_double();
+        Self {
             local_time,
             predicted_time_adjusted,
-        })
+        }
     }
 
     fn get_hash_code() -> u16 {
@@ -653,15 +651,15 @@ impl NetworkPongMessage {
     }
 }
 impl NetworkMessageReader for NetworkPongMessage {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
-        let local_time = reader.read_f64_le()?;
-        let prediction_error_unadjusted = reader.read_f64_le()?;
-        let prediction_error_adjusted = reader.read_f64_le()?;
-        Ok(NetworkPongMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let local_time = reader.read_double();
+        let prediction_error_unadjusted = reader.read_double();
+        let prediction_error_adjusted = reader.read_double();
+        Self {
             local_time,
             prediction_error_unadjusted,
             prediction_error_adjusted,
-        })
+        }
     }
 
     fn get_hash_code() -> u16 {

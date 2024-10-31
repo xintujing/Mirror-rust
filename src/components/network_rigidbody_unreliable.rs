@@ -1,6 +1,5 @@
 use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
 use crate::core::backend_data::NetworkBehaviourSetting;
-use crate::core::batcher::UnBatch;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use std::any::Any;
@@ -24,7 +23,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         self.network_behaviour.get_network_behaviour_base()
     }
 
-    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {
+    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
         todo!()
     }
 

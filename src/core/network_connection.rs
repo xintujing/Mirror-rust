@@ -1,12 +1,12 @@
-use crate::core::batcher::{NetworkMessageReader, NetworkMessageWriter};
 use crate::core::batching::batcher::Batcher;
 use crate::core::batching::un_batcher::UnBatcher;
 use crate::core::messages::NetworkPingMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_messages::NetworkMessages;
+use crate::core::network_reader::NetworkMessageReader;
 use crate::core::network_server::NetworkServer;
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
-use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
@@ -21,7 +21,7 @@ pub struct NetworkConnection {
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
     pub batches: DashMap<u8, Batcher>,
-    pub un_batcher: UnBatcher,
+    // pub un_batcher: UnBatcher,
     pub connection_id: u64,
     pub is_ready: bool,
     pub is_authenticated: bool,
@@ -53,7 +53,7 @@ impl NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
             batches: Default::default(),
-            un_batcher: UnBatcher::new(),
+            // un_batcher: UnBatcher::new(),
             connection_id: 0,
             is_ready: false,
             is_authenticated: false,
@@ -84,7 +84,7 @@ impl NetworkConnection {
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
             batches: Default::default(),
-            un_batcher: UnBatcher::new(),
+            // un_batcher: UnBatcher::new(),
             connection_id,
             is_ready: false,
             is_authenticated: false,

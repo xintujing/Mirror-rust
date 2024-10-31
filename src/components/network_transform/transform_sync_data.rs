@@ -1,8 +1,7 @@
-use crate::core::batcher::{NetworkMessageReader, NetworkMessageWriter, UnBatch};
-use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
+use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
 use nalgebra::{Quaternion, Vector3, Vector4};
 use std::fmt::Debug;
-use std::io;
 
 #[derive(Clone, Copy, PartialEq)]
 pub struct SyncData {
@@ -195,21 +194,21 @@ impl Debug for SyncData {
 }
 
 impl NetworkMessageReader for SyncData {
-    fn deserialize(reader: &mut UnBatch) -> io::Result<Self> {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
 
         // 改变的数据
-        let changed = reader.read_u8()?;
+        let changed = reader.read_byte();
 
         // 位置
         let mut position = Vector3::new(0.0, 0.0, 0.0);
         if (changed & Changed::PosX.to_u8()) > 0 {
-            position.x = reader.read_f32_le()?;
+            position.x = reader.read_float();
         }
         if changed & Changed::PosY.to_u8() > 0 {
-            position.y = reader.read_f32_le()?;
+            position.y = reader.read_float();
         }
         if changed & Changed::PosZ.to_u8() > 0 {
-            position.z = reader.read_f32_le()?;
+            position.z = reader.read_float();
         }
 
         // 四元数
@@ -218,35 +217,35 @@ impl NetworkMessageReader for SyncData {
         let mut vec_rotation = Vector3::new(0.0, 0.0, 0.0);
         if (changed & Changed::CompressRot.to_u8()) > 0 {
             if (changed & Changed::RotX.to_u8()) > 0 {
-                quaternion = SyncData::decompress_quaternion(reader.read_u32_le()?);
+                quaternion = SyncData::decompress_quaternion(reader.read_uint());
             }
         } else {
             if changed & Changed::RotX.to_u8() > 0 {
-                vec_rotation.x = reader.read_f32_le()?;
+                vec_rotation.x = reader.read_float();
             }
             if changed & Changed::RotY.to_u8() > 0 {
-                vec_rotation.y = reader.read_f32_le()?;
+                vec_rotation.y = reader.read_float();
             }
             if changed & Changed::RotZ.to_u8() > 0 {
-                vec_rotation.z = reader.read_f32_le()?;
+                vec_rotation.z = reader.read_float();
             }
         }
 
         // 缩放
         let mut scale = Vector3::new(0.0, 0.0, 0.0);
         if changed & Changed::Scale.to_u8() == Changed::Scale.to_u8() {
-            scale.x = reader.read_f32_le()?;
-            scale.y = reader.read_f32_le()?;
-            scale.z = reader.read_f32_le()?;
+            scale.x = reader.read_float();
+            scale.y = reader.read_float();
+            scale.z = reader.read_float();
         }
 
-        Ok(Self {
+        Self {
             changed_data_bytes: changed,
             position,
             quat_rotation: quaternion,
             vec_rotation,
             scale,
-        })
+        }
     }
 
     fn get_hash_code() -> u16 {

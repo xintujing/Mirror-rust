@@ -304,7 +304,7 @@ mod tests {
     fn read_string() {
         let mut writer = NetworkWriter::new();
         writer.write_string("Hello, World!".to_string());
-        let mut reader = NetworkReader::new(writer.to_bytes());
+        let mut reader = NetworkReader::new_with_bytes(writer.to_bytes());
         let value = reader.read_string();
         assert_eq!(value, "Hello, World!");
     }

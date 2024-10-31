@@ -1,5 +1,4 @@
 use crate::core::backend_data::NetworkBehaviourSetting;
-use crate::core::batcher::UnBatch;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::NetworkWriter;
@@ -30,7 +29,7 @@ pub enum SyncMode {
 pub trait NetworkBehaviourTrait: Any + Send + Sync {
     fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase;
     // DeserializeObjectsAll
-    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool);
+    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);
     // Serialize
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
     // Deserialize
@@ -77,7 +76,7 @@ impl NetworkBehaviourTrait for NetworkBehaviourBase {
         self
     }
 
-    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {
+    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
         todo!()
     }
 

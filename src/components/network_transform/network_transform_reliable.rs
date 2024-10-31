@@ -2,10 +2,8 @@ use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBeh
 use crate::components::network_transform::network_transform_base::NetworkTransformBase;
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformReliableSetting};
-use crate::core::batcher::UnBatch;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
-use crate::core::tools::compress::CompressTrait;
 use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 
@@ -56,7 +54,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_behaviour.get_network_behaviour_base()
     }
 
-    fn deserialize_objects_all(&self, un_batch: UnBatch, initial_state: bool) {}
+    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         todo!()

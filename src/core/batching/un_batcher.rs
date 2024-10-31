@@ -14,19 +14,34 @@ impl UnBatcher {
     pub fn new() -> UnBatcher {
         UnBatcher {
             un_batches: VecDeque::new(),
-            un_batcher: NetworkReader::new(Vec::new()),
+            un_batcher: NetworkReader::new_with_bytes(Vec::new()),
             un_batch_timestamp: 0.0,
         }
     }
     pub fn batches_count(&self) -> usize {
         self.un_batches.len()
     }
-    pub fn add_batch(&mut self, un_batch: &[u8]) -> bool {
+    pub fn add_batch_with_array_segment(&mut self, un_batch: &[u8]) -> bool {
         if un_batch.len() < Batcher::TIMESTAMP_SIZE {
             return false;
         }
         let mut writer = NetworkWriterPool::get();
         writer.write_array_segment_all(un_batch);
+
+        if self.un_batches.is_empty() {
+            self.un_batcher.set_array_segment(writer.to_array_segment());
+            self.un_batch_timestamp = self.un_batcher.read_double();
+        }
+        self.un_batches.push_back(writer);
+        true
+    }
+
+    pub fn add_batch_with_bytes(&mut self, un_batch: Vec<u8>) -> bool {
+        if un_batch.len() < Batcher::TIMESTAMP_SIZE {
+            return false;
+        }
+        let mut writer = NetworkWriterPool::get();
+        writer.write_bytes_all(un_batch);
 
         if self.un_batches.is_empty() {
             self.un_batcher.set_array_segment(writer.to_array_segment());
@@ -95,12 +110,13 @@ mod tests {
         batch.extend_from_slice(&batch_writer.to_array_segment());
 
         assert_eq!(un_batcher.batches_count(), 0);
-        assert_eq!(un_batcher.add_batch(&batch), true);
-        assert_eq!(un_batcher.add_batch(&batch), true);
+        assert_eq!(un_batcher.add_batch_with_array_segment(&batch), true);
+        assert_eq!(un_batcher.add_batch_with_array_segment(&batch), true);
         assert_eq!(un_batcher.batches_count(), 2);
 
         while let Some((message, remote_time_stamp))= un_batcher.get_next_message() {
             println!("Message: {:?}, Remote Time Stamp: {}", message, remote_time_stamp);
         }
+        println!("Batches Count: {}", un_batcher.batches_count());
     }
 }

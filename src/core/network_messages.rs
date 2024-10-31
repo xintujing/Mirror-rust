@@ -1,4 +1,5 @@
 use crate::core::batching::batcher::Batcher;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::transport::{Transport, TransportChannel};
 use tklog::warn;
 
@@ -19,5 +20,9 @@ impl NetworkMessages {
             warn!("NetworkMessages::max_content_size() failed to get active transport");
             1500
         }
+    }
+
+    pub fn unpack_id(reader:& mut NetworkReader)->u16 {
+        reader.read_ushort()
     }
 }

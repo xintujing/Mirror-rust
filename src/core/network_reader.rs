@@ -1,7 +1,8 @@
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
-use std::fmt;
+use std::any::Any;
+use std::{fmt, io};
 use tklog::warn;
 
 pub struct NetworkReader {
@@ -11,11 +12,18 @@ pub struct NetworkReader {
 
 impl NetworkReader {
     pub const ALLOCATION_LIMIT: usize = 1024 * 1024 * 16;
-    pub fn new(data: Vec<u8>) -> Self {
-        NetworkReader {
+
+    pub fn new() -> Self {
+        Self::new_with_bytes(Vec::new())
+    }
+    pub fn new_with_bytes(data: Vec<u8>) -> Self {
+        Self {
             data,
             position: 0,
         }
+    }
+    pub fn reset(&mut self) {
+        self.position = 0;
     }
     pub fn new_with_array_segment(data: &[u8]) -> Self {
         NetworkReader {
@@ -183,4 +191,9 @@ impl fmt::Display for NetworkReader {
         let hex_string = self.data.iter().map(|byte| format!("{:02X}", byte)).collect::<String>();
         write!(f, "[{} @ {}/{}]", hex_string, self.position, self.capacity())
     }
+}
+
+pub trait NetworkMessageReader: Sized + Any {
+    fn deserialize(reader: &mut NetworkReader) -> Self;
+    fn get_hash_code() -> u16;
 }
