@@ -4,7 +4,6 @@ use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use dashmap::DashMap;
-use std::any::Any;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -39,7 +38,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         }
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         todo!()
     }
 
@@ -51,8 +50,4 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         todo!()
     }
 
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

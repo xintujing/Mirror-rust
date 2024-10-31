@@ -21,7 +21,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         todo!()
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         todo!()
     }
 
@@ -33,11 +33,11 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         todo!()
     }
 
-
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
+
 
 impl NetworkAnimator {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";

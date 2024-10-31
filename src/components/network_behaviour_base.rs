@@ -33,10 +33,27 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync {
     // Serialize
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
     // Deserialize
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool);
-    fn on_start_server(&mut self);
-    fn on_stop_server(&mut self);
-    fn as_any(&self) -> &dyn Any;
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool;
+    // SetDirty
+    fn set_dirty(&mut self) {
+        self.set_sync_var_dirty_bit(u64::MAX);
+    }
+    // SetSyncVarDirtyBit
+    fn set_sync_var_dirty_bit(&mut self, dirty_bit: u64) {
+        self.get_network_behaviour_base().sync_var_dirty_bits |= dirty_bit;
+    }
+    // SyncDirection
+    fn sync_direction(&mut self) -> &SyncDirection {
+        &self.get_network_behaviour_base().sync_direction
+    }
+    fn on_start_server(&mut self) {}
+    fn on_stop_server(&mut self) {}
+    fn as_any(&self) -> &dyn Any
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 #[derive(Debug)]
@@ -84,7 +101,7 @@ impl NetworkBehaviourTrait for NetworkBehaviourBase {
         todo!()
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         todo!()
     }
 
@@ -93,11 +110,6 @@ impl NetworkBehaviourTrait for NetworkBehaviourBase {
     }
 
     fn on_stop_server(&mut self) {
-        todo!()
-    }
-
-
-    fn as_any(&self) -> &dyn Any {
         todo!()
     }
 }

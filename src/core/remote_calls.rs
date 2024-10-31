@@ -14,7 +14,7 @@ pub enum RemoteCallType {
     ClientRpc,
 }
 
-pub type RemoteCallDelegateType = Box<dyn Fn(&mut Box<dyn NetworkBehaviourTrait>, &mut NetworkWriter, u64) + Send + Sync>;
+pub type RemoteCallDelegateType = Box<dyn Fn(&mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64) + Send + Sync>;
 
 pub struct RemoteCallDelegate {
     pub method_name: String,
@@ -57,30 +57,30 @@ pub struct RemoteProcedureCalls;
 
 impl RemoteProcedureCalls {
     pub const INVOKE_RPC_PREFIX: &'static str = "InvokeUserCode_";
-    pub fn check_if_delegate_exists(remote_call_type: &RemoteCallType, func: &RemoteCallDelegate, func_hash: u16) -> bool {
+    pub fn check_if_delegate_exists(remote_call_type: &RemoteCallType, delegate: &RemoteCallDelegate, func_hash: u16) -> bool {
         if let Some(old_invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
-            if old_invoker.are_equal(remote_call_type, func) {
+            if old_invoker.are_equal(remote_call_type, delegate) {
                 return true;
             }
             error!("Delegate already exists for hash: {}", func_hash);
         }
         false
     }
-    pub fn register_delegate(function_full_name: &str, remote_call_type: RemoteCallType, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
+    pub fn register_delegate(function_full_name: &str, remote_call_type: RemoteCallType, delegate: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
         let hash = function_full_name.get_fn_stable_hash_code();
-        if Self::check_if_delegate_exists(&remote_call_type, &func, hash) {
+        if Self::check_if_delegate_exists(&remote_call_type, &delegate, hash) {
             return hash;
         }
-        let invoker = Invoker::new(remote_call_type, func, cmd_requires_authority);
+        let invoker = Invoker::new(remote_call_type, delegate, cmd_requires_authority);
         NETWORK_MESSAGE_HANDLERS.insert(hash, invoker);
         hash
     }
 
-    pub fn register_command_delegate(method_name: String, function_full_name: &str, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
+    pub fn register_command_delegate(function_full_name: &str, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
         Self::register_delegate(function_full_name, RemoteCallType::Command, func, cmd_requires_authority)
     }
 
-    pub fn register_rpc_delegate(method_name: String, function_full_name: &str, func: RemoteCallDelegate) -> u16 {
+    pub fn register_rpc_delegate(function_full_name: &str, func: RemoteCallDelegate) -> u16 {
         Self::register_delegate(function_full_name, RemoteCallType::ClientRpc, func, true)
     }
 
@@ -88,12 +88,11 @@ impl RemoteProcedureCalls {
         NETWORK_MESSAGE_HANDLERS.remove(&func_hash);
     }
 
-    pub fn get_function_method_name(func_hash: u16) -> String {
-        let mut name = String::new();
+    pub fn get_function_method_name(func_hash: u16) -> Option<String> {
         if let Some(invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
-            name.push_str(&invoker.remote_call_delegate.method_name.replace(Self::INVOKE_RPC_PREFIX, ""));
+            return Some(invoker.remote_call_delegate.method_name.replace(Self::INVOKE_RPC_PREFIX, ""));
         }
-        name
+        None
     }
 
     pub fn get_invoker_for_hash(func_hash: u16, remote_call_type: RemoteCallType) -> (bool, Option<RefMut<'static, u16, Invoker>>) {
@@ -105,7 +104,7 @@ impl RemoteProcedureCalls {
         (false, None)
     }
 
-    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader:&mut NetworkWriter, component: &mut Box<dyn NetworkBehaviourTrait>, connection_id: u64) -> bool {
+    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, component: &mut Box<dyn NetworkBehaviourTrait>, connection_id: u64) -> bool {
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {

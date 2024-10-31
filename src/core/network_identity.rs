@@ -4,7 +4,8 @@ use crate::components::network_transform::network_transform_reliable::NetworkTra
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
-use crate::core::network_reader::NetworkReader;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
@@ -56,7 +57,7 @@ pub struct NetworkIdentity {
     pub server_only: bool,
     pub owned_type: OwnedType,
     pub is_owned: u32,
-    observers: Vec<u64>,
+    pub observers: Vec<u64>,
     pub connection_id_to_client: u64,
     pub is_init: bool,
     pub destroy_called: bool,
@@ -93,7 +94,7 @@ impl NetworkIdentity {
     pub fn default() -> Self {
         Self::new(0, 0)
     }
-    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkWriter, connection_id: u64) {
+    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
             error!("Component index out of bounds: {}", component_index);
             return;
@@ -238,6 +239,26 @@ impl NetworkIdentity {
             }
         }
     }
+    pub fn deserialize_server(&mut self, reader: &mut NetworkReader) -> bool {
+        self.validate_components();
+
+        let mask = reader.decompress_var_uint();
+
+        for i in 0..self.network_behaviours.len() {
+            if Self::is_dirty(mask, i as u8) {
+                let component = &mut self.network_behaviours[i];
+                if *component.sync_direction() == SyncDirection::ClientToServer {
+                    NetworkReaderPool::get_return(|reader| {
+                        if !component.deserialize(reader, false) {
+                            return;
+                        }
+                        component.set_dirty();
+                    });
+                }
+            }
+        }
+        true
+    }
     pub fn get_server_serialization_at_tick(&mut self, tick: u32) -> &mut NetworkIdentitySerialization {
         if self.last_serialization.tick != tick {
             self.last_serialization.reset_writers();
@@ -263,14 +284,12 @@ impl NetworkIdentity {
         }
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
-
     pub fn add_observing_network_connection(&mut self, connection_id: u64) {
         self.observers.push(connection_id);
     }
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
     }
-
     pub fn set_client_owner(&mut self, connection_id: u64) {
         // do nothing if it already has an owner
         if self.connection_id_to_client != 0 {
@@ -278,7 +297,6 @@ impl NetworkIdentity {
         }
         self.connection_id_to_client = connection_id;
     }
-
     pub fn get_static_next_network_id() -> u32 {
         unsafe {
             let id = NEXT_NETWORK_ID.load(Ordering::Relaxed);
@@ -291,7 +309,6 @@ impl NetworkIdentity {
             NEXT_NETWORK_ID.store(id, Ordering::Relaxed);
         }
     }
-
     pub fn set_static_client_authority_callback(callback: ClientAuthorityCallback) {
         unsafe {
             CLIENT_AUTHORITY_CALLBACK = Some(callback);

@@ -5,7 +5,6 @@ use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSet
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use nalgebra::{Quaternion, Vector3};
-use std::any::Any;
 
 pub struct NetworkTransformReliable {
     pub network_transform_base: NetworkTransformBase,
@@ -60,7 +59,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         todo!()
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         todo!()
     }
 
@@ -183,8 +182,4 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     //         }
     //     }
     // }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }

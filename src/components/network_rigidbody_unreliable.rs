@@ -2,7 +2,6 @@ use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBeh
 use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
-use std::any::Any;
 
 #[derive(Debug)]
 pub struct NetworkRigidbodyUnreliable {
@@ -31,7 +30,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         todo!()
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) {
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         todo!()
     }
 
@@ -41,10 +40,5 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
 
     fn on_stop_server(&mut self) {
         todo!()
-    }
-
-
-    fn as_any(&self) -> &dyn Any {
-        self
     }
 }

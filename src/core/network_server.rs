@@ -8,6 +8,7 @@ use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
+use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -17,6 +18,7 @@ use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
+use std::convert::identity;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use tklog::{debug, error, warn};
@@ -43,7 +45,7 @@ lazy_static! {
     static ref FULL_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
 
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnection> = DashMap::new();
-    static ref SPAWNED: DashMap<u64, NetworkIdentity> = DashMap::new();
+    static ref SPAWNED: DashMap<u32, NetworkIdentity> = DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler>=DashMap::new();
 }
 
@@ -526,14 +528,70 @@ impl NetworkServer {
     // 处理 OnCommandMessage 消息
     fn on_command_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = CommandMessage::deserialize(reader);
-        // TODO: OnCommandMessage
+        // connection 没有准备好
+        if !connection.is_ready {
+            // 如果 channel 是 Reliable
+            if channel == TransportChannel::Reliable {
+                // 如果 SPAWNED 中有 message.net_id
+                if let Some(net_identity) = SPAWNED.get(&message.net_id) {
+                    // 如果 message.component_index 小于 net_identity.network_behaviours.len()
+                    if net_identity.network_behaviours.len() > message.component_index as usize {
+                        // 如果 message.function_hash 在 RemoteProcedureCalls 中
+                        if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
+                            warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, net_identity.net_id, message.net_id, message.component_index));
+                            return;
+                        }
+                    }
+                }
+                warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
+            }
+            return;
+        }
+
+        if let Some(mut identity) = SPAWNED.get_mut(&message.net_id) {
+            // 是否需要权限
+            let requires_authority = RemoteProcedureCalls::command_requires_authority(message.function_hash);
+            // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
+            if requires_authority && identity.connection_id_to_client != connection.connection_id {
+                // Attempt to identify the component and method to narrow down the cause of the error.
+                if identity.network_behaviours.len() > message.component_index as usize {
+                    if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
+                        warn!(format!("Command {} received for {} [netId={}] component [index={}] without authority", method_name, identity.net_id, message.net_id,  message.component_index));
+                        return;
+                    }
+                }
+                warn!(format!("Command received for {} [netId={}] without authority", identity.net_id, message.net_id));
+                return;
+            }
+
+            NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
+                identity.handle_remote_call(message.component_index, message.function_hash, RemoteCallType::Command, reader, connection.connection_id);
+            });
+        } else {
+            // over reliable channel, commands should always come after spawn.
+            // over unreliable, they might come in before the object was spawned.
+            // for example, NetworkTransform.
+            // let's not spam the console for unreliable out of order messages.
+            if channel == TransportChannel::Reliable {
+                warn!(format!("Spawned object not found when handling Command message netId={}", message.net_id));
+            }
+            return;
+        }
     }
 
     // 处理 OnEntityStateMessage 消息
     fn on_entity_state_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
-        // TODO: on_entity_state_message
-        println!("on_entity_state_message: {:?}", message);
+        if let Some(mut identity) = SPAWNED.get_mut(&message.net_id) {
+            if identity.connection_id_to_client == connection.connection_id {
+                NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
+                    // TODO  identity.deserialize_server(reader, true);
+                    // identity.deserialize_server(reader, true);
+                });
+            } else {
+                warn!(format!("Server.HandleEntityState: connectionId: {} is not owner of netId: {}", connection.connection_id, message.net_id));
+            }
+        }
     }
 
     // 处理 OnTimeSnapshotMessage 消息
@@ -693,7 +751,7 @@ impl NetworkServer {
     // 遍历SPAWNED
     pub fn for_each_spawned<F>(mut f: F)
     where
-        F: FnMut(RefMutMulti<u64, NetworkIdentity>),
+        F: FnMut(RefMutMulti<u32, NetworkIdentity>),
     {
         SPAWNED.iter_mut().for_each(|item| {
             f(item);
