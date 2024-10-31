@@ -119,19 +119,19 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_var_int(&mut self) -> i32 {
-        todo!()
+        self.decompress_var_int() as i32
     }
 
     fn read_var_uint(&mut self) -> u32 {
-        todo!()
+        self.decompress_var_uint() as u32
     }
 
     fn read_var_long(&mut self) -> i64 {
-        todo!()
+        self.decompress_var_int()
     }
 
     fn read_var_ulong(&mut self) -> u64 {
-        todo!()
+        self.decompress_var_uint()
     }
 
     fn read_decimal(&mut self) -> Decimal {
