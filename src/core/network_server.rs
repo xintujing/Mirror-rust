@@ -585,11 +585,17 @@ impl NetworkServer {
         if let Some(mut identity) = SPAWNED.get_mut(&message.net_id) {
             if identity.connection_id_to_client == connection.connection_id {
                 NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
-                    // TODO  identity.deserialize_server(reader, true);
-                    // identity.deserialize_server(reader, true);
+                    if !identity.deserialize_server(reader) {
+                        if Self::get_static_exceptions_disconnect() {
+                            error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.net_id, identity.net_id));
+                            connection.disconnect();
+                        } else {
+                            warn!(format!("Server failed to deserialize client state for {} with netId={}", identity.net_id, identity.net_id));
+                        }
+                    }
                 });
             } else {
-                warn!(format!("Server.HandleEntityState: connectionId: {} is not owner of netId: {}", connection.connection_id, message.net_id));
+                warn!(format!("EntityStateMessage from {} for {} without authority.", connection.connection_id, identity.net_id));
             }
         }
     }
