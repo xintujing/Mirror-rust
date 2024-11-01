@@ -45,12 +45,12 @@ impl SnapshotInterpolation {
         // jitter is equal to delivery time standard variation.
         // delivery time is made up of 'sendInterval+jitter'.
         //   .Average would be dampened by the constant sendInterval
-        //   .StandardDeviation is the changes in 'jitter' that we want
+        //   .standard_deviation is the changes in 'jitter' that we want
         // so add it to send interval again.
         let interval_with_jitter = send_interval + jitter_standard_deviation;
 
         // how many multiples of sendInterval is that?
-        // we want to convert to bufferTimeMultiplier later.
+        // we want to convert to buffer_time_multiplier later.
         let multiples = interval_with_jitter / send_interval;
         // add the tolerance
         let safe_zone = multiples + dynamic_adjustment_tolerance;
@@ -121,7 +121,7 @@ impl SnapshotInterpolation {
             let time_diff = snapshot.remote_time() - *local_timeline;
             drift_ema.add(time_diff);
 
-            let drift = drift_ema.value() - buffer_time;
+            let drift = drift_ema.value - buffer_time;
             let absolute_negative_threshold = send_interval * catchup_negative_threshold;
             let absolute_positive_threshold = send_interval * catchup_positive_threshold;
 
