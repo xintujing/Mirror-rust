@@ -6,6 +6,7 @@ use crate::core::network_connection::NetworkConnection;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_server::NetworkServer;
+use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::transport::{Transport, TransportChannel};
 use atomic::Atomic;
 use dashmap::DashMap;
@@ -35,7 +36,7 @@ pub enum NetworkManagerMode {
     Server,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
 pub struct Transform {
     pub positions: Vector3<f32>,
     pub rotation: Vector3<f32>,
@@ -60,10 +61,10 @@ impl Transform {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialOrd, PartialEq)]
 pub struct GameObject {
     pub name: String,
-    pub player_prefab: String,
+    pub prefab: String,
     pub transform: Transform,
 }
 
@@ -71,17 +72,20 @@ impl GameObject {
     pub fn default() -> Self {
         Self {
             name: "".to_string(),
-            player_prefab: "".to_string(),
+            prefab: "".to_string(),
             transform: Transform::default(),
         }
     }
     pub fn get_component(&self) -> Option<NetworkIdentity> {
-        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(self.player_prefab.as_str()) {
+        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(self.prefab.as_str()) {
             let mut identity = NetworkIdentity::new(asset_id);
             identity.game_object = self.clone();
             return Some(identity);
         }
         None
+    }
+    pub fn is_null(&self) -> bool {
+        self == &Self::default()
     }
 }
 
@@ -98,15 +102,11 @@ pub struct NetworkManager {
     pub disconnect_inactive_connections: bool,
     pub disconnect_inactive_timeout: f32,
     pub authenticator: Option<Box<dyn NetworkAuthenticatorTrait>>,
-    // todo fix
-    pub player_prefab: String,
+    pub player_obj: GameObject,
     pub auto_create_player: bool,
     pub player_spawn_method: PlayerSpawnMethod,
-    // todo fix
-    pub spawn_prefabs: Vec<String>,
+    pub spawn_prefabs: Vec<GameObject>,
     pub exceptions_disconnect: bool,
-    //  todo  add SnapshotSettings
-    // pub snapshotSettings: SnapshotSettings,
     pub evaluation_method: ConnectionQualityMethod,
     pub evaluation_interval: f32,
     pub time_interpolation_gui: bool,
@@ -114,7 +114,7 @@ pub struct NetworkManager {
 
 impl NetworkManager {
     pub fn new() -> Self {
-        NetworkManager {
+        let mut manager = Self {
             mode: NetworkManagerMode::Offline,
             dont_destroy_on_load: true,
             editor_auto_start: false,
@@ -127,7 +127,7 @@ impl NetworkManager {
             disconnect_inactive_connections: false,
             disconnect_inactive_timeout: 60.0,
             authenticator: None,
-            player_prefab: "".to_string(),
+            player_obj: GameObject::default(),
             auto_create_player: true,
             player_spawn_method: PlayerSpawnMethod::Random,
             spawn_prefabs: Vec::new(),
@@ -135,7 +135,9 @@ impl NetworkManager {
             evaluation_method: ConnectionQualityMethod::Simple,
             evaluation_interval: 3.0,
             time_interpolation_gui: false,
-        }
+        };
+        // TODO  fix  NetworkManager cfg
+        manager
     }
 
     fn initialize_singleton(&self) -> bool {
@@ -186,6 +188,7 @@ impl NetworkManager {
 
         if let Some(ref mut authenticator) = self.authenticator {
             authenticator.on_start_server();
+            // TODO authenticator.OnServerAuthenticated.AddListener(OnServerAuthenticated);
         }
 
         NetworkServer::listen(self.max_connections);
@@ -200,17 +203,17 @@ impl NetworkManager {
 
     fn on_server_add_player_internal(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         // TODO  on_server_add_player_internal
+        println!("on_server_add_player_internal");
         let singleton = Self::get_singleton();
         let network_manager = singleton.get_network_manager();
 
-        if network_manager.auto_create_player && network_manager.player_prefab == "" {
+        if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
             error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
-
         if network_manager.auto_create_player {
-            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(network_manager.player_prefab.as_str()) {
+            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(network_manager.player_obj.prefab.as_str()) {
                 if let None = BACKEND_DATA.get_network_identity_data_by_asset_id(asset_id) {
                     error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
                     return;
@@ -233,9 +236,9 @@ impl NetworkManager {
         self.online_scene != self.offline_scene
     }
 
-    fn apply_configuration(&self) {
+    fn apply_configuration(&mut self) {
         NetworkServer::set_static_tick_rate(self.send_rate);
-        // NetworkClient.snapshotSettings = snapshotSettings;
+        // NetworkClient.snapshot_settings = snapshot_settings;
         // NetworkClient.connectionQualityInterval = evaluationInterval;
         // NetworkClient.connectionQualityMethod = evaluationMethod;
     }
@@ -293,13 +296,9 @@ pub trait NetworkManagerTrait {
             start_position = sp;
         }
 
-        let player = GameObject {
-            name: self.get_network_manager().player_prefab.clone(),
-            player_prefab: self.get_network_manager().player_prefab.clone(),
-            transform: start_position,
-        };
+        self.get_network_manager().player_obj.transform = start_position;
 
-        NetworkServer::add_player_for_connection(connection, player);
+        NetworkServer::add_player_for_connection(connection, &mut self.get_network_manager().player_obj);
     }
     fn get_network_manager(&mut self) -> &mut NetworkManager;
     fn is_network_active(&self) -> bool {
@@ -332,7 +331,15 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn on_validate(&mut self) {
         self.max_connections = self.max_connections.max(0);
-        // TODO   if (playerPrefab != null &&
+
+        if !self.player_obj.is_null() && self.player_obj.get_component().is_none() {
+            error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
+        }
+
+        if !self.player_obj.is_null() && self.spawn_prefabs.contains(&self.player_obj) {
+            warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
+            self.spawn_prefabs.retain(|x| x != &self.player_obj);
+        }
     }
 
     fn reset(&mut self) {

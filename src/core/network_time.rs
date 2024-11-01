@@ -45,7 +45,7 @@ impl NetworkTime {
     #[allow(dead_code)]
     pub fn prediction_error_unadjusted() -> f64 {
         if let Ok(prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.read() {
-            prediction_error_unadjusted.value()
+            prediction_error_unadjusted.value
         } else {
             warn!("NetworkTime::prediction_error_unadjusted() failed to get prediction_error_unadjusted");
             0.0
@@ -55,7 +55,7 @@ impl NetworkTime {
     #[allow(dead_code)]
     pub fn rtt() -> f64 {
         if let Ok(rtt) = _RTT.read() {
-            rtt.value()
+            rtt.value
         } else {
             warn!("NetworkTime::rtt() failed to get rtt");
             0.0
@@ -65,7 +65,7 @@ impl NetworkTime {
     #[allow(dead_code)]
     pub fn rtt_variance() -> f64 {
         if let Ok(rtt) = _RTT.read() {
-            rtt.variance()
+            rtt.variance
         } else {
             warn!("NetworkTime::rtt_variance() failed to get rtt");
             0.0
@@ -88,7 +88,6 @@ impl NetworkTime {
     #[allow(dead_code)]
     pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
-        println!("on_server_ping");
         let message = NetworkPingMessage::deserialize(un_batch);
         let local_time = Self::local_time();
         let unadjusted_error = local_time - message.local_time;
@@ -101,7 +100,6 @@ impl NetworkTime {
 
     #[allow(dead_code)]
     pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
-        println!("on_server_pong");
         let message = NetworkPongMessage::deserialize(un_batch);
         if message.local_time > Self::local_time() {
             return;
@@ -156,32 +154,43 @@ impl NetworkTime {
 
 #[derive(Debug, Copy, Clone)]
 pub struct ExponentialMovingAverage {
-    n: u32,
-    value: f64,
-    variance: f64,
+    alpha: f64,
+    initialized: bool,
+    pub value: f64,
+    pub variance: f64,
+    pub standard_deviation: f64,
 }
 
 impl ExponentialMovingAverage {
     #[allow(dead_code)]
     pub fn new(n: u32) -> Self {
-        Self { n, value: 0.0, variance: 0.0 }
+        Self {
+            alpha: 2.0 / (n as f64 + 1.0),
+            value: 0.0,
+            variance: 0.0,
+            standard_deviation: 0.0,
+            initialized: false,
+        }
     }
     #[allow(dead_code)]
-    pub fn add(&mut self, sample: f64) {
-        let alpha = 2.0 / (self.n as f64 + 1.0);
-        let diff = sample - self.value;
-        self.value = alpha * sample + (1.0 - alpha) * self.value;
-        self.variance = alpha * diff.powi(2) + (1.0 - alpha) * self.variance;
+    pub fn add(&mut self, new_value: f64) {
+        if self.initialized{
+            let delta = new_value - self.value;
+            self.value += self.alpha * delta;
+            self.variance = (1.0 - self.alpha) * (self.variance + self.alpha * delta.powi(2));
+            self.standard_deviation = self.variance.sqrt();
+        }else {
+            self.value = new_value;
+            self.initialized = true;
+        }
     }
 
     #[allow(dead_code)]
-    pub fn value(&self) -> f64 {
-        self.value
-    }
-
-    #[allow(dead_code)]
-    pub fn variance(&self) -> f64 {
-        self.variance
+    pub fn reset(&mut self) {
+        self.value = 0.0;
+        self.variance = 0.0;
+        self.standard_deviation = 0.0;
+        self.initialized = false;
     }
 }
 

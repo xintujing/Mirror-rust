@@ -10,6 +10,7 @@ use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
+use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -21,7 +22,7 @@ use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::convert::identity;
 use std::sync::atomic::Ordering;
-use std::sync::RwLock;
+use std::sync::{RwLock, RwLockReadGuard};
 use tklog::{debug, error, warn};
 
 lazy_static! {
@@ -44,6 +45,7 @@ lazy_static! {
     static ref EARLY_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref LATE_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref FULL_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
+    static ref SNAPSHOT_SETTINGS: RwLock<SnapshotInterpolationSettings> = RwLock::new(SnapshotInterpolationSettings::default());
 
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnection> = DashMap::new();
     static ref SPAWNED: DashMap<u32, NetworkIdentity> = DashMap::new();
@@ -440,7 +442,7 @@ impl NetworkServer {
         connection.identity = NetworkIdentity::default();
     }
 
-    pub fn add_player_for_connection(connection: &mut NetworkConnection, player: GameObject) -> bool {
+    pub fn add_player_for_connection(connection: &mut NetworkConnection, player: &mut GameObject) -> bool {
         if let Some(mut identity) = player.get_component() {
             if !connection.identity.is_null() {
                 warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready));
@@ -456,16 +458,22 @@ impl NetworkServer {
         false
     }
 
-    fn spawn(obj: &mut GameObject) {
-        // TODO SpawnObject
+    fn spawn(obj: &mut GameObject, connection: &mut NetworkConnection) {
+        Self::spawn_obj(obj, connection)
     }
+
+    fn spawn_obj(obj: &mut GameObject, connection: &mut NetworkConnection) {
+        // TODO SpawnObject
+
+    }
+
     fn respawn(identity: &mut NetworkIdentity) {
-        if identity.net_id == 0 {
-            warn!(format!("Server.Respawn: netId is zero. Please set a valid netId on {:?}",identity.game_object));
-            // Self::spawn(&mut identity.game_object, connection);
-            return;
-        }
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&identity.connection_id_to_client) {
+            if identity.net_id == 0 {
+                warn!(format!("Server.Respawn: netId is zero. Please set a valid netId on {:?}",identity.game_object));
+                Self::spawn(&mut identity.game_object, &mut connection);
+                return;
+            }
             Self::send_spawn_message(identity, &mut connection);
         }
     }
@@ -634,7 +642,6 @@ impl NetworkServer {
     // 处理 OnTimeSnapshotMessage 消息
     fn on_time_snapshot_message(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = TimeSnapshotMessage::deserialize(reader);
-        println!("on_time_snapshot_message: {:?}", message);
         let snapshot = TimeSnapshot::new(connection.remote_time_stamp, NetworkTime::local_time());
         connection.on_time_snapshot(snapshot);
     }
@@ -775,7 +782,14 @@ impl NetworkServer {
             *late_update_duration = value;
         }
     }
-
+    pub fn get_static_snapshot_settings() -> &'static RwLock<SnapshotInterpolationSettings> {
+        &SNAPSHOT_SETTINGS
+    }
+    pub fn set_static_snapshot_settings(value: SnapshotInterpolationSettings) {
+        if let Ok(mut snapshot_settings) = SNAPSHOT_SETTINGS.write() {
+            *snapshot_settings = value;
+        }
+    }
     // 遍历NETWORK_CONNECTIONS
     pub fn for_each_network_connection<F>(mut f: F)
     where
