@@ -2,7 +2,7 @@ use crate::core::backend_data::BACKEND_DATA;
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::AddPlayerMessage;
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
-use crate::core::network_connection::NetworkConnection;
+use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_server::NetworkServer;
@@ -11,7 +11,7 @@ use crate::core::transport::{Transport, TransportChannel};
 use atomic::Atomic;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use nalgebra::Vector3;
+use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
 use tklog::{error, info, warn};
 
@@ -36,15 +36,15 @@ pub enum NetworkManagerMode {
     Server,
 }
 
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone)]
 pub struct Transform {
     pub positions: Vector3<f32>,
-    pub rotation: Vector3<f32>,
+    pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
 }
 
 impl Transform {
-    pub fn new(positions: Vector3<f32>, rotation: Vector3<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(positions: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self {
             positions,
             rotation,
@@ -55,13 +55,13 @@ impl Transform {
     pub fn default() -> Self {
         Self {
             positions: Default::default(),
-            rotation: Default::default(),
+            rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
             scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct GameObject {
     pub name: String,
     pub prefab: String,
@@ -85,7 +85,13 @@ impl GameObject {
         None
     }
     pub fn is_null(&self) -> bool {
-        self == &Self::default()
+        self.name == "" && self.prefab == ""
+    }
+}
+
+impl PartialEq for GameObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.prefab == other.prefab
     }
 }
 
@@ -137,6 +143,7 @@ impl NetworkManager {
             time_interpolation_gui: false,
         };
         // TODO  fix  NetworkManager cfg
+        manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
         manager
     }
 
@@ -201,8 +208,7 @@ impl NetworkManager {
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
     }
 
-    fn on_server_add_player_internal(connection: &mut NetworkConnection, reader: &mut NetworkReader, channel: TransportChannel) {
-        // TODO  on_server_add_player_internal
+    fn on_server_add_player_internal(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
         println!("on_server_add_player_internal");
         let singleton = Self::get_singleton();
         let network_manager = singleton.get_network_manager();
@@ -221,7 +227,7 @@ impl NetworkManager {
             }
         }
 
-        if connection.identity.net_id != 0 {
+        if connection.network_connection.identity.net_id != 0 {
             error!("There is already a player for this connection.");
             return;
         }
@@ -290,7 +296,7 @@ pub trait NetworkManagerTrait {
         START_POSITIONS_INDEX.store(index + 1 % START_POSITIONS.len() as u32, Ordering::Relaxed);
         Some(START_POSITIONS[index as usize].clone())
     }
-    fn on_server_add_player(&mut self, connection: &mut NetworkConnection) {
+    fn on_server_add_player(&mut self, connection: &mut NetworkConnectionToClient) {
         let mut start_position = Transform::default();
         if let Some(sp) = self.get_start_position() {
             start_position = sp;

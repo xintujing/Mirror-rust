@@ -4,6 +4,8 @@ use crate::components::network_transform::network_transform_reliable::NetworkTra
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
+use crate::core::network_connection::NetworkConnectionTrait;
+use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
@@ -55,12 +57,12 @@ pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
     pub net_id: u32,
-    pub game_object:GameObject,
+    pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
     pub is_owned: u32,
     pub observers: Vec<u64>,
-    pub connection_id_to_client: u64,
+    connection_id_to_client: u64,
     pub is_init: bool,
     pub destroy_called: bool,
     pub visibility: Visibility,
@@ -99,6 +101,12 @@ impl NetworkIdentity {
     }
     pub fn is_null(&self) -> bool {
         self.net_id == 0 && self.asset_id == 0 && self.scene_id == 0
+    }
+    pub fn get_connection_id_to_client(&self) -> u64 {
+        self.connection_id_to_client
+    }
+    pub fn set_connection_id_to_client(&mut self, connection_id: u64) {
+        self.connection_id_to_client = connection_id;
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
@@ -296,12 +304,15 @@ impl NetworkIdentity {
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
     }
-    pub fn set_client_owner(&mut self, connection_id: u64) {
+    pub fn set_client_owner(&mut self, connection: &mut NetworkConnectionToClient) {
         // do nothing if it already has an owner
         if self.connection_id_to_client != 0 {
             return;
         }
-        self.connection_id_to_client = connection_id;
+        connection.remove_owned_object(self);
+        self.connection_id_to_client = connection.connection_id();
+        // todo
+        // connection.add_owned_object(self);
     }
     pub fn get_static_next_network_id() -> u32 {
         unsafe {
@@ -319,5 +330,25 @@ impl NetworkIdentity {
         unsafe {
             CLIENT_AUTHORITY_CALLBACK = Some(callback);
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dash_map() {
+        let mut map = DashMap::new();
+        map.insert(1, 2);
+        map.insert(2, 3);
+
+        if let Some(mut r) = map.get_mut(&1) {
+            println!("{:?}", r);
+            if let Some(mut r) = map.get_mut(&2) {
+                println!("{:?}", r);
+            }
+        };
     }
 }

@@ -1,11 +1,11 @@
-use crate::core::network_connection::NetworkConnection;
+use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
 use crate::core::tools::stable_hash::StableHash;
 use crate::core::transport::TransportChannel;
 use nalgebra::{Quaternion, Vector3};
 
-pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnection, &mut NetworkReader, TransportChannel) + Send + Sync>;
+pub type NetworkMessageHandlerFunc = Box<dyn Fn(&mut NetworkConnectionToClient, &mut NetworkReader, TransportChannel) + Send + Sync>;
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,

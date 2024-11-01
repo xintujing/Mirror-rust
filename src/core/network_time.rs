@@ -1,5 +1,6 @@
 use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
-use crate::core::network_connection::NetworkConnection;
+use crate::core::network_connection::NetworkConnectionTrait;
+use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
 use crate::core::transport::TransportChannel;
 use atomic::Atomic;
@@ -86,7 +87,7 @@ impl NetworkTime {
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_ping(connection: &mut NetworkConnectionToClient, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
         let message = NetworkPingMessage::deserialize(un_batch);
         let local_time = Self::local_time();
@@ -95,11 +96,11 @@ impl NetworkTime {
         // new prediction error
         let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
         // send pong message
-        connection.send_network_message(pong_message, TransportChannel::Reliable);
+        connection.network_connection.send_network_message(pong_message, TransportChannel::Reliable);
     }
 
     #[allow(dead_code)]
-    pub fn on_server_pong(connection: &mut NetworkConnection, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_pong(connection: &mut NetworkConnectionToClient, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let message = NetworkPongMessage::deserialize(un_batch);
         if message.local_time > Self::local_time() {
             return;
