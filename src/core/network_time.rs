@@ -2,6 +2,7 @@ use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
+use crate::core::network_server::NetworkServer;
 use crate::core::transport::TransportChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
@@ -87,7 +88,7 @@ impl NetworkTime {
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(connection: &mut NetworkConnectionToClient, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_ping(connection_id: u64, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
         let message = NetworkPingMessage::deserialize(un_batch);
         let local_time = Self::local_time();
@@ -95,12 +96,14 @@ impl NetworkTime {
         let adjusted_error = local_time - message.predicted_time_adjusted;
         // new prediction error
         let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-        // send pong message
-        connection.network_connection.send_network_message(pong_message, TransportChannel::Reliable);
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+            // send pong message
+            connection.network_connection.send_network_message(pong_message, TransportChannel::Reliable);
+        }
     }
 
     #[allow(dead_code)]
-    pub fn on_server_pong(connection: &mut NetworkConnectionToClient, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_pong(connection_id: u64, un_batch: &mut NetworkReader, channel: TransportChannel) {
         let message = NetworkPongMessage::deserialize(un_batch);
         if message.local_time > Self::local_time() {
             return;
@@ -175,12 +178,12 @@ impl ExponentialMovingAverage {
     }
     #[allow(dead_code)]
     pub fn add(&mut self, new_value: f64) {
-        if self.initialized{
+        if self.initialized {
             let delta = new_value - self.value;
             self.value += self.alpha * delta;
             self.variance = (1.0 - self.alpha) * (self.variance + self.alpha * delta.powi(2));
             self.standard_deviation = self.variance.sqrt();
-        }else {
+        } else {
             self.value = new_value;
             self.initialized = true;
         }

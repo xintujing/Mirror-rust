@@ -208,7 +208,7 @@ impl NetworkManager {
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
     }
 
-    fn on_server_add_player_internal(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_server_add_player_internal(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         println!("on_server_add_player_internal");
         let singleton = Self::get_singleton();
         let network_manager = singleton.get_network_manager();
@@ -227,11 +227,15 @@ impl NetworkManager {
             }
         }
 
-        if connection.network_connection.identity.net_id != 0 {
-            error!("There is already a player for this connection.");
-            return;
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id){
+            if connection.network_connection.identity.net_id != 0 {
+                error!("There is already a player for this connection.");
+                return;
+            }
         }
-        network_manager.on_server_add_player(connection);
+
+
+        network_manager.on_server_add_player(connection_id);
     }
 
     fn update_scene() {
@@ -296,7 +300,7 @@ pub trait NetworkManagerTrait {
         START_POSITIONS_INDEX.store(index + 1 % START_POSITIONS.len() as u32, Ordering::Relaxed);
         Some(START_POSITIONS[index as usize].clone())
     }
-    fn on_server_add_player(&mut self, connection: &mut NetworkConnectionToClient) {
+    fn on_server_add_player(&mut self, connection_id: u64) {
         let mut start_position = Transform::default();
         if let Some(sp) = self.get_start_position() {
             start_position = sp;
@@ -304,7 +308,7 @@ pub trait NetworkManagerTrait {
 
         self.get_network_manager().player_obj.transform = start_position;
 
-        NetworkServer::add_player_for_connection(connection, &mut self.get_network_manager().player_obj);
+        NetworkServer::add_player_for_connection(connection_id, &mut self.get_network_manager().player_obj);
     }
     fn get_network_manager(&mut self) -> &mut NetworkManager;
     fn is_network_active(&self) -> bool {

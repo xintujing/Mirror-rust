@@ -304,13 +304,13 @@ impl NetworkIdentity {
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
     }
-    pub fn set_client_owner(&mut self, connection: &mut NetworkConnectionToClient) {
+    pub fn set_client_owner(&mut self, connection_id: u64) {
         // do nothing if it already has an owner
         if self.connection_id_to_client != 0 {
             return;
         }
-        connection.remove_owned_object(self);
-        self.connection_id_to_client = connection.connection_id();
+        // connection.remove_owned_object(self);
+        self.connection_id_to_client = connection_id;
         // todo
         // connection.add_owned_object(self);
     }

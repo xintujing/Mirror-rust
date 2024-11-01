@@ -11,7 +11,6 @@ use std::collections::BTreeSet;
 
 pub struct NetworkConnectionToClient {
     pub network_connection: NetworkConnection,
-
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
     pub address: &'static str,
@@ -144,7 +143,7 @@ impl NetworkConnectionToClient {
         }
     }
     pub fn add_to_observing(&mut self, mut identity: NetworkIdentity) {
-        NetworkServer::show_for_connection(&mut identity, self.connection_id());
+        NetworkServer::show_for_connection(self.connection_id());
         self.observing.push(identity);
     }
     pub fn remove_from_observing_identities(&mut self, identity: NetworkIdentity, is_destroyed: bool) {

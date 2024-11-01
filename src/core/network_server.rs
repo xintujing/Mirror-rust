@@ -239,11 +239,15 @@ impl NetworkServer {
     }
 
     // show / hide for connection //////////////////////////////////////////
-    pub fn show_for_connection(identity: &mut NetworkIdentity, connection_id: u64) {
+    pub fn show_for_connection(connection_id: u64) {
+        let mut need_run = false;
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
             if connection.is_ready() {
-                Self::send_spawn_message(identity, &mut connection);
+                need_run = true;
             }
+        }
+        if need_run {
+            Self::send_spawn_message(connection_id);
         }
     }
 
@@ -254,29 +258,42 @@ impl NetworkServer {
         }
     }
 
-    fn send_spawn_message(identity: &mut NetworkIdentity, connection: &mut NetworkConnectionToClient) {
-        if identity.server_only {
-            return;
-        }
+    fn send_spawn_message(connection_id: u64) {
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+            // let identity = &mut connection.network_connection.identity;
+            let identity_connection_id_to_client = connection.network_connection.identity.get_connection_id_to_client();
 
-        let is_local_player = identity.net_id == connection.network_connection.identity.net_id;
-        let is_owner = identity.get_connection_id_to_client() == connection.connection_id();
+            // if server_only, don't send to observers
+            if connection.network_connection.identity.server_only {
+                return;
+            }
 
-        NetworkWriterPool::get_return(|owner_writer| {
-            NetworkWriterPool::get_return(|observers_writer| {
-                let payload = Self::create_spawn_message_payload(identity.get_connection_id_to_client() == connection.connection_id(), identity, owner_writer, observers_writer);
-                let message = SpawnMessage::new(identity.net_id,
-                                                is_local_player,
-                                                is_owner,
-                                                identity.scene_id,
-                                                identity.asset_id,
-                                                identity.game_object.transform.positions,
-                                                identity.game_object.transform.rotation,
-                                                identity.game_object.transform.scale,
-                                                payload);
-                connection.send_network_message(message, TransportChannel::Reliable);
+            let mut is_local_player = false;
+            if connection_id == identity_connection_id_to_client {
+                is_local_player = true;
+            } else {
+                if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&identity_connection_id_to_client) {
+                    is_local_player = connection.network_connection.identity.net_id == connection.network_connection.identity.net_id;
+                }
+            }
+            let is_owner = identity_connection_id_to_client == connection_id;
+
+            NetworkWriterPool::get_return(|owner_writer| {
+                NetworkWriterPool::get_return(|observers_writer| {
+                    let payload = Self::create_spawn_message_payload(is_owner, &mut connection.network_connection.identity, owner_writer, observers_writer);
+                    let message = SpawnMessage::new(connection.network_connection.identity.net_id,
+                                                    is_local_player,
+                                                    is_owner,
+                                                    connection.network_connection.identity.scene_id,
+                                                    connection.network_connection.identity.asset_id,
+                                                    connection.network_connection.identity.game_object.transform.positions,
+                                                    connection.network_connection.identity.game_object.transform.rotation,
+                                                    connection.network_connection.identity.game_object.transform.scale,
+                                                    payload);
+                    connection.send_network_message(message, TransportChannel::Reliable);
+                });
             });
-        });
+        }
     }
 
     fn create_spawn_message_payload(is_owner: bool, identity: &mut NetworkIdentity, owner_writer: &mut NetworkWriter, observers_writer: &mut NetworkWriter) -> Vec<u8> {
@@ -362,57 +379,65 @@ impl NetworkServer {
                 }
                 return;
             }
-
-            // 如果没有加载场景
-            if !Self::get_static_is_loading_scene() {
-                // 处理消息
-                while let Some((message, remote_time_stamp)) = transport_data_un_batcher.get_next_message() {
-                    NetworkReaderPool::get_with_array_segment_return(&message, |reader| {
-                        // 如果消息长度大于 NetworkMessages::ID_SIZE
-                        if reader.remaining() >= NetworkMessages::ID_SIZE {
-                            // 更新远程时间戳
-                            connection.network_connection.remote_time_stamp = remote_time_stamp;
-                            // 处理消息
-                            if !Self::unpack_and_invoke(&mut connection, reader, channel) {
-                                if Self::get_static_exceptions_disconnect() {
-                                    error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
-                                    connection.disconnect();
-                                } else {
-                                    warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
-                                }
-                                return;
-                            }
-                        } else {
-                            if Self::get_static_exceptions_disconnect() {
-                                error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
-                                connection.disconnect();
-                            } else {
-                                warn!(format!("Server.HandleData: connectionId: {} message too small.", connection_id));
-                            }
-                            return;
-                        }
-                    });
-                }
-
-                if transport_data_un_batcher.batches_count() > 0 {
-                    error!(format!("Server.HandleData: connectionId: {} unprocessed batches: {}", connection_id, transport_data_un_batcher.batches_count()));
-                }
-            }
         } else {
             error!(format!("Server.HandleData: Unknown connectionId: {}", connection_id));
         }
+
+        // 如果没有加载场景
+        if !Self::get_static_is_loading_scene() {
+            // 处理消息
+            while let Some((message, remote_time_stamp)) = transport_data_un_batcher.get_next_message() {
+                NetworkReaderPool::get_with_array_segment_return(&message, |reader| {
+                    // 如果消息长度大于 NetworkMessages::ID_SIZE
+                    if reader.remaining() >= NetworkMessages::ID_SIZE {
+                        // 更新远程时间戳
+                        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                            connection.network_connection.remote_time_stamp = remote_time_stamp;
+                        }
+                        // 处理消息
+                        if !Self::unpack_and_invoke(connection_id, reader, channel) {
+                            if Self::get_static_exceptions_disconnect() {
+                                error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
+                                if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                                    connection.disconnect();
+                                }
+                            } else {
+                                warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
+                            }
+                            return;
+                        }
+                    } else {
+                        if Self::get_static_exceptions_disconnect() {
+                            error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
+                            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                                connection.disconnect();
+                            }
+                        } else {
+                            warn!(format!("Server.HandleData: connectionId: {} message too small.", connection_id));
+                        }
+                        return;
+                    }
+                });
+            }
+
+            if transport_data_un_batcher.batches_count() > 0 {
+                error!(format!("Server.HandleData: connectionId: {} unprocessed batches: {}", connection_id, transport_data_un_batcher.batches_count()));
+            }
+        }
     }
 
-    fn unpack_and_invoke(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) -> bool {
+    fn unpack_and_invoke(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) -> bool {
         // 解包消息id
         let message_id = NetworkMessages::unpack_id(reader);
         // 如果消息id在 NETWORK_MESSAGE_HANDLERS 中
         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
-            (handler.func)(connection, reader, channel);
-            connection.network_connection.set_last_ping_time(NetworkTime::local_time());
+            (handler.func)(connection_id, reader, channel);
+            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                connection.network_connection.set_last_ping_time(NetworkTime::local_time());
+            }
             return true;
         }
-        warn!(format!("Server.HandleData: connectionId: {} unknown message id: {}", connection.connection_id(), message_id));
+        warn!(format!("Server.HandleData: connectionId: {} unknown message id: {}", connection_id, message_id));
         false
     }
 
@@ -434,39 +459,47 @@ impl NetworkServer {
         connection.network_connection.identity = NetworkIdentity::default();
     }
 
-    pub fn add_player_for_connection(connection: &mut NetworkConnectionToClient, player: &mut GameObject) -> bool {
+    pub fn add_player_for_connection(connection_id: u64, player: &mut GameObject) -> bool {
         if let Some(mut identity) = player.get_component() {
-            if !connection.network_connection.identity.is_null() {
-                warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
-                return false;
+            if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+                if !connection.network_connection.identity.is_null() {
+                    warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
+                    return false;
+                }
+                identity.set_client_owner(connection_id);
+                connection.network_connection.identity = identity;
             }
-            identity.set_client_owner(connection);
-            connection.network_connection.identity = identity;
-            Self::set_client_ready(connection);
-            Self::respawn(&mut connection.network_connection.identity);
+            Self::set_client_ready(connection_id);
+            Self::respawn(connection_id);
             return true;
         }
         warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",player));
         false
     }
 
-    fn spawn(obj: &mut GameObject, connection: &mut NetworkConnectionToClient) {
-        Self::spawn_obj(obj, connection)
+    fn spawn(connection_id: u64) {
+        debug!( format!("Server.Spawn: connectionId: {}", connection_id));
+        // TODO   // Self::spawn_obj(obj, connection)
+        // Self::spawn_obj(obj, connection)
     }
 
     fn spawn_obj(obj: &mut GameObject, connection: &mut NetworkConnectionToClient) {
         // TODO SpawnObject
     }
 
-    fn respawn(identity: &mut NetworkIdentity) {
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&identity.get_connection_id_to_client()) {
-            if identity.net_id == 0 {
-                warn!(format!("Server.Respawn: netId is zero. Please set a valid netId on {:?}",identity.game_object));
-                Self::spawn(&mut identity.game_object, &mut connection);
-                return;
+    fn respawn(connection_id: u64) {
+        let mut flag = false;
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            if connection.network_connection.identity.net_id == 0 {
+                warn!(format!("Server.Respawn: netId is zero. Please set a valid netId on {:?}",connection.network_connection.identity.game_object));
+                flag = true;
             }
-            Self::send_spawn_message(identity, &mut connection);
         }
+        if flag {
+            Self::spawn(connection_id);
+            return;
+        }
+        Self::send_spawn_message(connection_id);
     }
 
     // 处理 TransportError 消息
@@ -519,72 +552,78 @@ impl NetworkServer {
     }
 
     // 处理 ReadyMessage 消息
-    fn on_client_ready_message(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_client_ready_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let _ = channel;
         let _ = ReadyMessage::deserialize(reader);
-        Self::set_client_ready(connection);
+        Self::set_client_ready(connection_id);
     }
     // 设置客户端准备就绪
-    fn set_client_ready(connection: &mut NetworkConnectionToClient) {
-        connection.set_ready(true);
-
-        Self::spawn_observers_for_connection(connection);
+    fn set_client_ready(connection_id: u64) {
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+            connection.set_ready(true);
+        }
+        Self::spawn_observers_for_connection(connection_id);
     }
     // 为连接生成观察者
-    fn spawn_observers_for_connection(connection: &mut NetworkConnectionToClient) {
-        if !connection.is_ready() {
-            return;
-        }
-        debug!("spawn_observers_for_connection1: ", connection.connection_id());
-
-        connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
-
-        // add connection to each nearby NetworkIdentity's observers, which
-        // internally sends a spawn message for each one to the connection.
-        SPAWNED.iter_mut().for_each(|mut identity| {
-            if identity.visibility == Visibility::Shown {
-                identity.add_observing_network_connection(connection.connection_id());
-            } else if identity.visibility == Visibility::Hidden {
-                // do nothing
-            } else if identity.visibility == Visibility::Default {
-                // TODO aoi system
-                identity.add_observing_network_connection(connection.connection_id());
+    fn spawn_observers_for_connection(connection_id: u64) {
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+            if !connection.is_ready() {
+                return;
             }
-        });
+            debug!("spawn_observers_for_connection1: ", connection.connection_id());
 
-        debug!("spawn_observers_for_connection2: ", connection.connection_id());
+            connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
 
-        connection.send_network_message(ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
+            // add connection to each nearby NetworkIdentity's observers, which
+            // internally sends a spawn message for each one to the connection.
+            SPAWNED.iter_mut().for_each(|mut identity| {
+                if identity.visibility == Visibility::Shown {
+                    identity.add_observing_network_connection(connection_id);
+                } else if identity.visibility == Visibility::Hidden {
+                    // do nothing
+                } else if identity.visibility == Visibility::Default {
+                    // TODO aoi system
+                    identity.add_observing_network_connection(connection_id);
+                }
+            });
+
+            debug!("spawn_observers_for_connection2: ", connection_id);
+
+            connection.send_network_message(ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
+        }
     }
 
     // 处理 OnCommandMessage 消息
-    fn on_command_message(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_command_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = CommandMessage::deserialize(reader);
-        // connection 没有准备好
-        if !connection.is_ready() {
-            // 如果 channel 是 Reliable
-            if channel == TransportChannel::Reliable {
-                // 如果 SPAWNED 中有 message.net_id
-                if let Some(net_identity) = SPAWNED.get(&message.net_id) {
-                    // 如果 message.component_index 小于 net_identity.network_behaviours.len()
-                    if net_identity.network_behaviours.len() > message.component_index as usize {
-                        // 如果 message.function_hash 在 RemoteProcedureCalls 中
-                        if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
-                            warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, net_identity.net_id, message.net_id, message.component_index));
-                            return;
+
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+            // connection 没有准备好
+            if !connection.is_ready() {
+                // 如果 channel 是 Reliable
+                if channel == TransportChannel::Reliable {
+                    // 如果 SPAWNED 中有 message.net_id
+                    if let Some(net_identity) = SPAWNED.get(&message.net_id) {
+                        // 如果 message.component_index 小于 net_identity.network_behaviours.len()
+                        if net_identity.network_behaviours.len() > message.component_index as usize {
+                            // 如果 message.function_hash 在 RemoteProcedureCalls 中
+                            if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
+                                warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, net_identity.net_id, message.net_id, message.component_index));
+                                return;
+                            }
                         }
                     }
+                    warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
                 }
-                warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
+                return;
             }
-            return;
         }
 
         if let Some(mut identity) = SPAWNED.get_mut(&message.net_id) {
             // 是否需要权限
             let requires_authority = RemoteProcedureCalls::command_requires_authority(message.function_hash);
             // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
-            if requires_authority && identity.get_connection_id_to_client() != connection.connection_id() {
+            if requires_authority && identity.get_connection_id_to_client() != connection_id {
                 // Attempt to identify the component and method to narrow down the cause of the error.
                 if identity.network_behaviours.len() > message.component_index as usize {
                     if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
@@ -597,7 +636,7 @@ impl NetworkServer {
             }
 
             NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
-                identity.handle_remote_call(message.component_index, message.function_hash, RemoteCallType::Command, reader, connection.connection_id());
+                identity.handle_remote_call(message.component_index, message.function_hash, RemoteCallType::Command, reader, connection_id);
             });
         } else {
             // over reliable channel, commands should always come after spawn.
@@ -612,31 +651,35 @@ impl NetworkServer {
     }
 
     // 处理 OnEntityStateMessage 消息
-    fn on_entity_state_message(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_entity_state_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
         if let Some(mut identity) = SPAWNED.get_mut(&message.net_id) {
-            if identity.get_connection_id_to_client() == connection.connection_id() {
+            if identity.get_connection_id_to_client() == connection_id {
                 NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
                     if !identity.deserialize_server(reader) {
                         if Self::get_static_exceptions_disconnect() {
                             error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.net_id, identity.net_id));
-                            connection.disconnect();
+                            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                                connection.disconnect();
+                            }
                         } else {
                             warn!(format!("Server failed to deserialize client state for {} with netId={}", identity.net_id, identity.net_id));
                         }
                     }
                 });
             } else {
-                warn!(format!("EntityStateMessage from {} for {} without authority.", connection.connection_id(), identity.net_id));
+                warn!(format!("EntityStateMessage from {} for {} without authority.", connection_id, identity.net_id));
             }
         }
     }
 
     // 处理 OnTimeSnapshotMessage 消息
-    fn on_time_snapshot_message(connection: &mut NetworkConnectionToClient, reader: &mut NetworkReader, channel: TransportChannel) {
-        let message = TimeSnapshotMessage::deserialize(reader);
-        let snapshot = TimeSnapshot::new(connection.network_connection.remote_time_stamp, NetworkTime::local_time());
-        connection.on_time_snapshot(snapshot);
+    fn on_time_snapshot_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
+        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+            let message = TimeSnapshotMessage::deserialize(reader);
+            let snapshot = TimeSnapshot::new(connection.network_connection.remote_time_stamp, NetworkTime::local_time());
+            connection.on_time_snapshot(snapshot);
+        }
     }
 
     // 定义一个函数来注册处理程序
@@ -782,6 +825,9 @@ impl NetworkServer {
         if let Ok(mut snapshot_settings) = SNAPSHOT_SETTINGS.write() {
             *snapshot_settings = value;
         }
+    }
+    pub fn get_static_network_connections() -> &'static DashMap<u64, NetworkConnectionToClient> {
+        &NETWORK_CONNECTIONS
     }
     // 遍历NETWORK_CONNECTIONS
     pub fn for_each_network_connection<F>(mut f: F)

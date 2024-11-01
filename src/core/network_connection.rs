@@ -44,7 +44,6 @@ pub trait NetworkConnectionTrait {
                 return;
             }
             // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
-            debug!("send_network_message: ", writer.get_position());
             self.send(writer.to_array_segment(), channel);
         });
     }
