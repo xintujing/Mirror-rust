@@ -297,7 +297,7 @@ impl NetworkServer {
         observers_segment
     }
 
-    // 处理 TransportCallback
+    // 处理 TransportCallback   AddTransportHandlers(
     fn transport_callback(tbc: TransportCallback) {
         match tbc.r#type {
             TransportCallbackType::OnServerConnected => {
