@@ -160,20 +160,25 @@ impl NetworkConnectionToClient {
         self.observing.clear();
     }
 
-    pub fn add_owned_object(&mut self, identity: NetworkIdentity) {
-        self.network_connection.owned.push(identity);
+    pub fn add_owned_object(&mut self, net_id: u32) {
+        self.network_connection.owned.push(net_id);
     }
-    pub fn remove_owned_object(&mut self, identity: &NetworkIdentity) {
-        self.network_connection.owned.retain(|x| x.net_id != identity.net_id);
+    pub fn remove_owned_object(&mut self, net_id: u32) {
+        self.network_connection.owned.retain(|x| net_id != net_id);
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        for identity in self.network_connection.owned.iter() {
-            if identity.scene_id != 0 {
-                // TODO NetworkServer.UnSpawn(netIdentity.game_object);
-            } else {
-                // TODO NetworkServer.Destroy(netIdentity.game_object);
+        for identity_id in self.network_connection.owned.iter() {
+            if *identity_id != 0 {
+                if let Some(identity) = NetworkIdentity::get_static_network_identities().get_mut(identity_id) {
+                    if identity.scene_id != 0 {
+                        // TODO NetworkServer.RemovePlayerForConnection(this, RemovePlayerOptions.KeepActive);
+                    } else {
+                        // TODO NetworkServer.Destroy(netIdentity.gameObject);
+                    }
+                }
             }
+            NetworkIdentity::remove_static_network_identity(*identity_id);
         }
         self.network_connection.owned.clear();
     }

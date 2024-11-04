@@ -1,4 +1,4 @@
-use crate::components::network_behaviour_base::{NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::components::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
@@ -17,11 +17,16 @@ use bytes::Bytes;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
+use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use std::default::Default;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock, RwLock};
 use tklog::error;
+
+lazy_static! {
+    static ref NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
@@ -29,6 +34,7 @@ pub enum Visibility { Default, Hidden, Shown }
 #[derive(Debug)]
 pub enum OwnedType { Client, Server }
 
+#[derive(Debug)]
 pub struct NetworkIdentitySerialization {
     pub tick: u32,
     pub owner_writer: NetworkWriter,
@@ -53,38 +59,40 @@ impl NetworkIdentitySerialization {
     }
 }
 
+#[derive(Debug)]
 pub struct NetworkIdentity {
+    conn_to_client: u64,
     pub scene_id: u64,
     pub asset_id: u32,
     pub net_id: u32,
     pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
-    pub is_owned: u32,
+    pub is_owned: bool,
     pub observers: Vec<u64>,
-    connection_id_to_client: u64,
     pub is_init: bool,
     pub destroy_called: bool,
     pub visibility: Visibility,
     pub last_serialization: NetworkIdentitySerialization,
-    pub scene_ids: DashMap<u64, NetworkIdentity>,
+    pub scene_ids: DashMap<u64, u32>,
     pub has_spawned: bool,
     pub spawned_from_instantiate: bool,
     pub network_behaviours: Vec<Box<dyn NetworkBehaviourTrait>>,
 }
 
 impl NetworkIdentity {
-    pub fn new(asset_id: u32) -> Self {
+    pub fn new(asset_id: u32, game_object: GameObject) -> u32 {
+        let net_id = Self::get_static_next_network_id();
         let network_identity = NetworkIdentity {
             scene_id: 0,
             asset_id,
-            net_id: 0,
-            game_object: GameObject::default(),
+            net_id,
+            game_object,
             server_only: false,
             owned_type: OwnedType::Client,
-            is_owned: 0,
+            is_owned: false,
             observers: Default::default(),
-            connection_id_to_client: 0,
+            conn_to_client: 0,
             is_init: false,
             destroy_called: false,
             visibility: Visibility::Default,
@@ -94,19 +102,18 @@ impl NetworkIdentity {
             spawned_from_instantiate: false,
             network_behaviours: Default::default(),
         };
-        network_identity
+        NETWORK_IDENTITIES.insert(net_id, network_identity);
+        net_id
     }
-    pub fn default() -> Self {
-        Self::new(0)
-    }
+
     pub fn is_null(&self) -> bool {
         self.net_id == 0 && self.asset_id == 0 && self.scene_id == 0
     }
     pub fn get_connection_id_to_client(&self) -> u64 {
-        self.connection_id_to_client
+        self.conn_to_client
     }
-    pub fn set_connection_id_to_client(&mut self, connection_id: u64) {
-        self.connection_id_to_client = connection_id;
+    pub fn set_connection_id_to_client(&mut self, conn_id: u64) {
+        self.conn_to_client = conn_id;
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
@@ -124,7 +131,7 @@ impl NetworkIdentity {
     pub fn reset_server_statics() {
         Self::set_static_next_network_id(1);
     }
-    pub fn get_scene_identity(&self, scene_id: u64) -> Option<RefMut<u64, NetworkIdentity>> {
+    pub fn get_scene_identity(&self, scene_id: u64) -> Option<RefMut<u64, u32>> {
         if let Some(scene_identity) = self.scene_ids.get_mut(&scene_id) {
             return Some(scene_identity);
         }
@@ -299,20 +306,29 @@ impl NetworkIdentity {
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
     pub fn add_observing_network_connection(&mut self, connection_id: u64) {
+        if self.observers.contains(&connection_id) {
+            return;
+        }
         self.observers.push(connection_id);
     }
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
     }
-    pub fn set_client_owner(&mut self, connection_id: u64) {
+    pub fn set_client_owner(&mut self, conn_id: u64) {
         // do nothing if it already has an owner
-        if self.connection_id_to_client != 0 {
+        if self.conn_to_client != 0 {
             return;
         }
-        // connection.remove_owned_object(self);
-        self.connection_id_to_client = connection_id;
-        // todo
-        // connection.add_owned_object(self);
+        self.conn_to_client = conn_id;
+    }
+    pub fn get_static_network_identities() -> &'static DashMap<u32, NetworkIdentity> {
+        &NETWORK_IDENTITIES
+    }
+    pub fn remove_static_network_identity(net_id: u32) {
+        NETWORK_IDENTITIES.remove(&net_id);
+    }
+    pub fn add_static_network_identity(net_id: u32, network_identity: NetworkIdentity) {
+        NETWORK_IDENTITIES.insert(net_id, network_identity);
     }
     pub fn get_static_next_network_id() -> u32 {
         unsafe {

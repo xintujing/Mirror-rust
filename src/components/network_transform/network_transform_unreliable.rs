@@ -1,4 +1,4 @@
-use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
+use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::network_transform::network_transform_base::NetworkTransformBase;
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
@@ -6,6 +6,7 @@ use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use nalgebra::{Quaternion, Vector3};
 
+#[derive(Debug)]
 pub struct NetworkTransformUnreliable {
     pub network_transform_base: NetworkTransformBase,
     // network_transform_unreliable_setting: NetworkTransformUnreliableSetting
@@ -15,7 +16,7 @@ pub struct NetworkTransformUnreliable {
     pub rotation_sensitivity: f32,
     pub scale_sensitivity: f32,
 
-    pub network_behaviour: NetworkBehaviourBase,
+    pub network_behaviour: NetworkBehaviour,
 
     pub sync_data: SyncData,
 }
@@ -30,14 +31,14 @@ impl NetworkTransformUnreliable {
             position_sensitivity: network_transform_unreliable_setting.position_sensitivity,
             rotation_sensitivity: network_transform_unreliable_setting.rotation_sensitivity,
             scale_sensitivity: network_transform_unreliable_setting.scale_sensitivity,
-            network_behaviour: NetworkBehaviourBase::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             sync_data: SyncData::new(8, position, quaternion, scale),
         }
     }
 }
 #[allow(dead_code)]
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase {
+    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour {
         self.network_behaviour.get_network_behaviour_base()
     }
 

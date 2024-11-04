@@ -259,7 +259,7 @@ impl BackendData {
         }
         None
     }
-    pub fn get_asset_id_by_scene_name(&self, asset_name: &str) -> Option<u32> {
+    pub fn get_asset_id_by_asset_name(&self, asset_name: &str) -> Option<u32> {
         for asset in &self.assets {
             if asset.value == asset_name {
                 return Some(asset.key);

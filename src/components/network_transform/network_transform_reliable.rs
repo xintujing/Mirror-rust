@@ -1,11 +1,13 @@
-use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
+use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::network_transform::network_transform_base::NetworkTransformBase;
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformReliableSetting};
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use nalgebra::{Quaternion, Vector3};
+use std::fmt::Debug;
 
+#[derive(Debug)]
 pub struct NetworkTransformReliable {
     pub network_transform_base: NetworkTransformBase,
 
@@ -17,7 +19,7 @@ pub struct NetworkTransformReliable {
     pub compress_rotation: bool,
     // NetworkTransformReliableSetting end
 
-    pub network_behaviour: NetworkBehaviourBase,
+    pub network_behaviour: NetworkBehaviour,
 
     pub last_serialized_position: Vector3<i64>,
     pub last_deserialized_position: Vector3<i64>,
@@ -39,7 +41,7 @@ impl NetworkTransformReliable {
             position_precision: network_transform_reliable_setting.position_precision,
             scale_precision: network_transform_reliable_setting.scale_precision,
             compress_rotation: true,
-            network_behaviour: NetworkBehaviourBase::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             last_serialized_position: Default::default(),
             last_deserialized_position: Default::default(),
             last_serialized_scale: Default::default(),
@@ -48,8 +50,11 @@ impl NetworkTransformReliable {
         }
     }
 }
+
+
+
 impl NetworkBehaviourTrait for NetworkTransformReliable {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase {
+    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour {
         self.network_behaviour.get_network_behaviour_base()
     }
 

@@ -11,16 +11,16 @@ use crate::tools::logger::warn;
 use tklog::{debug, error};
 
 pub struct NetworkConnection {
-    connection_id: u64,
-    pub is_authenticated: bool,
-    pub authentication_data: Vec<u8>,
-    is_ready: bool,
-    last_message_time: f64,
-    pub identity: NetworkIdentity,
-    pub owned: Vec<NetworkIdentity>,
-    pub remote_time_stamp: f64,
+    id: u64,
     reliable_batcher: Batcher,
     unreliable_batcher: Batcher,
+    is_ready: bool,
+    last_message_time: f64,
+    pub is_authenticated: bool,
+    pub authentication_data: Vec<u8>,
+    pub identity_id: u32,
+    pub owned: Vec<u32>,
+    pub remote_time_stamp: f64,
 }
 
 pub trait NetworkConnectionTrait {
@@ -31,7 +31,6 @@ pub trait NetworkConnectionTrait {
     fn last_message_time(&self) -> f64;
     fn is_ready(&self) -> bool;
     fn set_ready(&mut self, ready: bool);
-
     fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
         T: NetworkMessageWriter + NetworkMessageReader + Send,
@@ -93,12 +92,12 @@ impl NetworkConnectionTrait for NetworkConnection {
             Some(active_transport) => active_transport.get_batcher_threshold(TransportChannel::Unreliable)
         };
         Self {
-            connection_id: conn_id,
+            id: conn_id,
             is_authenticated: false,
             authentication_data: Default::default(),
             is_ready: false,
             last_message_time: ts,
-            identity: NetworkIdentity::default(),
+            identity_id: 0,
             owned: Default::default(),
             remote_time_stamp: ts,
             reliable_batcher: Batcher::new(reliable_batcher_threshold),
@@ -106,7 +105,7 @@ impl NetworkConnectionTrait for NetworkConnection {
         }
     }
     fn connection_id(&self) -> u64 {
-        self.connection_id
+        self.id
     }
 
     fn last_ping_time(&self) -> f64 {
@@ -166,7 +165,5 @@ impl NetworkConnectionTrait for NetworkConnection {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_network_connection() {
-
-    }
+    fn test_network_connection() {}
 }

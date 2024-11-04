@@ -3,7 +3,7 @@ use crate::core::backend_data::NetworkTransformBaseSetting;
 use std::collections::BTreeSet;
 
 
-#[derive(Clone)]
+#[derive(Debug)]
 pub struct NetworkTransformBase {
     pub is_client_with_authority: bool,
 

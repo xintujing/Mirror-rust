@@ -1,4 +1,4 @@
-use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
+use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::components::SyncVar;
 use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::network_reader::NetworkReader;
@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
-    pub network_behaviour: NetworkBehaviourBase,
+    pub network_behaviour: NetworkBehaviour,
     pub sync_vars: DashMap<u8, SyncVar>,
 }
 
@@ -17,14 +17,14 @@ impl NetworkCommonBehaviour {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
     pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
         NetworkCommonBehaviour {
-            network_behaviour: NetworkBehaviourBase::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
             sync_vars,
         }
     }
 }
 
 impl NetworkBehaviourTrait for NetworkCommonBehaviour {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase {
+    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour {
         self.network_behaviour.get_network_behaviour_base()
     }
 

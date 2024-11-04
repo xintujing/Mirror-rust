@@ -1,6 +1,6 @@
 use bytes::Bytes;
 
-pub mod network_behaviour_base;
+pub mod network_behaviour;
 pub mod network_common_behaviour;
 pub mod network_animator;
 pub mod network_rigidbody_unreliable;

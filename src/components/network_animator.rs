@@ -1,15 +1,15 @@
-use crate::components::network_behaviour_base::{NetworkBehaviourBase, NetworkBehaviourTrait};
+use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait};
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use std::any::Any;
 
 #[derive(Debug)]
 pub struct NetworkAnimator {
-    pub network_behaviour: NetworkBehaviourBase,
+    pub network_behaviour: NetworkBehaviour,
 }
 
 impl NetworkBehaviourTrait for NetworkAnimator {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviourBase {
+    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour {
         self.network_behaviour.get_network_behaviour_base()
     }
 

@@ -1,4 +1,4 @@
-use crate::components::network_behaviour_base::NetworkBehaviourTrait;
+use crate::components::network_behaviour::NetworkBehaviourTrait;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::tools::stable_hash::StableHash;

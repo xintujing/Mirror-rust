@@ -13,7 +13,7 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
-use tklog::{error, info, warn};
+use tklog::{debug, error, info, warn};
 
 static mut SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 static mut NETWORK_SCENE_NAME: &'static str = "";
@@ -76,11 +76,19 @@ impl GameObject {
             transform: Transform::default(),
         }
     }
-    pub fn get_component(&self) -> Option<NetworkIdentity> {
-        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(self.prefab.as_str()) {
-            let mut identity = NetworkIdentity::new(asset_id);
-            identity.game_object = self.clone();
-            return Some(identity);
+    pub fn is_has_component(&self) -> bool {
+        if self.prefab == "" {
+            return false;
+        }
+        if let None = BACKEND_DATA.get_asset_id_by_asset_name(self.prefab.as_str()) {
+            return false;
+        }
+        true
+    }
+    pub fn get_component(game_object: GameObject) -> Option<u32> {
+        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(game_object.prefab.as_str()) {
+            let net_id = NetworkIdentity::new(asset_id, game_object);
+            return Some(net_id);
         }
         None
     }
@@ -96,6 +104,7 @@ impl PartialEq for GameObject {
 }
 
 pub struct NetworkManager {
+    player_obj: GameObject,
     pub mode: NetworkManagerMode,
     pub dont_destroy_on_load: bool,
     pub editor_auto_start: bool,
@@ -108,7 +117,6 @@ pub struct NetworkManager {
     pub disconnect_inactive_connections: bool,
     pub disconnect_inactive_timeout: f32,
     pub authenticator: Option<Box<dyn NetworkAuthenticatorTrait>>,
-    pub player_obj: GameObject,
     pub auto_create_player: bool,
     pub player_spawn_method: PlayerSpawnMethod,
     pub spawn_prefabs: Vec<GameObject>,
@@ -156,9 +164,6 @@ impl NetworkManager {
                 warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;
             }
-            // Self::set_singleton(Box::new(self.clone()));
-        } else {
-            // Self::set_singleton(Box::new(self.clone()));
         }
 
         if !Transport::active_transport_exists() {
@@ -208,18 +213,24 @@ impl NetworkManager {
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
     }
 
-    fn on_server_add_player_internal(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
-        println!("on_server_add_player_internal");
+    fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
+        debug!("on_server_add_player_internal");
+        // 获取 NetworkManagerTrait 的单例
         let singleton = Self::get_singleton();
+
+        // 获取 NetworkManager 的 NetworkManager 对象
         let network_manager = singleton.get_network_manager();
 
+        // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
         if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
             error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
+        // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
         if network_manager.auto_create_player {
-            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_scene_name(network_manager.player_obj.prefab.as_str()) {
+            // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
+            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(network_manager.player_obj.prefab.as_str()) {
                 if let None = BACKEND_DATA.get_network_identity_data_by_asset_id(asset_id) {
                     error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
                     return;
@@ -227,15 +238,15 @@ impl NetworkManager {
             }
         }
 
-        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id){
-            if connection.network_connection.identity.net_id != 0 {
+        // 如果 NetworkManager 的 auto_create_player 为 false
+        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
+            if connection.network_connection.identity_id != 0 {
                 error!("There is already a player for this connection.");
                 return;
             }
         }
-
-
-        network_manager.on_server_add_player(connection_id);
+        // 调用 NetworkManagerTrait 的 on_server_add_player 方法
+        network_manager.on_server_add_player(conn_id);
     }
 
     fn update_scene() {
@@ -300,15 +311,22 @@ pub trait NetworkManagerTrait {
         START_POSITIONS_INDEX.store(index + 1 % START_POSITIONS.len() as u32, Ordering::Relaxed);
         Some(START_POSITIONS[index as usize].clone())
     }
-    fn on_server_add_player(&mut self, connection_id: u64) {
+    fn on_server_add_player(&mut self, conn_id: u64) {
+        let mut player_obj = self.get_network_manager().player_obj.clone();
+
+        if player_obj.is_null() {
+            error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            return;
+        }
+
         let mut start_position = Transform::default();
         if let Some(sp) = self.get_start_position() {
             start_position = sp;
         }
+        // 修改 player_obj 的 transform 属性
+        player_obj.transform = start_position;
 
-        self.get_network_manager().player_obj.transform = start_position;
-
-        NetworkServer::add_player_for_connection(connection_id, &mut self.get_network_manager().player_obj);
+        NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
     fn get_network_manager(&mut self) -> &mut NetworkManager;
     fn is_network_active(&self) -> bool {
@@ -342,7 +360,7 @@ impl NetworkManagerTrait for NetworkManager {
     fn on_validate(&mut self) {
         self.max_connections = self.max_connections.max(0);
 
-        if !self.player_obj.is_null() && self.player_obj.get_component().is_none() {
+        if !self.player_obj.is_null() && !self.player_obj.is_has_component() {
             error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
         }
 
