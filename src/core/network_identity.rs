@@ -9,6 +9,7 @@ use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
+use crate::core::network_server::NetworkServer;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
@@ -23,10 +24,6 @@ use std::default::Default;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock, RwLock};
 use tklog::error;
-
-lazy_static! {
-    static ref NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
-}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
@@ -83,7 +80,7 @@ pub struct NetworkIdentity {
 impl NetworkIdentity {
     pub fn new(asset_id: u32, game_object: GameObject) -> u32 {
         let net_id = Self::get_static_next_network_id();
-        let network_identity = NetworkIdentity {
+        let mut network_identity = NetworkIdentity {
             scene_id: 0,
             asset_id,
             net_id,
@@ -102,10 +99,10 @@ impl NetworkIdentity {
             spawned_from_instantiate: false,
             network_behaviours: Default::default(),
         };
-        NETWORK_IDENTITIES.insert(net_id, network_identity);
+        network_identity.awake();
+        NetworkServer::add_static_network_identity(net_id, network_identity);
         net_id
     }
-
     pub fn is_null(&self) -> bool {
         self.net_id == 0 && self.asset_id == 0 && self.scene_id == 0
     }
@@ -117,12 +114,12 @@ impl NetworkIdentity {
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
-            error!("Component index out of bounds: {}", component_index);
+            error!("Component index out of bounds: ", component_index);
             return;
         }
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
-            error!("Failed to invoke remote call for function hash: {}", function_hash);
+            error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {
@@ -305,11 +302,22 @@ impl NetworkIdentity {
         }
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
-    pub fn add_observing_network_connection(&mut self, connection_id: u64) {
-        if self.observers.contains(&connection_id) {
+
+    // AddObserver(NetworkConnectionToClient conn)
+    pub fn add_observer(&mut self, conn_id: u64) {
+        if self.observers.contains(&conn_id) {
             return;
         }
-        self.observers.push(connection_id);
+
+        if self.observers.len() == 0 {
+            //  TODO  ClearAllComponentsDirtyBits();
+        }
+
+        self.observers.push(conn_id);
+
+        if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
+            conn.add_to_observing(self);
+        }
     }
     pub fn remove_observer(&mut self, connection_id: u64) {
         self.observers.retain(|x| *x != connection_id);
@@ -320,15 +328,6 @@ impl NetworkIdentity {
             return;
         }
         self.conn_to_client = conn_id;
-    }
-    pub fn get_static_network_identities() -> &'static DashMap<u32, NetworkIdentity> {
-        &NETWORK_IDENTITIES
-    }
-    pub fn remove_static_network_identity(net_id: u32) {
-        NETWORK_IDENTITIES.remove(&net_id);
-    }
-    pub fn add_static_network_identity(net_id: u32, network_identity: NetworkIdentity) {
-        NETWORK_IDENTITIES.insert(net_id, network_identity);
     }
     pub fn get_static_next_network_id() -> u32 {
         unsafe {

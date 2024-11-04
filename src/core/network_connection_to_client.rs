@@ -14,7 +14,7 @@ pub struct NetworkConnectionToClient {
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
     pub address: &'static str,
-    pub observing: Vec<NetworkIdentity>,
+    pub observing: Vec<u32>,
     pub drift_ema: ExponentialMovingAverage,
     pub delivery_time_ema: ExponentialMovingAverage,
     pub remote_timeline: f64,
@@ -142,20 +142,21 @@ impl NetworkConnectionToClient {
             );
         }
     }
-    pub fn add_to_observing(&mut self, mut identity: NetworkIdentity) {
-        NetworkServer::show_for_connection(self.connection_id());
-        self.observing.push(identity);
+    pub fn add_to_observing(&mut self, network_identity: &mut NetworkIdentity) {
+        self.observing.push(network_identity.net_id);
+        NetworkServer::show_for_connection(network_identity, self);
     }
-    pub fn remove_from_observing_identities(&mut self, identity: NetworkIdentity, is_destroyed: bool) {
-        self.observing.retain(|x| x.net_id != identity.net_id);
+    pub fn remove_from_observing_identities(&mut self, identity_id: u32, is_destroyed: bool) {
+        self.observing.retain(|net_id| *net_id != identity_id);
         if !is_destroyed {
-            NetworkServer::hide_for_connection(&identity, self.connection_id());
+            NetworkServer::hide_for_connection(identity_id, self.connection_id());
         }
     }
     pub fn remove_from_observings_observers(&mut self) {
         let connection_id = self.connection_id();
         for identity in self.observing.iter_mut() {
-            identity.remove_observer(connection_id);
+            // TODO NetworkServer.RemoveObserverForConnection(this, identity);
+            // identity.remove_observer(connection_id);
         }
         self.observing.clear();
     }
@@ -170,7 +171,7 @@ impl NetworkConnectionToClient {
     pub fn destroy_owned_objects(&mut self) {
         for identity_id in self.network_connection.owned.iter() {
             if *identity_id != 0 {
-                if let Some(identity) = NetworkIdentity::get_static_network_identities().get_mut(identity_id) {
+                if let Some(identity) = NetworkServer::get_static_spawned_network_identities().get_mut(identity_id) {
                     if identity.scene_id != 0 {
                         // TODO NetworkServer.RemovePlayerForConnection(this, RemovePlayerOptions.KeepActive);
                     } else {
@@ -178,7 +179,7 @@ impl NetworkConnectionToClient {
                     }
                 }
             }
-            NetworkIdentity::remove_static_network_identity(*identity_id);
+            NetworkServer::remove_static_spawned_network_identity(*identity_id);
         }
         self.network_connection.owned.clear();
     }

@@ -5,6 +5,7 @@ use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSet
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use nalgebra::{Quaternion, Vector3};
+use tklog::debug;
 
 #[derive(Debug)]
 pub struct NetworkTransformUnreliable {
@@ -47,7 +48,8 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        todo!()
+        // TODO: Implement this
+        debug!("NetworkTransformUnreliable::serialize");
     }
 
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
