@@ -103,9 +103,6 @@ impl NetworkIdentity {
         NetworkServer::add_static_network_identity(net_id, network_identity);
         net_id
     }
-    pub fn is_null(&self) -> bool {
-        self.net_id == 0 && self.asset_id == 0 && self.scene_id == 0
-    }
     pub fn get_connection_id_to_client(&self) -> u64 {
         self.conn_to_client
     }
@@ -120,7 +117,7 @@ impl NetworkIdentity {
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
             // TODO  handle_remote_call
-            // error!("Failed to invoke remote call for function hash: ", function_hash);
+            error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {
