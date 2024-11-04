@@ -23,7 +23,7 @@ use nalgebra::Vector3;
 use std::default::Default;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, LazyLock, RwLock};
-use tklog::error;
+use tklog::{debug, error};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, Hidden, Shown }
@@ -119,7 +119,8 @@ impl NetworkIdentity {
         }
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
-            error!("Failed to invoke remote call for function hash: ", function_hash);
+            // TODO  handle_remote_call
+            // error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {
@@ -138,20 +139,16 @@ impl NetworkIdentity {
         for component in BACKEND_DATA.get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
             // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
-                // scale
-                let scale = Vector3::new(1.0, 1.0, 1.0);
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
+                let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.positions, self.game_object.transform.rotation, self.game_object.transform.scale);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
             }
             // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
-                // scale
-                let scale = Vector3::new(1.0, 1.0, 1.0);
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, Default::default(), Default::default(), scale);
+                let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.positions, self.game_object.transform.rotation, self.game_object.transform.scale);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
@@ -320,7 +317,7 @@ impl NetworkIdentity {
         }
     }
     pub fn remove_observer(&mut self, connection_id: u64) {
-        self.observers.retain(|x| *x != connection_id);
+        self.observers.retain(|conn_id| *conn_id != connection_id);
     }
     pub fn set_client_owner(&mut self, conn_id: u64) {
         // do nothing if it already has an owner

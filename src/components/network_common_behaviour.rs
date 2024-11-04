@@ -5,6 +5,7 @@ use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use dashmap::DashMap;
 use std::fmt::Debug;
+use tklog::debug;
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
@@ -31,6 +32,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        debug!("NetworkCommonBehaviour::serialize");
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&i) {
                 writer.write_array_segment_all(sync_var.data.as_ref());

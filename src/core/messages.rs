@@ -42,7 +42,6 @@ impl NetworkMessageReader for TimeSnapshotMessage {
 }
 impl NetworkMessageWriter for TimeSnapshotMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 57097
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -66,7 +65,6 @@ impl NetworkMessageReader for ReadyMessage {
 }
 impl NetworkMessageWriter for ReadyMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 43708
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -90,7 +88,6 @@ impl NetworkMessageReader for NotReadyMessage {
 }
 impl NetworkMessageWriter for NotReadyMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 43378
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -114,7 +111,6 @@ impl NetworkMessageReader for AddPlayerMessage {
 }
 impl NetworkMessageWriter for AddPlayerMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 49414
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -180,9 +176,6 @@ impl NetworkMessageReader for SceneMessage {
 }
 impl NetworkMessageWriter for SceneMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        let str_bytes = self.scene_name.as_bytes();
-        let total_len = 6 + str_bytes.len() as u64;
-        writer.compress_var_uint(total_len);
         // 3552
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_str(self.scene_name.as_str());
@@ -244,9 +237,6 @@ impl NetworkMessageReader for CommandMessage {
 }
 impl NetworkMessageWriter for CommandMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        // 2 + 4 + 1 + 2 + 4 + self.payload.len()
-        let total_len = 13 + self.payload.len() as u64;
-        writer.compress_var_uint(total_len);
         // 39124
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
@@ -302,9 +292,6 @@ impl NetworkMessageReader for RpcMessage {
 }
 impl NetworkMessageWriter for RpcMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        // 2 + 4 + 1 + 2 + 4 + self.payload.len()
-        let total_len = 13 + self.payload.len() as u64;
-        writer.compress_var_uint(total_len);
         // 40238
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
@@ -390,9 +377,6 @@ impl NetworkMessageReader for SpawnMessage {
 
 impl NetworkMessageWriter for SpawnMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        // 2 + 4 + 1 + 1 + 8 + 12 * 4 + self.payload.len()
-        let total_len = 64 + self.payload.len() as u64;
-        writer.compress_var_uint(total_len);
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
@@ -448,7 +432,6 @@ impl NetworkMessageReader for ObjectSpawnStartedMessage {
 }
 impl NetworkMessageWriter for ObjectSpawnStartedMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -476,7 +459,6 @@ impl NetworkMessageReader for ObjectSpawnFinishedMessage {
 }
 impl NetworkMessageWriter for ObjectSpawnFinishedMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(2);
         // 43444
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
     }
@@ -506,7 +488,6 @@ impl NetworkMessageReader for ObjectDestroyMessage {
 }
 impl NetworkMessageWriter for ObjectDestroyMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(6);
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
@@ -528,7 +509,6 @@ impl ObjectHideMessage {
 
 impl NetworkMessageWriter for ObjectHideMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(6);
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
     }
@@ -576,9 +556,6 @@ impl NetworkMessageReader for EntityStateMessage {
 }
 impl NetworkMessageWriter for EntityStateMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        // 2 + 4 + 4 + self.payload.len()
-        let total_len = 10 + self.payload.len() as u64;
-        writer.compress_var_uint(total_len);
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_uint(self.net_id);
@@ -619,7 +596,6 @@ impl NetworkMessageReader for NetworkPingMessage {
 }
 impl NetworkMessageWriter for NetworkPingMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(18);
         // 17487
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_double(self.local_time);
@@ -667,7 +643,6 @@ impl NetworkMessageReader for NetworkPongMessage {
 }
 impl NetworkMessageWriter for NetworkPongMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.compress_var_uint(26);
         // 27095
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.write_double(self.local_time);

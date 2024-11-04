@@ -195,18 +195,15 @@ impl NetworkServer {
     }
 
     fn broadcast_to_connection(network_connection_to_client: &mut NetworkConnectionToClient) {
-        let len = network_connection_to_client.network_connection.owned.len();
-
-        let connection_id = network_connection_to_client.connection_id(); // 提取 `connection_id`
-
-        for i in 0..len {
-            let net_id = network_connection_to_client.network_connection.owned[i];
+        for i in 0..network_connection_to_client.observing.len() {
+            let net_id = network_connection_to_client.observing[i];
             if net_id != 0 {
-                if let Some(message) = Self::serialize_for_connection(net_id, connection_id) {
+                if let Some(message) = Self::serialize_for_connection(net_id, network_connection_to_client.connection_id()) {
+                    debug!(format!("Server.broadcast_to_connection: connectionId: {}, netId: {}", network_connection_to_client.connection_id(), net_id));
                     network_connection_to_client.send_network_message(message, TransportChannel::Reliable);
                 }
             } else {
-                warn!(format!("Server.BroadcastToConnection: identity is null. Removing from observing list. connectionId: {}, netId: {}", connection_id, net_id));
+                warn!(format!("Server.broadcast_to_connection: identity is null. Removing from observing list. connectionId: {}, netId: {}", network_connection_to_client.connection_id(), net_id));
                 network_connection_to_client.network_connection.owned.retain(|id| *id != net_id);
             }
         }
@@ -242,14 +239,16 @@ impl NetworkServer {
     // show / hide for connection //////////////////////////////////////////
     pub fn show_for_connection(network_identity: &mut NetworkIdentity, network_connection_to_client: &mut NetworkConnectionToClient) {
         if network_connection_to_client.is_ready() {
+            debug!(format!("Server.ShowForConnection: connectionId: {}, netId: {}", network_connection_to_client.connection_id(), network_identity.net_id));
             Self::send_spawn_message(network_identity, network_connection_to_client);
         }
     }
 
-    pub fn hide_for_connection(identity_id: u32, connection_id: u64) {
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            let object_hide_message = ObjectHideMessage::new(identity_id);
-            connection.send_network_message(object_hide_message, TransportChannel::Reliable);
+    pub fn hide_for_connection(network_identity: &mut NetworkIdentity, network_connection_to_client: &mut NetworkConnectionToClient) {
+        if network_connection_to_client.is_ready() {
+            debug!(format!("Server.HideForConnection: connectionId: {}, netId: {}", network_connection_to_client.connection_id(), network_identity.net_id));
+            let message = ObjectHideMessage::new(network_identity.net_id);
+            network_connection_to_client.send_network_message(message, TransportChannel::Reliable);
         }
     }
 
@@ -513,7 +512,7 @@ impl NetworkServer {
         // TODO: OnConnectedEvent?.invoke(conn);
     }
 
-        // 注册消息处理程序
+    // 注册消息处理程序
     fn register_message_handlers() {
         // 注册 ReadyMessage 处理程序
         Self::register_handler::<ReadyMessage>(Box::new(Self::on_client_ready_message), true);
@@ -558,10 +557,7 @@ impl NetworkServer {
             if !connection.is_ready() {
                 return;
             }
-
             connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
-
-            connection.send_network_message(ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
         }
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
