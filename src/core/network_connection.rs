@@ -18,7 +18,7 @@ pub struct NetworkConnection {
     last_message_time: f64,
     pub is_authenticated: bool,
     pub authentication_data: Vec<u8>,
-    pub identity_id: u32,
+    pub net_id: u32,
     pub owned: Vec<u32>,
     pub remote_time_stamp: f64,
 }
@@ -97,7 +97,7 @@ impl NetworkConnectionTrait for NetworkConnection {
             authentication_data: Default::default(),
             is_ready: false,
             last_message_time: ts,
-            identity_id: 0,
+            net_id: 0,
             owned: Default::default(),
             remote_time_stamp: ts,
             reliable_batcher: Batcher::new(reliable_batcher_threshold),

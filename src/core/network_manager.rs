@@ -1,6 +1,6 @@
 use crate::core::backend_data::BACKEND_DATA;
 use crate::core::connection_quality::ConnectionQualityMethod;
-use crate::core::messages::AddPlayerMessage;
+use crate::core::messages::{AddPlayerMessage, ReadyMessage};
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
@@ -54,7 +54,7 @@ impl Transform {
 
     pub fn default() -> Self {
         Self {
-            positions: Default::default(),
+            positions: Vector3::new(0.0, 0.0, 0.6),
             rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
             scale: Vector3::new(1.0, 1.0, 1.0),
         }
@@ -184,6 +184,15 @@ impl NetworkManager {
     fn register_server_messages() {
         // TODO NetworkServer.RegisterHandler<NetworkPingMessage>(OnPingMessage);
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
+        NetworkServer::register_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
+    }
+
+    fn on_server_ready_message_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
+        Self::on_server_ready(conn_id)
+    }
+
+    fn on_server_ready(conn_id: u64) {
+        NetworkServer::set_client_ready(conn_id);
     }
 
     fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
@@ -213,7 +222,7 @@ impl NetworkManager {
 
         // 如果 NetworkManager 的 auto_create_player 为 false
         if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
-            if connection.network_connection.identity_id != 0 {
+            if connection.network_connection.net_id != 0 {
                 error!("There is already a player for this connection.");
                 return;
             }

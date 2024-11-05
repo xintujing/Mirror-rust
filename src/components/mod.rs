@@ -1,5 +1,3 @@
-use bytes::Bytes;
-
 pub mod network_behaviour;
 pub mod network_common_behaviour;
 pub mod network_animator;
@@ -10,13 +8,13 @@ pub mod network_transform;
 #[derive(Debug, Clone)]
 pub struct SyncVar {
     pub r#type: String,
-    pub data: Bytes,
+    pub data: Vec<u8>,
     pub is_dirty: bool,
     pub dirty_bit: u32,
 }
 
 impl SyncVar {
-    pub fn new(r#type: String, data: Bytes, dirty_bit: u32) -> Self {
+    pub fn new(r#type: String, data: Vec<u8>, dirty_bit: u32) -> Self {
         SyncVar {
             r#type,
             data,

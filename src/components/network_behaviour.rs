@@ -80,8 +80,14 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn sync_direction(&mut self) -> &SyncDirection {
         &self.get_network_behaviour_base().sync_direction
     }
-    fn on_start_server(&mut self) {}
-    fn on_stop_server(&mut self) {}
+    fn on_start_server(&mut self);
+    fn on_stop_server(&mut self);
+    fn clear_all_dirty_bits(&mut self) {
+        self.get_network_behaviour_base().sync_var_dirty_bits = 0;
+        self.get_network_behaviour_base().sync_object_dirty_bits = 0;
+
+        // TODO syncObjects
+    }
     fn as_any(&self) -> &dyn Any
     where
         Self: Sized,

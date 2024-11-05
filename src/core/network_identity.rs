@@ -26,7 +26,7 @@ use std::sync::{Arc, LazyLock, RwLock};
 use tklog::{debug, error};
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Visibility { Default, Hidden, Shown }
+pub enum Visibility { Default, ForceHidden, ForceShown }
 
 #[derive(Debug)]
 pub enum OwnedType { Client, Server }
@@ -79,8 +79,6 @@ pub struct NetworkIdentity {
 
 impl NetworkIdentity {
     pub fn new(asset_id: u32, game_object: GameObject) -> u32 {
-        // TODO fix
-        let net_id = Self::get_static_next_network_id();
         let net_id = 0;
         let mut network_identity = NetworkIdentity {
             scene_id: 0,
@@ -94,7 +92,7 @@ impl NetworkIdentity {
             conn_to_client: 0,
             is_init: false,
             destroy_called: false,
-            visibility: Visibility::Shown,
+            visibility: Visibility::ForceShown,
             last_serialization: NetworkIdentitySerialization::new(0),
             scene_ids: Default::default(),
             has_spawned: false,
@@ -119,7 +117,7 @@ impl NetworkIdentity {
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
             // TODO  handle_remote_call
-            error!("Failed to invoke remote call for function hash: ", function_hash);
+            // error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {
@@ -157,6 +155,7 @@ impl NetworkIdentity {
                 let network_common = Self::new_network_common_component(component);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_common));
+                continue;
             }
         }
         self.validate_components();
@@ -292,7 +291,7 @@ impl NetworkIdentity {
         for (index, sync_var) in BACKEND_DATA.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
             sync_vars.insert(index as u8, SyncVar::new(
                 sync_var.full_name.clone(),
-                Bytes::copy_from_slice(sync_var.value.as_slice()),
+                sync_var.value.to_vec(),
                 sync_var.dirty_bit,
             ));
         }
@@ -306,13 +305,18 @@ impl NetworkIdentity {
         }
 
         if self.observers.len() == 0 {
-            //  TODO  ClearAllComponentsDirtyBits();
+            self.clear_all_components_dirty_bits()
         }
 
         self.observers.push(conn_id);
 
         if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
             conn.add_to_observing(self);
+        }
+    }
+    fn clear_all_components_dirty_bits(&mut self) {
+        for component in self.network_behaviours.iter_mut() {
+            component.clear_all_dirty_bits()
         }
     }
     pub fn remove_observer(&mut self, connection_id: u64) {
