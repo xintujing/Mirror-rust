@@ -207,7 +207,7 @@ impl NetworkIdentity {
             let dirty = component.get_network_behaviour_base().is_dirty();
 
             if initial_state || (component.get_network_behaviour_base().sync_direction == SyncDirection::ServerToClient) && dirty {
-                observers_mask |= nth_bit;
+                owner_mask |= nth_bit;
             }
 
             if component.get_network_behaviour_base().sync_mode == SyncMode::Observers {
@@ -233,14 +233,21 @@ impl NetworkIdentity {
         }
 
         if (owner_mask | observers_mask) != 0 {
+
             for i in 0..self.network_behaviours.len() {
+
                 let component = &mut self.network_behaviours[i];
+
                 let owner_dirty = Self::is_dirty(owner_mask, i as u8);
                 let observers_dirty = Self::is_dirty(observers_mask, i as u8);
+
                 if owner_dirty || observers_dirty {
                     NetworkWriterPool::get_return(|temp| {
+                        // Serialize the component
                         component.serialize(temp, initial_state);
+
                         let segment = temp.to_bytes();
+
                         if owner_dirty {
                             owner_writer.write_array_segment_all(&segment);
                         }
@@ -248,6 +255,9 @@ impl NetworkIdentity {
                             observers_writer.write_array_segment_all(&segment);
                         }
                     });
+                    if !initial_state {
+                        component.clear_all_dirty_bits();
+                    }
                 }
             }
         }
@@ -300,17 +310,20 @@ impl NetworkIdentity {
 
     // AddObserver(NetworkConnectionToClient conn)
     pub fn add_observer(&mut self, conn_id: u64) {
+        // 如果观察者已存在
         if self.observers.contains(&conn_id) {
             return;
         }
 
+        // 如果没有观察者
         if self.observers.len() == 0 {
             self.clear_all_components_dirty_bits()
         }
-
+        // 添加观察者
         self.observers.push(conn_id);
 
         if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
+            // 添加到观察者
             conn.add_to_observing(self);
         }
     }

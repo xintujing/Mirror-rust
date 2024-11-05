@@ -184,7 +184,7 @@ impl NetworkManager {
     fn register_server_messages() {
         // TODO NetworkServer.RegisterHandler<NetworkPingMessage>(OnPingMessage);
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
-        NetworkServer::register_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
+        NetworkServer::replace_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
     }
 
     fn on_server_ready_message_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {

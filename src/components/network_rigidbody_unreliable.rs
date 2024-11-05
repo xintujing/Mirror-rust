@@ -26,7 +26,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         todo!()
     }
 
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         todo!()
     }
 

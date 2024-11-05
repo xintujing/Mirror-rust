@@ -46,7 +46,7 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         todo!()
     }
 
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
             if self.network_transform_base.sync_position {
                 writer.write_vector3(self.sync_data.position);
@@ -71,25 +71,4 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn on_stop_server(&mut self) {
         todo!()
     }
-
-    // fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
-    //     if initial_state {
-    //         if self.network_transform_base.sync_position {
-    //             if let Ok(position) = un_batch.read_vector3_f32_le() {
-    //                 self.sync_data.position = position;
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             if let Ok(quat_rotation) = un_batch.read_quaternion_f32_le() {
-    //                 self.sync_data.quat_rotation = quat_rotation;
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             if let Ok(scale) = un_batch.read_vector3_f32_le() {
-    //                 self.sync_data.scale = scale;
-    //             }
-    //         }
-    //     }
-    // }
-
 }

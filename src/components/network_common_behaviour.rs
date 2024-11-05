@@ -30,7 +30,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
 
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         for i in 0..self.sync_vars.len() as u8 {
             if let Some(sync_var) = self.sync_vars.get(&i) {
                 writer.write_array_segment_all(sync_var.data.as_slice());

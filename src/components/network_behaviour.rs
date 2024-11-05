@@ -1,7 +1,7 @@
 use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_time::NetworkTime;
-use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use std::any::Any;
 use std::fmt::Debug;
 
@@ -49,8 +49,8 @@ impl NetworkBehaviour {
             sync_direction: SyncDirection::from_u8(network_behaviour_setting.sync_direction),
             sync_mode: SyncMode::Observers,
             component_index,
-            sync_var_dirty_bits: 0,
-            sync_object_dirty_bits: 0,
+            sync_var_dirty_bits: u64::MAX,
+            sync_object_dirty_bits: u64::MAX,
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -65,7 +65,20 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);
     // Serialize
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
+    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        let header_position = writer.get_position();
+        writer.write_byte(0);
+        let content_position = writer.get_position();
+        self.on_serialize(writer, initial_state);
+        let end_position = writer.get_position();
+        writer.set_position(header_position);
+        let size = (end_position - content_position) as u8;
+        let safety = size & 0xFF;
+        writer.write_byte(safety);
+        writer.set_position(end_position);
+    }
+    // void OnSerialize(NetworkWriter writer, bool initialState)
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
     // Deserialize
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool;
     // SetDirty
@@ -105,7 +118,7 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
         todo!()
     }
 
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         todo!()
     }
 

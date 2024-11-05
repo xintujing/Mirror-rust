@@ -60,7 +60,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
 
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
-    fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         todo!()
     }
 

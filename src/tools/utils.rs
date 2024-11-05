@@ -1,24 +1,6 @@
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::thread::sleep;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-// 全局 ID 计数器
-static GLOBAL_ID_COUNTER: AtomicU32 = AtomicU32::new(1);
-pub fn generate_id() -> u32 {
-    GLOBAL_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let mut next_id = GLOBAL_ID_COUNTER.load(Ordering::Relaxed);
-    if next_id > u32::MAX - 1 {
-        next_id = 1;
-        return next_id;
-    }
-    next_id
-}
-
-// // 获取启动时间
-// #[allow(dead_code)]
-// pub fn get_s_e_t() -> f64 {
-//     get_e_t_f64()
-// }
 #[allow(dead_code)]
 pub fn get_e_t_str(start: Instant) -> String {
     let secs = start.elapsed().as_secs();
@@ -72,6 +54,29 @@ pub fn to_hex_string(data: &[u8]) -> String {
         hex_string.push_str(&format!("{:02X}", byte));
     }
     hex_string
+}
+#[allow(dead_code)]
+pub fn to_vec_u8(hex_string: &str) -> Vec<u8> {
+    let hex_string = hex_string.trim();
+    let hex_string = if hex_string.starts_with("0x") {
+        &hex_string[2..]
+    } else {
+        hex_string
+    };
+    let hex_string = if hex_string.len() % 2 == 1 {
+        format!("0{}", hex_string)
+    } else {
+        hex_string.to_string()
+    };
+    let bytes = hex_string.as_bytes();
+    let mut vec_u8 = Vec::new();
+    for i in 0..bytes.len() / 2 {
+        vec_u8.push(u8::from_str_radix(
+            &format!("{}{}", bytes[i * 2] as char, bytes[i * 2 + 1] as char),
+            16,
+        ).unwrap());
+    }
+    vec_u8
 }
 #[allow(dead_code)]
 pub fn hex_string_to_f64(hex_string: &str) -> f64 {
