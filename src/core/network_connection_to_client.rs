@@ -5,7 +5,7 @@ use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
-use crate::core::transport::TransportChannel;
+use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
 use std::collections::BTreeSet;
 
@@ -13,7 +13,7 @@ pub struct NetworkConnectionToClient {
     pub network_connection: NetworkConnection,
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
-    pub address: &'static str,
+    pub address: String,
     pub observing: Vec<u32>,
     pub drift_ema: ExponentialMovingAverage,
     pub delivery_time_ema: ExponentialMovingAverage,
@@ -27,13 +27,13 @@ pub struct NetworkConnectionToClient {
     pub _rtt: ExponentialMovingAverage,
 }
 impl NetworkConnectionTrait for NetworkConnectionToClient {
-    fn network_connection(conn_id: u64) -> Self {
+    fn new(conn_id: u64) -> Self {
         let ts = NetworkTime::local_time();
-        NetworkConnectionToClient {
-            network_connection: NetworkConnection::network_connection(conn_id),
+        let mut network_connection_to_client = Self {
+            network_connection: NetworkConnection::new(conn_id),
             reliable_rpcs_batch: NetworkWriter::new(),
             unreliable_rpcs_batch: NetworkWriter::new(),
-            address: "",
+            address: "".to_string(),
             observing: Vec::new(),
             drift_ema: ExponentialMovingAverage::new(60),
             delivery_time_ema: ExponentialMovingAverage::new(10),
@@ -45,7 +45,11 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             snapshot_buffer_size_limit: 64,
             last_ping_time: ts,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
+        };
+        if let Some(mut transport) = Transport::get_active_transport() {
+            network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
+        network_connection_to_client
     }
 
     fn connection_id(&self) -> u64 {
@@ -183,5 +187,4 @@ impl NetworkConnectionToClient {
         }
         self.network_connection.owned.clear();
     }
-
 }

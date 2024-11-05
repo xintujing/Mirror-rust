@@ -49,7 +49,7 @@ lazy_static! {
 
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
-    static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler>=DashMap::new();
+    static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
 }
 
 
@@ -345,7 +345,7 @@ impl NetworkServer {
             }
             return;
         }
-        let connection = NetworkConnectionToClient::network_connection(connection_id);
+        let connection = NetworkConnectionToClient::new(connection_id);
         Self::on_connected(connection);
     }
 

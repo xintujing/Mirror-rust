@@ -3,9 +3,8 @@ use crate::components::network_transform::network_transform_base::NetworkTransfo
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
 use crate::core::network_reader::NetworkReader;
-use crate::core::network_writer::NetworkWriter;
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use nalgebra::{Quaternion, Vector3};
-use tklog::debug;
 
 #[derive(Debug)]
 pub struct NetworkTransformUnreliable {
@@ -48,8 +47,17 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        // TODO: Implement this
-        debug!("NetworkTransformUnreliable::serialize");
+        if initial_state {
+            if self.network_transform_base.sync_position {
+                writer.write_vector3(self.sync_data.position);
+            }
+            if self.network_transform_base.sync_rotation {
+                writer.write_quaternion(self.sync_data.quat_rotation);
+            }
+            if self.network_transform_base.sync_scale {
+                writer.write_vector3(self.sync_data.scale);
+            }
+        }
     }
 
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
@@ -63,22 +71,6 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn on_stop_server(&mut self) {
         todo!()
     }
-
-    // fn serialize(&mut self, initial_state: bool) -> Batch {
-    //     let mut batch = Batch::new();
-    //     if initial_state {
-    //         if self.network_transform_base.sync_position {
-    //             batch.write_vector3_f32_le(self.sync_data.position);
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             batch.write_quaternion_f32_le(self.sync_data.quat_rotation);
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             batch.write_vector3_f32_le(self.sync_data.scale);
-    //         }
-    //     }
-    //     batch
-    // }
 
     // fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
     //     if initial_state {

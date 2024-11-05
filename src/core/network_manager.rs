@@ -15,13 +15,13 @@ use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
 use tklog::{debug, error, info, warn};
 
-static mut SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
+static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 static mut NETWORK_SCENE_NAME: &'static str = "";
 
 
 lazy_static! {
-    pub static ref START_POSITIONS: Vec<Transform> = Vec::new();
-    pub static ref START_POSITIONS_INDEX: Atomic<u32> = Atomic::new(0);
+    static ref START_POSITIONS: Vec<Transform> = Vec::new();
+    static ref START_POSITIONS_INDEX: Atomic<u32> = Atomic::new(0);
 }
 
 #[derive(Debug, PartialOrd, PartialEq)]
@@ -127,34 +127,6 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-    pub fn new() -> Self {
-        let mut manager = Self {
-            mode: NetworkManagerMode::Offline,
-            dont_destroy_on_load: true,
-            editor_auto_start: false,
-            send_rate: 60,
-            offline_scene: "",
-            online_scene: "",
-            offline_scene_load_delay: 0.0,
-            network_address: "0.0.0.0".to_string(),
-            max_connections: 100,
-            disconnect_inactive_connections: false,
-            disconnect_inactive_timeout: 60.0,
-            authenticator: None,
-            player_obj: GameObject::default(),
-            auto_create_player: true,
-            player_spawn_method: PlayerSpawnMethod::Random,
-            spawn_prefabs: Vec::new(),
-            exceptions_disconnect: true,
-            evaluation_method: ConnectionQualityMethod::Simple,
-            evaluation_interval: 3.0,
-            time_interpolation_gui: false,
-        };
-        // TODO  fix  NetworkManager cfg
-        manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
-        manager
-    }
-
     fn initialize_singleton(&self) -> bool {
         if Self::singleton_exists() {
             return true;
@@ -216,7 +188,7 @@ impl NetworkManager {
     fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         debug!("on_server_add_player_internal");
         // 获取 NetworkManagerTrait 的单例
-        let singleton = Self::get_singleton();
+        let singleton = Self::get_network_manager_singleton();
 
         // 获取 NetworkManager 的 NetworkManager 对象
         let network_manager = singleton.get_network_manager();
@@ -265,9 +237,9 @@ impl NetworkManager {
     }
 
     // ********************************************************************
-    pub fn get_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
+    pub fn get_network_manager_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
         unsafe {
-            if let Some(ref mut singleton) = SINGLETON {
+            if let Some(ref mut singleton) = NETWORK_MANAGER_SINGLETON {
                 return singleton;
             }
             panic!("NetworkManager singleton not found.");
@@ -276,13 +248,13 @@ impl NetworkManager {
 
     pub fn singleton_exists() -> bool {
         unsafe {
-            SINGLETON.is_some()
+            NETWORK_MANAGER_SINGLETON.is_some()
         }
     }
 
     pub fn set_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
         unsafe {
-            SINGLETON.replace(network_manager);
+            NETWORK_MANAGER_SINGLETON.replace(network_manager);
         }
     }
     pub fn get_network_scene_name() -> &'static str {
@@ -298,6 +270,9 @@ impl NetworkManager {
 }
 
 pub trait NetworkManagerTrait {
+    fn awake()
+    where
+        Self: Sized;
     fn get_start_position(&mut self) -> Option<Transform> {
         if START_POSITIONS.len() == 0 {
             return None;
@@ -336,7 +311,6 @@ pub trait NetworkManagerTrait {
     fn get_network_manager_mode(&mut self) -> &NetworkManagerMode;
     fn on_validate(&mut self);
     fn reset(&mut self);
-    fn awake(&mut self);
     fn start(&mut self);
     fn update(&mut self);
     fn late_update(&mut self);
@@ -345,6 +319,35 @@ pub trait NetworkManagerTrait {
 }
 
 impl NetworkManagerTrait for NetworkManager {
+    fn awake() {
+        let mut manager = Self {
+            mode: NetworkManagerMode::Offline,
+            dont_destroy_on_load: true,
+            editor_auto_start: false,
+            send_rate: 60,
+            offline_scene: "",
+            online_scene: "",
+            offline_scene_load_delay: 0.0,
+            network_address: "0.0.0.0".to_string(),
+            max_connections: 100,
+            disconnect_inactive_connections: false,
+            disconnect_inactive_timeout: 60.0,
+            authenticator: None,
+            player_obj: GameObject::default(),
+            auto_create_player: true,
+            player_spawn_method: PlayerSpawnMethod::Random,
+            spawn_prefabs: Vec::new(),
+            exceptions_disconnect: true,
+            evaluation_method: ConnectionQualityMethod::Simple,
+            evaluation_interval: 3.0,
+            time_interpolation_gui: false,
+        };
+        // TODO  fix  NetworkManager cfg
+        manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
+
+        NetworkManager::set_singleton(Box::new(manager));
+    }
+
     fn get_network_manager(&mut self) -> &mut NetworkManager {
         self
     }
@@ -374,18 +377,16 @@ impl NetworkManagerTrait for NetworkManager {
         info!("NetworkManager reset");
     }
 
-    fn awake(&mut self) {
+    fn start(&mut self) {
         if !self.initialize_singleton() {
             return;
         }
         self.apply_configuration();
 
-        Self::set_network_scene_name(self.online_scene)
+        Self::set_network_scene_name(self.online_scene);
 
         // TODO SceneManager.sceneLoaded += OnSceneLoaded;
-    }
 
-    fn start(&mut self) {
         self.start_server();
     }
 

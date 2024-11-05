@@ -24,7 +24,7 @@ pub struct NetworkConnection {
 }
 
 pub trait NetworkConnectionTrait {
-    fn network_connection(conn_id: u64) -> Self;
+    fn new(conn_id: u64) -> Self;
     fn connection_id(&self) -> u64;
     fn last_ping_time(&self) -> f64;
     fn set_last_ping_time(&mut self, time: f64);
@@ -75,7 +75,7 @@ impl NetworkConnection {
 }
 
 impl NetworkConnectionTrait for NetworkConnection {
-    fn network_connection(conn_id: u64) -> Self {
+    fn new(conn_id: u64) -> Self {
         let ts = NetworkTime::local_time();
         let reliable_batcher_threshold = match Transport::get_active_transport() {
             None => {

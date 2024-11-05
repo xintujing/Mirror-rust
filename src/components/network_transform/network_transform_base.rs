@@ -2,6 +2,21 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
 use std::collections::BTreeSet;
 
+#[derive(Debug)]
+pub enum CoordinateSpace{
+    Local,
+    World
+}
+
+impl CoordinateSpace {
+    pub fn from_u8(value: u8) -> Self {
+        match value {
+            0 => CoordinateSpace::Local,
+            1 => CoordinateSpace::World,
+            _ => CoordinateSpace::Local,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct NetworkTransformBase {
@@ -20,7 +35,7 @@ pub struct NetworkTransformBase {
     pub interpolate_position: bool,
     pub interpolate_rotation: bool,
     pub interpolate_scale: bool,
-    pub coordinate_space: u8,
+    pub coordinate_space: CoordinateSpace,
     pub send_interval_multiplier: u32,
     pub timeline_offset: bool,
 }
@@ -42,7 +57,7 @@ impl NetworkTransformBase {
             interpolate_position: network_transform_base_setting.interpolate_position,
             interpolate_rotation: network_transform_base_setting.interpolate_rotation,
             interpolate_scale: network_transform_base_setting.interpolate_scale,
-            coordinate_space: network_transform_base_setting.coordinate_space,
+            coordinate_space: CoordinateSpace::from_u8(network_transform_base_setting.coordinate_space),
             send_interval_multiplier: network_transform_base_setting.send_interval_multiplier,
             timeline_offset: network_transform_base_setting.timeline_offset,
         }
