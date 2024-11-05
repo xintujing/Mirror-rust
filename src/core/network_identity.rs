@@ -79,7 +79,9 @@ pub struct NetworkIdentity {
 
 impl NetworkIdentity {
     pub fn new(asset_id: u32, game_object: GameObject) -> u32 {
+        // TODO fix
         let net_id = Self::get_static_next_network_id();
+        let net_id = 0;
         let mut network_identity = NetworkIdentity {
             scene_id: 0,
             asset_id,
@@ -92,7 +94,7 @@ impl NetworkIdentity {
             conn_to_client: 0,
             is_init: false,
             destroy_called: false,
-            visibility: Visibility::Default,
+            visibility: Visibility::Shown,
             last_serialization: NetworkIdentitySerialization::new(0),
             scene_ids: Default::default(),
             has_spawned: false,

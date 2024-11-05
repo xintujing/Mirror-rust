@@ -2,6 +2,7 @@ use crate::core::batching::un_batcher::UnBatcher;
 use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
+use crate::core::network_identity::Visibility::Shown;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_manager::GameObject;
 use crate::core::network_messages::NetworkMessages;
@@ -23,6 +24,7 @@ use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
 use std::sync::{RwLock, RwLockReadGuard};
+use tklog::LEVEL::Debug;
 use tklog::{debug, error, warn};
 
 lazy_static! {
@@ -466,17 +468,87 @@ impl NetworkServer {
         false
     }
 
-    fn spawn(game_object: GameObject, conn_id: u64) {
-        // TODO SpawnObject
+    fn spawn(identity: NetworkIdentity, conn_id: u64) {
+        Self::spawn_obj(identity, conn_id);
     }
 
-    fn spawn_obj(connection_id: u64) {
-        // TODO SpawnObject
+    // SpawnObject(
+    fn spawn_obj(mut identity: NetworkIdentity, conn_id: u64) {
+        debug!(format!("Server.spawn_obj: netId: {}, connId: {}", identity.net_id, conn_id));
+
+        if !NetworkServer::get_static_active() {
+            error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object));
+            return;
+        }
+
+        if identity.spawned_from_instantiate {
+            return;
+        }
+
+        if identity.net_id != 0 && NetworkServer::get_static_spawned_network_identities().contains_key(&identity.net_id) {
+            warn!(format!("SpawnObject for {:?}, netId {} already exists. Use UnSpawnObject first.", identity.game_object, identity.net_id));
+            return;
+        }
+
+
+        if identity.net_id == 0 {
+            identity.set_connection_id_to_client(conn_id);
+
+            identity.net_id = NetworkIdentity::get_static_next_network_id();
+
+            identity.on_start_server();
+
+            debug!(format!("Server.SpawnObject3: netId: {}, connId: {}, sceneId: {}, assetId: {}", identity.net_id, conn_id, identity.scene_id, identity.asset_id));
+
+            Self::rebuild_observers(&mut identity, true);
+
+            debug!(format!("Server.SpawnObject2: netId: {}, connId: {}, sceneId: {}, assetId: {}", identity.net_id, conn_id, identity.scene_id, identity.asset_id));
+            NetworkServer::get_static_spawned_network_identities().insert(identity.net_id, identity);
+            debug!("Server.SpawnObject: netId1:".to_string())
+        } else {
+            Self::rebuild_observers(&mut identity, true);
+        }
+
+        // TODO aoi
+
+        // TODO rebuild_observers
+
+    }
+
+    fn rebuild_observers(identity: &mut NetworkIdentity, initialize: bool) {
+        // TODO aoi
+        if identity.visibility == Shown {
+            Self::rebuild_observers_default(identity, initialize);
+        } else {
+            // TODO aoi
+        }
+    }
+
+    fn rebuild_observers_default(identity: &mut NetworkIdentity, initialize: bool) {
+        if initialize {
+            if identity.visibility != Visibility::Hidden {
+                Self::add_all_ready_server_connections_to_observers(identity);
+            } else if (identity.get_connection_id_to_client() != 0) {
+                // force hidden, but add owner connection
+                identity.add_observer(identity.get_connection_id_to_client());
+            }
+        }
+    }
+
+    fn add_all_ready_server_connections_to_observers(identity: &mut NetworkIdentity) {
+        NetworkServer::get_static_network_connections().iter_mut().for_each(|mut connection| {
+            if connection.is_ready() {
+                identity.add_observer(connection.connection_id());
+            }
+        });
     }
 
     fn respawn(net_id: u32) {
         if net_id == 0 {
-            // TODO: Spawn(identity.gameObject, identity.connectionToClient);
+            if let Some((_, identity)) = NetworkServer::get_static_spawned_network_identities().remove(&net_id) {
+                let conn_id = identity.get_connection_id_to_client();
+                Self::spawn(identity, conn_id);
+            }
         } else {
             // 找到 NetworkIdentity
             if let Some(mut identity) = NetworkServer::get_static_spawned_network_identities().get_mut(&net_id) {

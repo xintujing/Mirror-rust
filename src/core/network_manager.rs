@@ -128,11 +128,11 @@ pub struct NetworkManager {
 
 impl NetworkManager {
     fn initialize_singleton(&self) -> bool {
-        if Self::singleton_exists() {
+        if Self::network_manager_singleton_exists() {
             return true;
         }
         if self.dont_destroy_on_load {
-            if Self::singleton_exists() {
+            if Self::network_manager_singleton_exists() {
                 warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;
             }
@@ -180,6 +180,7 @@ impl NetworkManager {
         Self::register_server_messages();
     }
 
+    // zhuce
     fn register_server_messages() {
         // TODO NetworkServer.RegisterHandler<NetworkPingMessage>(OnPingMessage);
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
@@ -246,13 +247,13 @@ impl NetworkManager {
         }
     }
 
-    pub fn singleton_exists() -> bool {
+    pub fn network_manager_singleton_exists() -> bool {
         unsafe {
             NETWORK_MANAGER_SINGLETON.is_some()
         }
     }
 
-    pub fn set_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
+    pub fn set_network_manager_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
         unsafe {
             NETWORK_MANAGER_SINGLETON.replace(network_manager);
         }
@@ -298,6 +299,7 @@ pub trait NetworkManagerTrait {
         if let Some(sp) = self.get_start_position() {
             start_position = sp;
         }
+
         // 修改 player_obj 的 transform 属性
         player_obj.transform = start_position;
 
@@ -345,7 +347,7 @@ impl NetworkManagerTrait for NetworkManager {
         // TODO  fix  NetworkManager cfg
         manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
 
-        NetworkManager::set_singleton(Box::new(manager));
+        NetworkManager::set_network_manager_singleton(Box::new(manager));
     }
 
     fn get_network_manager(&mut self) -> &mut NetworkManager {

@@ -20,11 +20,11 @@ fn main() {
         println!("message hash: {} require_authentication: {}", item.key(), item.require_authentication);
     });
 
-    loop {
-        NetworkServer::for_each_network_connection(|mut item| {
-            println!("connection hash: {} address: {}", item.key(), item.address);
-        });
+    NetworkServer::for_each_network_connection(|mut item| {
+        println!("connection hash: {} address: {}", item.key(), item.address);
+    });
 
+    loop {
         NetworkServer::network_early_update();
         NetworkServer::network_late_update();
     }
