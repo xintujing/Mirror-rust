@@ -8,6 +8,8 @@ use crate::core::network_writer::NetworkMessageWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
+use crate::tools::utils::to_hex_string;
+use std::fmt::format;
 use tklog::{debug, error};
 
 pub struct NetworkConnection {

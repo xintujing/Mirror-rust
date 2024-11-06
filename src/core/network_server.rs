@@ -197,6 +197,7 @@ impl NetworkServer {
         });
     }
 
+    // BroadcastToConnection(NetworkConnectionToClient connection)
     fn broadcast_to_connection(conn: &mut NetworkConnectionToClient) {
         for i in 0..conn.observing.len() {
             let net_id = conn.observing[i];
@@ -207,7 +208,7 @@ impl NetworkServer {
                 }
             } else {
                 warn!(format!("Server.broadcast_to_connection: identity is null. Removing from observing list. connectionId: {}, netId: {}", conn.connection_id(), net_id));
-                conn.network_connection.owned.retain(|id| *id != net_id);
+                conn.observing.retain(|id| *id != net_id);
             }
         }
     }
@@ -263,14 +264,8 @@ impl NetworkServer {
         let is_owner = identity.get_connection_id_to_client() == conn.network_connection.connection_id();
         // 是否是本地玩家
         let is_local_player = conn.network_connection.net_id == identity.net_id;
-        debug!(format!("is_local_player: {}, is_owner: {}", is_local_player, is_owner));
         // 创建 SpawnMessage 的 payload
         let payload = Self::create_spawn_message_payload(is_owner, identity);
-        // let payload = to_vec_u8("");
-        // 031CCDCCE44000000000C3F580C00000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F
-        // 031C00000000000000009A99193F0000000000000000000000000000803F160000000001000000803F0000803F0000803F0000803F
-        //   0000000000000000009A99193F0000000000000000000000000000803F
-        debug!(format!("payload: {:?}", to_hex_string(payload.as_slice())));
         // 发送 SpawnMessage
         let spawn_message = SpawnMessage::new(identity.net_id,
                                               is_local_player,
@@ -281,6 +276,7 @@ impl NetworkServer {
                                               identity.game_object.transform.rotation,
                                               identity.game_object.transform.scale,
                                               payload);
+        println!("spawn_message: {:?}", spawn_message);
         // 发送 SpawnMessage
         conn.send_network_message(spawn_message, TransportChannel::Reliable);
     }
@@ -516,17 +512,17 @@ impl NetworkServer {
 
             // 添加到 SPAWNED 中
             NetworkServer::get_static_spawned_network_identities().insert(identity.net_id, identity);
-        } else {
-            Self::rebuild_observers(&mut identity, true);
+
+            return;
         }
 
         // TODO aoi
-
+        Self::rebuild_observers(&mut identity, true);
     }
 
     fn rebuild_observers(identity: &mut NetworkIdentity, initialize: bool) {
         // TODO aoi
-        if identity.visibility == ForceShown {
+        if "aoi" == "aoi" || identity.visibility == ForceShown {
             Self::rebuild_observers_default(identity, initialize);
         } else {
             // TODO aoi
@@ -623,18 +619,11 @@ impl NetworkServer {
     }
     // 设置客户端准备就绪
     pub fn set_client_ready(conn_id: u64) {
-        // 标志是否需要为连接生成观察者
-        let mut need_spawn_observers_for_connection = false;
         if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
             connection.set_ready(true);
-            if connection.network_connection.net_id != 0 {
-                // 如果 connection.network_connection.identity_id 在 NetworkIdentity 中
-                need_spawn_observers_for_connection = true;
-            }
         }
-        if need_spawn_observers_for_connection {
-            Self::spawn_observers_for_connection(conn_id);
-        }
+        // 为连接生成观察者
+        Self::spawn_observers_for_connection(conn_id);
     }
     // 为连接生成观察者
     fn spawn_observers_for_connection(conn_id: u64) {

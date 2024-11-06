@@ -92,7 +92,7 @@ impl NetworkIdentity {
             conn_to_client: 0,
             is_init: false,
             destroy_called: false,
-            visibility: Visibility::ForceShown,
+            visibility: Visibility::Default,
             last_serialization: NetworkIdentitySerialization::new(0),
             scene_ids: Default::default(),
             has_spawned: false,
@@ -117,7 +117,7 @@ impl NetworkIdentity {
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
             // TODO  handle_remote_call
-            // error!("Failed to invoke remote call for function hash: ", function_hash);
+            error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {

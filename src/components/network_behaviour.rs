@@ -49,8 +49,8 @@ impl NetworkBehaviour {
             sync_direction: SyncDirection::from_u8(network_behaviour_setting.sync_direction),
             sync_mode: SyncMode::Observers,
             component_index,
-            sync_var_dirty_bits: u64::MAX,
-            sync_object_dirty_bits: u64::MAX,
+            sync_var_dirty_bits: 0,
+            sync_object_dirty_bits: 0,
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -119,7 +119,8 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
     }
 
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        todo!()
+        // SerializeSyncObjects(writer, initialState);
+        // SerializeSyncVars(writer, initialState);
     }
 
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {

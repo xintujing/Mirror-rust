@@ -54,7 +54,7 @@ impl Transform {
 
     pub fn default() -> Self {
         Self {
-            positions: Vector3::new(0.0, 0.0, 0.6),
+            positions: Vector3::new(0.0, 0.0, 0.0),
             rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
             scale: Vector3::new(1.0, 1.0, 1.0),
         }

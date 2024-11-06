@@ -42,11 +42,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         todo!()
     }
 
-    fn on_start_server(&mut self) {
-        // TODO
-    }
+    fn on_start_server(&mut self) {}
 
-    fn on_stop_server(&mut self) {
-        todo!()
-    }
+    fn on_stop_server(&mut self) {}
 }

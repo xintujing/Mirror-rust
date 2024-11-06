@@ -143,66 +143,48 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn write_vector2(&mut self, value: Vector2<f32>) {
-        self.write_blittable(value.x);
-        self.write_blittable(value.y);
+        self.write_blittable(value.data);
     }
 
     fn write_vector2_nullable(&mut self, value: Option<Vector2<f32>>) {
         if let Some(v) = value {
-            self.write_blittable(v.x);
-            self.write_blittable(v.y);
+            self.write_blittable(v.data);
         } else {
             self.write_byte(0);
         }
     }
 
     fn write_vector3(&mut self, value: Vector3<f32>) {
-        self.write_blittable(value.x);
-        self.write_blittable(value.y);
-        self.write_blittable(value.z);
+        self.write_blittable(value.data);
     }
 
     fn write_vector3_nullable(&mut self, value: Option<Vector3<f32>>) {
         if let Some(v) = value {
-            self.write_blittable(v.x);
-            self.write_blittable(v.y);
-            self.write_blittable(v.z);
+            self.write_blittable(v.data);
         } else {
             self.write_byte(0);
         }
     }
 
     fn write_vector4(&mut self, value: Vector4<f32>) {
-        self.write_blittable(value.x);
-        self.write_blittable(value.y);
-        self.write_blittable(value.z);
-        self.write_blittable(value.w);
+        self.write_blittable(value.data);
     }
 
     fn write_vector4_nullable(&mut self, value: Option<Vector4<f32>>) {
         if let Some(v) = value {
-            self.write_blittable(v.x);
-            self.write_blittable(v.y);
-            self.write_blittable(v.z);
-            self.write_blittable(v.w);
+            self.write_blittable(v.data)
         } else {
             self.write_byte(0);
         }
     }
 
     fn write_quaternion(&mut self, value: Quaternion<f32>) {
-        self.write_blittable(value.coords.x);
-        self.write_blittable(value.coords.y);
-        self.write_blittable(value.coords.z);
-        self.write_blittable(value.coords.w);
+        self.write_blittable(value.coords.data);
     }
 
     fn write_quaternion_nullable(&mut self, value: Option<Quaternion<f32>>) {
         if let Some(v) = value {
-            self.write_blittable(v.coords.x);
-            self.write_blittable(v.coords.y);
-            self.write_blittable(v.coords.z);
-            self.write_blittable(v.coords.w);
+            self.write_blittable(v.coords.data);
         } else {
             self.write_byte(0);
         }
