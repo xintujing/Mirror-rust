@@ -100,6 +100,14 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         self.network_connection.set_authenticated(authenticated);
     }
 
+    fn owned(&mut self) -> &mut Vec<u32> {
+        self.network_connection.owned()
+    }
+
+    fn set_owned(&mut self, owned: Vec<u32>) {
+        self.network_connection.set_owned(owned);
+    }
+
     fn send(&mut self, segment: &[u8], channel: TransportChannel) {
         self.network_connection.send(segment, channel);
     }
@@ -201,7 +209,7 @@ impl NetworkConnectionToClient {
             if *net_id != 0 {
                 if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
                     if identity.scene_id != 0 {
-                        // TODO NetworkServer.RemovePlayerForConnection(this, RemovePlayerOptions.KeepActive);
+                        // TODO NetworkServer.remove_player_for_connection(this, RemovePlayerOptions.KeepActive);
                     } else {
                         // TODO NetworkServer.Destroy(netIdentity.gameObject);
                     }

@@ -633,10 +633,33 @@ impl NetworkServer {
         }
     }
 
-    fn destroy_player_for_connection(connection: &mut NetworkConnectionToClient) {
-        connection.destroy_owned_objects();
-        connection.remove_from_observings_observers();
-        connection.set_net_id(0);
+    pub fn destroy_player_for_connection(conn: &mut NetworkConnectionToClient) {
+        conn.destroy_owned_objects();
+        conn.remove_from_observings_observers();
+        conn.set_net_id(0);
+    }
+
+    pub fn remove_player_for_connection(conn: &mut NetworkConnectionToClient, options: RemovePlayerOptions) {
+        if conn.net_id() == 0 {
+            return;
+        }
+
+        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
+            match options {
+                RemovePlayerOptions::KeepActive => {
+                    identity.set_connection_id_to_client(0);
+                    conn.owned().retain(|id| *id != identity.net_id());
+                    // TODO SendChangeOwnerMessage
+                }
+                RemovePlayerOptions::UnSpawn => {
+                    // TODO UnSpawn(conn.identity.gameObject);
+                }
+                RemovePlayerOptions::Destroy => {
+                    // TODO Destroy(conn.identity.gameObject);
+                }
+            }
+        }
+        conn.set_net_id(0);
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
@@ -751,9 +774,10 @@ impl NetworkServer {
 
     // 处理 TransportError 消息
     fn on_transport_error(connection_id: u64, transport_error: TransportError) {
-        warn!(format!("Server.HandleError: connectionId: {}, error: {:?}", connection_id, transport_error));
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            // TODO ON_ERROR_EVENT?.invoke(conn, error, reason);
+        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+            if let Some(on_error_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnErrorEvent) {
+                on_error_event(&mut connection, transport_error);
+            }
         }
     }
 
@@ -764,6 +788,7 @@ impl NetworkServer {
             // TODO ON_TRANSPORT_EXCEPTION_EVENT?.invoke(conn, error, reason);
         }
     }
+
 
     // 处理 Connected 消息
     fn on_connected(mut conn: NetworkConnectionToClient) {

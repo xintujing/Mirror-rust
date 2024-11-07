@@ -21,7 +21,7 @@ pub struct NetworkConnection {
     is_authenticated: bool,
     pub authentication_data: Vec<u8>,
     net_id: u32,
-    pub owned: Vec<u32>,
+    owned: Vec<u32>,
     remote_time_stamp: f64,
 }
 
@@ -39,6 +39,8 @@ pub trait NetworkConnectionTrait {
     fn set_ready(&mut self, ready: bool);
     fn is_authenticated(&self) -> bool;
     fn set_authenticated(&mut self, authenticated: bool);
+    fn owned(&mut self) -> &mut Vec<u32>;
+    fn set_owned(&mut self, owned: Vec<u32>);
     fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
         T: NetworkMessageWriter + NetworkMessageReader + Send,
@@ -160,6 +162,14 @@ impl NetworkConnectionTrait for NetworkConnection {
 
     fn set_authenticated(&mut self, authenticated: bool) {
         self.is_authenticated = authenticated;
+    }
+
+    fn owned(&mut self) -> &mut Vec<u32> {
+        &mut self.owned
+    }
+
+    fn set_owned(&mut self, owned: Vec<u32>) {
+        self.owned = owned;
     }
 
     fn send(&mut self, segment: &[u8], channel: TransportChannel) {

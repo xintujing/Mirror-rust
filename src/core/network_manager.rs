@@ -222,11 +222,15 @@ impl NetworkManager {
     fn register_server_messages() {
         // 添加连接事件
         NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnConnectedEvent, Box::new(Self::on_server_connect_internal));
+        // 添加断开连接事件
+        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnDisconnectedEvent, Box::new(Self::on_server_disconnect));
         // 添加 AddPlayerMessage 消息处理
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
         // 添加 ReadyMessage 消息处理
         NetworkServer::replace_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
     }
+
+    // OnServerConnectInternal
     fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError) {
         // 获取 NetworkManagerTrait 的单例
         let network_manager = NetworkManagerStatic::get_network_manager_singleton();
@@ -240,6 +244,11 @@ impl NetworkManager {
             // 如果 NetworkManager 的 authenticator 为空
             Self::on_server_authenticated(conn, network_manager);
         }
+    }
+
+    // OnServerDisconnect
+    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError) {
+        NetworkServer::destroy_player_for_connection(conn);
     }
 
     fn on_server_authenticated(conn: &mut NetworkConnectionToClient, network_manager: &Box<dyn NetworkManagerTrait>) {
