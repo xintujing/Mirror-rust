@@ -2,7 +2,7 @@ use crate::core::messages::{NetworkPingMessage, NetworkPongMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
-use crate::core::network_server::NetworkServer;
+use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::transport::TransportChannel;
 use atomic::Atomic;
 use lazy_static::lazy_static;
@@ -96,7 +96,7 @@ impl NetworkTime {
         let adjusted_error = local_time - message.predicted_time_adjusted;
         // new prediction error
         let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
+        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
             // send pong message
             connection.send_network_message(pong_message, TransportChannel::Reliable);
         }

@@ -9,7 +9,7 @@ use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
-use crate::core::network_server::NetworkServer;
+use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
@@ -106,7 +106,7 @@ impl NetworkIdentity {
     }
     pub fn set_net_id(&mut self, net_id: u32) {
         self.net_id = net_id;
-        if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&self.conn_to_client) {
+        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
             conn.set_net_id(self.net_id);
         }
     }
@@ -330,7 +330,7 @@ impl NetworkIdentity {
         // 添加观察者
         self.observers.push(conn_id);
 
-        if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
             // 添加到观察者
             conn.add_to_observing(self);
         }

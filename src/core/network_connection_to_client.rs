@@ -1,6 +1,6 @@
 use crate::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::core::network_identity::NetworkIdentity;
-use crate::core::network_server::NetworkServer;
+use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
@@ -118,12 +118,12 @@ impl NetworkConnectionToClient {
         }
 
 
-        if let Ok(snapshot_settings) = NetworkServer::get_static_snapshot_settings().read() {
+        if let Ok(snapshot_settings) = NetworkServerStatic::get_static_snapshot_settings().read() {
 
             // dynamic adjustment
             if snapshot_settings.dynamic_adjustment {
                 self.buffer_time_multiplier = SnapshotInterpolation::dynamic_adjustment(
-                    NetworkServer::get_static_send_interval() as f64,
+                    NetworkServerStatic::get_static_send_interval() as f64,
                     self.delivery_time_ema.standard_deviation,
                     snapshot_settings.dynamic_adjustment_tolerance as f64,
                 )
@@ -189,9 +189,9 @@ impl NetworkConnectionToClient {
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        for identity_id in self.network_connection.owned.iter() {
-            if *identity_id != 0 {
-                if let Some(identity) = NetworkServer::get_static_spawned_network_identities().get_mut(identity_id) {
+        for net_id in self.network_connection.owned.iter() {
+            if *net_id != 0 {
+                if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
                     if identity.scene_id != 0 {
                         // TODO NetworkServer.RemovePlayerForConnection(this, RemovePlayerOptions.KeepActive);
                     } else {
@@ -199,7 +199,7 @@ impl NetworkConnectionToClient {
                     }
                 }
             }
-            NetworkServer::remove_static_spawned_network_identity(*identity_id);
+            NetworkServerStatic::get_static_spawned_network_identities().remove(net_id);
         }
         self.network_connection.owned.clear();
     }

@@ -6,7 +6,7 @@ use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
-use crate::core::network_server::NetworkServer;
+use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::transport::{Transport, TransportChannel};
 use atomic::Atomic;
@@ -147,7 +147,7 @@ impl NetworkManager {
     }
 
     pub fn start_server(&mut self) {
-        if NetworkServer::get_static_active() {
+        if NetworkServerStatic::get_static_active() {
             warn!("Server already started.");
             return;
         }
@@ -168,8 +168,8 @@ impl NetworkManager {
     fn setup_server(&mut self) {
         self.initialize_singleton();
 
-        NetworkServer::set_static_disconnect_inactive_connections(self.disconnect_inactive_connections);
-        NetworkServer::set_static_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
+        NetworkServerStatic::set_static_disconnect_inactive_connections(self.disconnect_inactive_connections);
+        NetworkServerStatic::set_static_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
         //  TODO  exceptionsDisconnect
 
         if let Some(ref mut authenticator) = self.authenticator {
@@ -223,7 +223,7 @@ impl NetworkManager {
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 false
-        if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
             if connection.net_id() != 0 {
                 error!("There is already a player for this connection.");
                 return;
@@ -242,7 +242,7 @@ impl NetworkManager {
     }
 
     fn apply_configuration(&mut self) {
-        NetworkServer::set_static_tick_rate(self.send_rate);
+        NetworkServerStatic::set_static_tick_rate(self.send_rate);
         // NetworkClient.snapshot_settings = snapshot_settings;
         // NetworkClient.connectionQualityInterval = evaluationInterval;
         // NetworkClient.connectionQualityMethod = evaluationMethod;
@@ -318,7 +318,7 @@ pub trait NetworkManagerTrait {
     }
     fn get_network_manager(&mut self) -> &mut NetworkManager;
     fn is_network_active(&self) -> bool {
-        NetworkServer::get_static_active()
+        NetworkServerStatic::get_static_active()
     }
     fn set_network_manager_mode(&mut self, mode: NetworkManagerMode);
     fn get_network_manager_mode(&mut self) -> &NetworkManagerMode;
