@@ -7,10 +7,8 @@ use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
-use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::transport::{Transport, TransportChannel, TransportError};
 use atomic::Atomic;
-use dashmap::DashMap;
 use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
@@ -23,6 +21,43 @@ static mut NETWORK_SCENE_NAME: &'static str = "";
 lazy_static! {
     static ref START_POSITIONS: Vec<Transform> = Vec::new();
     static ref START_POSITIONS_INDEX: Atomic<u32> = Atomic::new(0);
+}
+
+// NetworkManagerStatic
+pub struct NetworkManagerStatic;
+
+// NetworkManagerStatic 的默认实现
+impl NetworkManagerStatic {
+    pub fn get_network_manager_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
+        unsafe {
+            if let Some(ref mut singleton) = NETWORK_MANAGER_SINGLETON {
+                return singleton;
+            }
+            panic!("NetworkManager singleton not found.");
+        }
+    }
+
+    pub fn network_manager_singleton_exists() -> bool {
+        unsafe {
+            NETWORK_MANAGER_SINGLETON.is_some()
+        }
+    }
+
+    pub fn set_network_manager_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
+        unsafe {
+            NETWORK_MANAGER_SINGLETON.replace(network_manager);
+        }
+    }
+    pub fn get_network_scene_name() -> &'static str {
+        unsafe {
+            NETWORK_SCENE_NAME
+        }
+    }
+    pub fn set_network_scene_name(name: &'static str) {
+        unsafe {
+            NETWORK_SCENE_NAME = name;
+        }
+    }
 }
 
 #[derive(Debug, PartialOrd, PartialEq)]
@@ -44,6 +79,7 @@ pub struct Transform {
     pub scale: Vector3<f32>,
 }
 
+// GameObject 的 Transform 组件
 impl Transform {
     pub fn new(positions: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self {
@@ -54,14 +90,11 @@ impl Transform {
     }
 
     pub fn default() -> Self {
-        Self {
-            positions: Vector3::new(0.0, 100.0, 0.0),
-            rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
-            scale: Vector3::new(1.0, 1.0, 1.0),
-        }
+        Self::new(Vector3::new(0.0, 0.0, 0.0), Quaternion::new(1.0, 0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0))
     }
 }
 
+// GameObject
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub name: String,
@@ -69,6 +102,7 @@ pub struct GameObject {
     pub transform: Transform,
 }
 
+// GameObject 的默认实现
 impl GameObject {
     pub fn default() -> Self {
         Self {
@@ -98,13 +132,14 @@ impl GameObject {
         self.name == "" && self.prefab == ""
     }
 }
-
+// GameObject 的 PartialEq 实现
 impl PartialEq for GameObject {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name && self.prefab == other.prefab
     }
 }
 
+// NetworkManager
 pub struct NetworkManager {
     player_obj: GameObject,
     pub mode: NetworkManagerMode,
@@ -128,13 +163,14 @@ pub struct NetworkManager {
     pub time_interpolation_gui: bool,
 }
 
+// NetworkManager 的默认实现
 impl NetworkManager {
     fn initialize_singleton(&self) -> bool {
-        if Self::network_manager_singleton_exists() {
+        if NetworkManagerStatic::network_manager_singleton_exists() {
             return true;
         }
         if self.dont_destroy_on_load {
-            if Self::network_manager_singleton_exists() {
+            if NetworkManagerStatic::network_manager_singleton_exists() {
                 warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;
             }
@@ -193,7 +229,7 @@ impl NetworkManager {
     }
     fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError) {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = Self::get_network_manager_singleton();
+        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
 
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
@@ -211,7 +247,7 @@ impl NetworkManager {
         conn.set_authenticated(true);
 
         // 获取 场景名称
-        let network_scene_name = Self::get_network_scene_name();
+        let network_scene_name = NetworkManagerStatic::get_network_scene_name();
         // 如果 场景名称不为空 且 场景名称不等于 NetworkManager 的 offline_scene
         if network_scene_name != "" && network_scene_name != network_manager.offline_scene() {
             // 创建 SceneMessage 消息
@@ -234,7 +270,7 @@ impl NetworkManager {
     fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         debug!("on_server_add_player_internal");
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = Self::get_network_manager_singleton();
+        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
 
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
@@ -255,7 +291,7 @@ impl NetworkManager {
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 false
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
             if connection.net_id() != 0 {
                 error!("There is already a player for this connection.");
                 return;
@@ -278,38 +314,6 @@ impl NetworkManager {
         // NetworkClient.snapshot_settings = snapshot_settings;
         // NetworkClient.connectionQualityInterval = evaluationInterval;
         // NetworkClient.connectionQualityMethod = evaluationMethod;
-    }
-
-    // ********************************************************************
-    pub fn get_network_manager_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
-        unsafe {
-            if let Some(ref mut singleton) = NETWORK_MANAGER_SINGLETON {
-                return singleton;
-            }
-            panic!("NetworkManager singleton not found.");
-        }
-    }
-
-    pub fn network_manager_singleton_exists() -> bool {
-        unsafe {
-            NETWORK_MANAGER_SINGLETON.is_some()
-        }
-    }
-
-    pub fn set_network_manager_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
-        unsafe {
-            NETWORK_MANAGER_SINGLETON.replace(network_manager);
-        }
-    }
-    pub fn get_network_scene_name() -> &'static str {
-        unsafe {
-            NETWORK_SCENE_NAME
-        }
-    }
-    pub fn set_network_scene_name(name: &'static str) {
-        unsafe {
-            NETWORK_SCENE_NAME = name;
-        }
     }
 }
 
@@ -441,7 +445,7 @@ impl NetworkManagerTrait for NetworkManager {
         // TODO  fix  NetworkManager cfg
         manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
 
-        NetworkManager::set_network_manager_singleton(Box::new(manager));
+        NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));
     }
 
     fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
@@ -475,7 +479,7 @@ impl NetworkManagerTrait for NetworkManager {
         }
         self.apply_configuration();
 
-        Self::set_network_scene_name(self.online_scene);
+        NetworkManagerStatic::set_network_scene_name(self.online_scene);
 
         // TODO SceneManager.sceneLoaded += OnSceneLoaded;
 
@@ -498,11 +502,11 @@ impl NetworkManagerTrait for NetworkManager {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::network_manager::NetworkManager;
+    use crate::core::network_manager::NetworkManagerStatic;
 
     #[test]
     fn test_network_manager() {
-        NetworkManager::set_network_scene_name("test");
-        println!("{}", NetworkManager::get_network_scene_name());
+        NetworkManagerStatic::set_network_scene_name("test");
+        println!("{}", NetworkManagerStatic::get_network_scene_name());
     }
 }

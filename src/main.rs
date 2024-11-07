@@ -1,4 +1,4 @@
-use crate::core::network_manager::{NetworkManager, NetworkManagerTrait};
+use crate::core::network_manager::{NetworkManager, NetworkManagerStatic, NetworkManagerTrait};
 use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 
@@ -12,7 +12,7 @@ fn main() {
 
     NetworkManager::awake();
 
-    let network_manager_singleton = NetworkManager::get_network_manager_singleton();
+    let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
 
     network_manager_singleton.start();
 

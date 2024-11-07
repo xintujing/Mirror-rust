@@ -1,5 +1,5 @@
 use crate::core::batching::un_batcher::UnBatcher;
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SceneMessage, SceneOperation, SpawnMessage, TimeSnapshotMessage};
+use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::Visibility::ForceShown;
@@ -9,23 +9,18 @@ use crate::core::network_messages::NetworkMessages;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
 use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_time::NetworkTime;
-use crate::core::network_writer::NetworkWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
-use crate::tools::utils::{to_hex_string, to_vec_u8};
 use atomic::Atomic;
-use bytes::Bytes;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
-use std::sync::{RwLock, RwLockReadGuard};
-use tklog::LEVEL::Debug;
+use std::sync::RwLock;
 use tklog::{debug, error, warn};
 
 pub enum RemovePlayerOptions {
