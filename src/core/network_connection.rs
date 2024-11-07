@@ -18,7 +18,7 @@ pub struct NetworkConnection {
     unreliable_batcher: Batcher,
     is_ready: bool,
     last_message_time: f64,
-    pub is_authenticated: bool,
+    is_authenticated: bool,
     pub authentication_data: Vec<u8>,
     net_id: u32,
     pub owned: Vec<u32>,
@@ -37,6 +37,8 @@ pub trait NetworkConnectionTrait {
     fn set_remote_time_stamp(&mut self, time: f64);
     fn is_ready(&self) -> bool;
     fn set_ready(&mut self, ready: bool);
+    fn is_authenticated(&self) -> bool;
+    fn set_authenticated(&mut self, authenticated: bool);
     fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
     where
         T: NetworkMessageWriter + NetworkMessageReader + Send,
@@ -150,6 +152,14 @@ impl NetworkConnectionTrait for NetworkConnection {
 
     fn set_ready(&mut self, ready: bool) {
         self.is_ready = ready;
+    }
+
+    fn is_authenticated(&self) -> bool {
+        self.is_authenticated
+    }
+
+    fn set_authenticated(&mut self, authenticated: bool) {
+        self.is_authenticated = authenticated;
     }
 
     fn send(&mut self, segment: &[u8], channel: TransportChannel) {

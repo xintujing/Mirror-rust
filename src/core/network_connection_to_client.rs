@@ -92,6 +92,14 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         self.network_connection.set_ready(ready);
     }
 
+    fn is_authenticated(&self) -> bool {
+        self.network_connection.is_authenticated()
+    }
+
+    fn set_authenticated(&mut self, authenticated: bool) {
+        self.network_connection.set_authenticated(authenticated);
+    }
+
     fn send(&mut self, segment: &[u8], channel: TransportChannel) {
         self.network_connection.send(segment, channel);
     }
