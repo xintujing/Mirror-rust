@@ -98,7 +98,7 @@ impl NetworkTime {
         let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
         if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&connection_id) {
             // send pong message
-            connection.network_connection.send_network_message(pong_message, TransportChannel::Reliable);
+            connection.send_network_message(pong_message, TransportChannel::Reliable);
         }
     }
 

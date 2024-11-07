@@ -10,7 +10,7 @@ use crate::tools::logger::warn;
 use std::collections::BTreeSet;
 
 pub struct NetworkConnectionToClient {
-    pub network_connection: NetworkConnection,
+    network_connection: NetworkConnection,
     pub reliable_rpcs_batch: NetworkWriter,
     pub unreliable_rpcs_batch: NetworkWriter,
     pub address: String,
@@ -52,6 +52,14 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         network_connection_to_client
     }
 
+    fn net_id(&self) -> u32 {
+        self.network_connection.net_id()
+    }
+
+    fn set_net_id(&mut self, net_id: u32) {
+        self.network_connection.set_net_id(net_id);
+    }
+
     fn connection_id(&self) -> u64 {
         self.network_connection.connection_id()
     }
@@ -66,6 +74,14 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
 
     fn last_message_time(&self) -> f64 {
         self.network_connection.last_message_time()
+    }
+
+    fn remote_time_stamp(&self) -> f64 {
+        self.network_connection.remote_time_stamp()
+    }
+
+    fn set_remote_time_stamp(&mut self, time: f64) {
+        self.network_connection.set_remote_time_stamp(time);
     }
 
     fn is_ready(&self) -> bool {
@@ -147,11 +163,11 @@ impl NetworkConnectionToClient {
         }
     }
     pub fn add_to_observing(&mut self, network_identity: &mut NetworkIdentity) {
-        self.observing.push(network_identity.net_id);
+        self.observing.push(network_identity.net_id());
         NetworkServer::show_for_connection(network_identity, self);
     }
     pub fn remove_from_observing_identities(&mut self, network_identity: &mut NetworkIdentity, is_destroyed: bool) {
-        self.observing.retain(|net_id| *net_id != network_identity.net_id);
+        self.observing.retain(|net_id| *net_id != network_identity.net_id());
         if !is_destroyed {
             NetworkServer::hide_for_connection(network_identity, self);
         }

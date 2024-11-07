@@ -20,17 +20,21 @@ pub struct NetworkConnection {
     last_message_time: f64,
     pub is_authenticated: bool,
     pub authentication_data: Vec<u8>,
-    pub net_id: u32,
+    net_id: u32,
     pub owned: Vec<u32>,
-    pub remote_time_stamp: f64,
+    remote_time_stamp: f64,
 }
 
 pub trait NetworkConnectionTrait {
     fn new(conn_id: u64) -> Self;
+    fn net_id(&self) -> u32;
+    fn set_net_id(&mut self, net_id: u32);
     fn connection_id(&self) -> u64;
     fn last_ping_time(&self) -> f64;
     fn set_last_ping_time(&mut self, time: f64);
     fn last_message_time(&self) -> f64;
+    fn remote_time_stamp(&self) -> f64;
+    fn set_remote_time_stamp(&mut self, time: f64);
     fn is_ready(&self) -> bool;
     fn set_ready(&mut self, ready: bool);
     fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
@@ -106,6 +110,15 @@ impl NetworkConnectionTrait for NetworkConnection {
             unreliable_batcher: Batcher::new(unreliable_batcher_threshold),
         }
     }
+
+    fn net_id(&self) -> u32 {
+        self.net_id
+    }
+
+    fn set_net_id(&mut self, net_id: u32) {
+        self.net_id = net_id;
+    }
+
     fn connection_id(&self) -> u64 {
         self.id
     }
@@ -120,6 +133,14 @@ impl NetworkConnectionTrait for NetworkConnection {
 
     fn last_message_time(&self) -> f64 {
         self.last_message_time
+    }
+
+    fn remote_time_stamp(&self) -> f64 {
+        self.remote_time_stamp
+    }
+
+    fn set_remote_time_stamp(&mut self, time: f64) {
+        self.remote_time_stamp = time;
     }
 
 

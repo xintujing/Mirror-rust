@@ -61,7 +61,7 @@ pub struct NetworkIdentity {
     conn_to_client: u64,
     pub scene_id: u64,
     pub asset_id: u32,
-    pub net_id: u32,
+    net_id: u32,
     pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
@@ -78,13 +78,12 @@ pub struct NetworkIdentity {
 }
 
 impl NetworkIdentity {
-    pub fn new(asset_id: u32, game_object: GameObject) -> u32 {
-        let net_id = 0;
+    pub fn new(asset_id: u32) -> Self {
         let mut network_identity = NetworkIdentity {
             scene_id: 0,
             asset_id,
-            net_id,
-            game_object,
+            net_id: 0,
+            game_object: GameObject::default(),
             server_only: false,
             owned_type: OwnedType::Client,
             is_owned: false,
@@ -100,8 +99,19 @@ impl NetworkIdentity {
             network_behaviours: Default::default(),
         };
         network_identity.awake();
-        NetworkServer::add_static_network_identity(net_id, network_identity);
-        net_id
+        network_identity
+    }
+    pub fn net_id(&self) -> u32 {
+        self.net_id
+    }
+    pub fn set_net_id(&mut self, net_id: u32) {
+        self.net_id = net_id;
+        if let Some(mut conn) = NetworkServer::get_static_network_connections().get_mut(&self.conn_to_client) {
+            conn.set_net_id(self.net_id);
+        }
+    }
+    pub fn is_null(&self) -> bool {
+        self.net_id == 0 && self.asset_id == 0 && self.game_object.is_null() && self.network_behaviours.len() == 0 && self.scene_id == 0
     }
     pub fn get_connection_id_to_client(&self) -> u64 {
         self.conn_to_client
@@ -233,9 +243,7 @@ impl NetworkIdentity {
         }
 
         if (owner_mask | observers_mask) != 0 {
-
             for i in 0..self.network_behaviours.len() {
-
                 let component = &mut self.network_behaviours[i];
 
                 let owner_dirty = Self::is_dirty(owner_mask, i as u8);

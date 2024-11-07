@@ -2,6 +2,7 @@ use crate::core::backend_data::BACKEND_DATA;
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage};
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
+use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
@@ -85,11 +86,12 @@ impl GameObject {
         }
         true
     }
-    pub fn get_component(game_object: GameObject) -> Option<u32> {
-        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(game_object.prefab.as_str()) {
-            let net_id = NetworkIdentity::new(asset_id, game_object);
-            return Some(net_id);
-        }
+    pub fn get_component(&mut self) -> Option<NetworkIdentity> {
+        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(self.prefab.as_str()) {
+            let mut identity = NetworkIdentity::new(asset_id);
+            identity.game_object = self.clone();
+            return Some(identity);
+        };
         None
     }
     pub fn is_null(&self) -> bool {
@@ -222,7 +224,7 @@ impl NetworkManager {
 
         // 如果 NetworkManager 的 auto_create_player 为 false
         if let Some(mut connection) = NetworkServer::get_static_network_connections().get_mut(&conn_id) {
-            if connection.network_connection.net_id != 0 {
+            if connection.net_id() != 0 {
                 error!("There is already a player for this connection.");
                 return;
             }
