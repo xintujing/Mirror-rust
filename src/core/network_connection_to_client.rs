@@ -23,7 +23,6 @@ pub struct NetworkConnectionToClient {
     pub buffer_time: f64,
     pub snapshots: BTreeSet<TimeSnapshot>,
     pub snapshot_buffer_size_limit: i32,
-    last_ping_time: f64,
     pub _rtt: ExponentialMovingAverage,
 }
 impl NetworkConnectionTrait for NetworkConnectionToClient {
@@ -43,7 +42,6 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             buffer_time: 0.0,
             snapshots: BTreeSet::new(),
             snapshot_buffer_size_limit: 64,
-            last_ping_time: ts,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         };
         if let Some(mut transport) = Transport::get_active_transport() {
@@ -74,6 +72,10 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
 
     fn last_message_time(&self) -> f64 {
         self.network_connection.last_message_time()
+    }
+
+    fn set_last_message_time(&mut self, time: f64) {
+        self.network_connection.set_last_message_time(time);
     }
 
     fn remote_time_stamp(&self) -> f64 {

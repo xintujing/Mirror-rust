@@ -18,6 +18,7 @@ pub struct NetworkConnection {
     unreliable_batcher: Batcher,
     is_ready: bool,
     last_message_time: f64,
+    last_ping_time: f64,
     is_authenticated: bool,
     authentication_data: Vec<u8>,
     net_id: u32,
@@ -33,6 +34,7 @@ pub trait NetworkConnectionTrait {
     fn last_ping_time(&self) -> f64;
     fn set_last_ping_time(&mut self, time: f64);
     fn last_message_time(&self) -> f64;
+    fn set_last_message_time(&mut self, time: f64);
     fn remote_time_stamp(&self) -> f64;
     fn set_remote_time_stamp(&mut self, time: f64);
     fn is_ready(&self) -> bool;
@@ -112,6 +114,7 @@ impl NetworkConnectionTrait for NetworkConnection {
             remote_time_stamp: ts,
             reliable_batcher: Batcher::new(reliable_batcher_threshold),
             unreliable_batcher: Batcher::new(unreliable_batcher_threshold),
+            last_ping_time: ts,
         }
     }
 
@@ -128,15 +131,19 @@ impl NetworkConnectionTrait for NetworkConnection {
     }
 
     fn last_ping_time(&self) -> f64 {
-        self.last_message_time
+        self.last_ping_time
     }
 
     fn set_last_ping_time(&mut self, time: f64) {
-        self.last_message_time = time;
+        self.last_ping_time = time;
     }
 
     fn last_message_time(&self) -> f64 {
         self.last_message_time
+    }
+
+    fn set_last_message_time(&mut self, time: f64) {
+        self.last_message_time = time;
     }
 
     fn remote_time_stamp(&self) -> f64 {

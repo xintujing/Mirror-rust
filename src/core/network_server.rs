@@ -619,7 +619,7 @@ impl NetworkServer {
         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
             (handler.func)(connection_id, reader, channel);
             if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-                connection.set_last_ping_time(NetworkTime::local_time());
+                connection.set_last_message_time(NetworkTime::local_time());
             }
             return true;
         }
