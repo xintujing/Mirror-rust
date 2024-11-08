@@ -193,7 +193,7 @@ impl NetworkConnectionToClient {
         let conn_id = self.connection_id();
         for net_id in self.observing.iter_mut() {
             if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
-                identity.observers.retain(|x| *x != conn_id);
+                identity.remove_observer(conn_id);
             }
         }
         self.observing.clear();

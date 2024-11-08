@@ -364,8 +364,8 @@ impl NetworkIdentity {
             component.clear_all_dirty_bits()
         }
     }
-    pub fn remove_observer(&mut self, connection_id: u64) {
-        self.observers.retain(|conn_id| *conn_id != connection_id);
+    pub fn remove_observer(&mut self, conn_id: u64) {
+        self.observers.retain(|id| *id != conn_id);
     }
     pub fn set_client_owner(&mut self, conn_id: u64) {
         // do nothing if it already has an owner

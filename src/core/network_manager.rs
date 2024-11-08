@@ -224,32 +224,18 @@ impl NetworkManager {
         NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnConnectedEvent, Box::new(Self::on_server_connect_internal));
         // 添加断开连接事件
         NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnDisconnectedEvent, Box::new(Self::on_server_disconnect));
+        // 添加错误事件
+        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnErrorEvent, Box::new(Self::on_server_error));
+        // 添加异常事件
+        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnTransportExceptionEvent, Box::new(Self::on_server_transport_exception));
+
         // 添加 AddPlayerMessage 消息处理
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
         // 添加 ReadyMessage 消息处理
         NetworkServer::replace_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
     }
 
-    // OnServerConnectInternal
-    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError) {
-        // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
-
-        // 如果 NetworkManager 的 authenticator 不为空
-        if let Some(authenticator) = network_manager.authenticator() {
-            // 调用 NetworkAuthenticatorTrait 的 on_server_connect 方法
-            // TODO authenticator.OnServerAuthenticate(conn);
-            // authenticator.on_server_connect(conn);
-        } else {
-            // 如果 NetworkManager 的 authenticator 为空
-            Self::on_server_authenticated(conn, network_manager);
-        }
-    }
-
-    // OnServerDisconnect
-    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError) {
-        NetworkServer::destroy_player_for_connection(conn);
-    }
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError) {}
 
     fn on_server_authenticated(conn: &mut NetworkConnectionToClient, network_manager: &Box<dyn NetworkManagerTrait>) {
         // 获取 NetworkManagerTrait 的单例
@@ -338,6 +324,18 @@ pub trait NetworkManagerTrait {
     fn set_player_obj(&mut self, player_obj: GameObject);
     fn player_spawn_method(&self) -> &PlayerSpawnMethod;
     fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod);
+    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    where
+        Self: Sized;
+    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    where
+        Self: Sized;
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized;
+    fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized;
 
     fn awake()
     where
@@ -427,6 +425,43 @@ impl NetworkManagerTrait for NetworkManager {
     fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod) {
         self.player_spawn_method = player_spawn_method;
     }
+
+    // OnServerConnectInternal
+    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    where
+        Self: Sized,
+    {
+        // 获取 NetworkManagerTrait 的单例
+        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
+
+        // 如果 NetworkManager 的 authenticator 不为空
+        if let Some(authenticator) = network_manager.authenticator() {
+            // 调用 NetworkAuthenticatorTrait 的 on_server_connect 方法
+            // TODO authenticator.OnServerAuthenticate(conn);
+            // authenticator.on_server_connect(conn);
+        } else {
+            // 如果 NetworkManager 的 authenticator 为空
+            Self::on_server_authenticated(conn, network_manager);
+        }
+    }
+
+    // OnServerDisconnect
+    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    where
+        Self: Sized,
+    {
+        NetworkServer::destroy_player_for_connection(conn);
+    }
+
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {}
+
+    fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {}
 
     fn awake() {
         let mut manager = Self {

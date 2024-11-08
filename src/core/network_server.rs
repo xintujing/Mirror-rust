@@ -509,7 +509,7 @@ impl NetworkServer {
                 Self::on_transport_error(tbc.connection_id, tbc.error)
             }
             TransportCallbackType::OnServerTransportException => {
-                Self::on_server_transport_exception(tbc.connection_id, tbc.error)
+                Self::on_transport_exception(tbc.connection_id, tbc.error)
             }
             _ => {}
         }
@@ -663,7 +663,6 @@ impl NetworkServer {
             return;
         }
 
-
         match options {
             RemovePlayerOptions::KeepActive => {
                 if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
@@ -684,7 +683,6 @@ impl NetworkServer {
                 }
             }
             RemovePlayerOptions::Destroy => {
-                // TODO Destroy(conn.identity.gameObject);
                 if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
                     Self::destroy(&mut identity);
                 } else {
@@ -860,7 +858,7 @@ impl NetworkServer {
         if initialize {
             if identity.visibility != Visibility::ForceHidden {
                 Self::add_all_ready_server_connections_to_observers(identity);
-            } else if (identity.connection_to_client() != 0) {
+            } else if identity.connection_to_client() != 0 {
                 // force hidden, but add owner connection
                 identity.add_observer(identity.connection_to_client());
             }
@@ -901,10 +899,12 @@ impl NetworkServer {
     }
 
     // 处理 ServerTransportException 消息
-    fn on_server_transport_exception(connection_id: u64, transport_error: TransportError) {
+    fn on_transport_exception(connection_id: u64, transport_error: TransportError) {
         warn!(format!("Server.HandleTransportException: connectionId: {}, error: {:?}", connection_id, transport_error));
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            // TODO ON_TRANSPORT_EXCEPTION_EVENT?.invoke(conn, error, reason);
+            if let Some(on_exception_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnTransportExceptionEvent) {
+                on_exception_event(&mut connection, transport_error);
+            }
         }
     }
 
