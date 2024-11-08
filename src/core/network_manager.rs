@@ -206,7 +206,7 @@ impl NetworkManager {
 
         NetworkServerStatic::set_static_disconnect_inactive_connections(self.disconnect_inactive_connections);
         NetworkServerStatic::set_static_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
-        //  TODO  exceptionsDisconnect
+        NetworkServerStatic::set_exceptions_disconnect(self.exceptions_disconnect);
 
         if let Some(ref mut authenticator) = self.authenticator {
             authenticator.on_start_server();
@@ -251,7 +251,7 @@ impl NetworkManager {
             conn.send_network_message(scene_message, TransportChannel::Reliable);
         }
 
-        // TODO public virtual void OnServerConnect(NetworkConnectionToClient conn) { }
+        Self::on_server_connect(conn);
     }
 
     fn on_server_ready_message_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
@@ -327,15 +327,21 @@ pub trait NetworkManagerTrait {
     fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
         Self: Sized;
+    fn on_server_connect(conn: &mut NetworkConnectionToClient)
+    where
+        Self: Sized,
+    {}
     fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
         Self: Sized;
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
-        Self: Sized;
+        Self: Sized,
+    {}
     fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
-        Self: Sized;
+        Self: Sized,
+    {}
 
     fn awake()
     where
@@ -453,15 +459,6 @@ impl NetworkManagerTrait for NetworkManager {
         NetworkServer::destroy_player_for_connection(conn);
     }
 
-    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
-    where
-        Self: Sized,
-    {}
-
-    fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
-    where
-        Self: Sized,
-    {}
 
     fn awake() {
         let mut manager = Self {

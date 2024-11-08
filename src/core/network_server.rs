@@ -77,6 +77,12 @@ lazy_static! {
 pub struct NetworkServerStatic;
 // NetworkServer 静态结构体方法
 impl NetworkServerStatic {
+    pub fn get_exceptions_disconnect() -> bool {
+        EXCEPTIONS_DISCONNECT.load(Ordering::Relaxed)
+    }
+    pub fn set_exceptions_disconnect(value: bool) {
+        EXCEPTIONS_DISCONNECT.store(value, Ordering::Relaxed);
+    }
     pub fn get_connected_event() -> &'static DashMap<EventHandlerType, Box<EventHandler>> {
         &CONNECTED_EVENT
     }
