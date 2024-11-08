@@ -113,11 +113,14 @@ impl NetworkIdentity {
     pub fn is_null(&self) -> bool {
         self.net_id == 0 && self.asset_id == 0 && self.game_object.is_null() && self.network_behaviours.len() == 0 && self.scene_id == 0
     }
-    pub fn connection_id_to_client(&self) -> u64 {
+    pub fn connection_to_client(&self) -> u64 {
         self.conn_to_client
     }
-    pub fn set_connection_id_to_client(&mut self, conn_id: u64) {
+    pub fn set_connection_to_client(&mut self, conn_id: u64) {
         self.conn_to_client = conn_id;
+        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
+            conn.owned().push(self.net_id);
+        }
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
@@ -127,7 +130,7 @@ impl NetworkIdentity {
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
             // TODO  handle_remote_call
-            error!("Failed to invoke remote call for function hash: ", function_hash);
+            // error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {

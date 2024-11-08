@@ -19,7 +19,7 @@ pub struct NetworkConnection {
     is_ready: bool,
     last_message_time: f64,
     is_authenticated: bool,
-    pub authentication_data: Vec<u8>,
+    authentication_data: Vec<u8>,
     net_id: u32,
     owned: Vec<u32>,
     remote_time_stamp: f64,

@@ -1,6 +1,6 @@
 use crate::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::core::network_identity::NetworkIdentity;
-use crate::core::network_server::{NetworkServer, NetworkServerStatic};
+use crate::core::network_server::{NetworkServer, NetworkServerStatic, RemovePlayerOptions};
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
@@ -188,11 +188,13 @@ impl NetworkConnectionToClient {
             NetworkServer::hide_for_connection(network_identity, self);
         }
     }
+    // void RemoveFromObservingsObservers()
     pub fn remove_from_observings_observers(&mut self) {
-        let connection_id = self.connection_id();
-        for identity in self.observing.iter_mut() {
-            // TODO NetworkServer.RemoveObserverForConnection(this, identity);
-            // identity.remove_observer(connection_id);
+        let conn_id = self.connection_id();
+        for net_id in self.observing.iter_mut() {
+            if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
+                identity.observers.retain(|x| *x != conn_id);
+            }
         }
         self.observing.clear();
     }
@@ -205,17 +207,18 @@ impl NetworkConnectionToClient {
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        for net_id in self.owned().iter() {
-            if *net_id != 0 {
-                if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
+        for i in 0..self.owned().len() {
+            let net_id = self.owned()[i];
+            if net_id != 0 {
+                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
                     if identity.scene_id != 0 {
-                        // TODO NetworkServer.remove_player_for_connection(this, RemovePlayerOptions.KeepActive);
+                        NetworkServer::remove_player_for_connection(self, RemovePlayerOptions::KeepActive);
                     } else {
-                        // TODO NetworkServer.Destroy(netIdentity.gameObject);
+                        NetworkServer::destroy(&mut identity);
                     }
                 }
             }
-            NetworkServerStatic::get_static_spawned_network_identities().remove(net_id);
+            NetworkServerStatic::get_static_spawned_network_identities().remove(&net_id);
         }
         self.owned().clear();
     }
