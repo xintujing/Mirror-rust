@@ -225,13 +225,13 @@ impl NetworkIdentity {
         for i in 0..self.network_behaviours.len() {
             let component = &mut self.network_behaviours[i];
             let nth_bit = 1 << i;
-            let dirty = component.get_network_behaviour_base().is_dirty();
+            let dirty = component.is_dirty();
 
-            if initial_state || (component.get_network_behaviour_base().sync_direction == SyncDirection::ServerToClient) && dirty {
+            if initial_state || (*component.sync_direction() == SyncDirection::ServerToClient) && dirty {
                 owner_mask |= nth_bit;
             }
 
-            if component.get_network_behaviour_base().sync_mode == SyncMode::Observers {
+            if *component.sync_mode() == SyncMode::Observers {
                 if initial_state || dirty {
                     observers_mask |= nth_bit;
                 }

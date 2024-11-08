@@ -29,16 +29,16 @@ pub enum SyncMode {
 
 #[derive(Debug)]
 pub struct NetworkBehaviour {
-    pub sync_interval: f64,
-    pub last_sync_time: f64,
-    pub sync_direction: SyncDirection,
-    pub sync_mode: SyncMode,
+    sync_interval: f64,
+    last_sync_time: f64,
+    sync_direction: SyncDirection,
+    sync_mode: SyncMode,
     // ComponentIndex
-    pub component_index: u8,
+    component_index: u8,
     // syncVarDirtyBits
-    pub sync_var_dirty_bits: u64,
+    sync_var_dirty_bits: u64,
     // syncObjectDirtyBits
-    pub sync_object_dirty_bits: u64,
+    sync_object_dirty_bits: u64,
 }
 
 impl NetworkBehaviour {
@@ -61,7 +61,23 @@ impl NetworkBehaviour {
 
 
 pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour;
+    // 字段 get  set start
+    fn sync_interval(&self) -> f64;
+    fn set_sync_interval(&mut self, value: f64);
+    fn last_sync_time(&self) -> f64;
+    fn set_last_sync_time(&mut self, value: f64);
+    fn sync_direction(&mut self) -> &SyncDirection;
+    fn set_sync_direction(&mut self, value: SyncDirection);
+    fn sync_mode(&mut self) -> &SyncMode;
+    fn set_sync_mode(&mut self, value: SyncMode);
+    fn component_index(&self) -> u8;
+    fn set_component_index(&mut self, value: u8);
+    fn sync_var_dirty_bits(&self) -> u64;
+    fn set_sync_var_dirty_bits(&mut self, value: u64);
+    fn sync_object_dirty_bits(&self) -> u64;
+    fn set_sync_object_dirty_bits(&mut self, value: u64);
+    // 字段 get  set end
+    fn is_dirty(&self) -> bool;
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);
     // Serialize
@@ -87,17 +103,13 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     // SetSyncVarDirtyBit
     fn set_sync_var_dirty_bit(&mut self, dirty_bit: u64) {
-        self.get_network_behaviour_base().sync_var_dirty_bits |= dirty_bit;
-    }
-    // SyncDirection
-    fn sync_direction(&mut self) -> &SyncDirection {
-        &self.get_network_behaviour_base().sync_direction
+        self.set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
     }
     fn on_start_server(&mut self);
     fn on_stop_server(&mut self);
     fn clear_all_dirty_bits(&mut self) {
-        self.get_network_behaviour_base().sync_var_dirty_bits = 0;
-        self.get_network_behaviour_base().sync_object_dirty_bits = 0;
+        self.set_sync_var_dirty_bits(0);
+        self.set_sync_object_dirty_bits(0);
 
         // TODO syncObjects
     }
@@ -110,8 +122,65 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
 }
 
 impl NetworkBehaviourTrait for NetworkBehaviour {
-    fn get_network_behaviour_base(&mut self) -> &mut NetworkBehaviour {
-        self
+    fn sync_interval(&self) -> f64 {
+        self.sync_interval
+    }
+
+    fn set_sync_interval(&mut self, value: f64) {
+        self.sync_interval = value;
+    }
+
+    fn last_sync_time(&self) -> f64 {
+        self.last_sync_time
+    }
+
+    fn set_last_sync_time(&mut self, value: f64) {
+        self.last_sync_time = value;
+    }
+
+    fn sync_direction(&mut self) -> &SyncDirection {
+        &self.sync_direction
+    }
+
+    fn set_sync_direction(&mut self, value: SyncDirection) {
+        self.sync_direction = value;
+    }
+
+    fn sync_mode(&mut self) -> &SyncMode {
+        &self.sync_mode
+    }
+
+    fn set_sync_mode(&mut self, value: SyncMode) {
+        self.sync_mode = value;
+    }
+
+    fn component_index(&self) -> u8 {
+        self.component_index
+    }
+
+    fn set_component_index(&mut self, value: u8) {
+        self.component_index = value;
+    }
+
+    fn sync_var_dirty_bits(&self) -> u64 {
+        self.sync_var_dirty_bits
+    }
+
+    fn set_sync_var_dirty_bits(&mut self, value: u64) {
+        self.sync_var_dirty_bits = value;
+    }
+
+    fn sync_object_dirty_bits(&self) -> u64 {
+        self.sync_object_dirty_bits
+    }
+
+    fn set_sync_object_dirty_bits(&mut self, value: u64) {
+        self.sync_object_dirty_bits = value;
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64 &&
+            NetworkTime::local_time() - self.last_sync_time > self.sync_interval
     }
 
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
