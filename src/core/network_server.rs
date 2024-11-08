@@ -1,5 +1,5 @@
 use crate::core::batching::un_batcher::UnBatcher;
-use crate::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::Visibility::ForceShown;
@@ -265,7 +265,7 @@ impl NetworkServer {
         //Make sure connections are cleared in case any old connections references exist from previous sessions
         NETWORK_CONNECTIONS.clear();
 
-        // TODO: if (aoi != null) aoi.ResetState();
+        // TODO: if (aoi != null) aoi.reset_state();
 
         NetworkTime::reset_statics();
 
@@ -403,7 +403,7 @@ impl NetworkServer {
     }
     fn serialize_for_connection(net_id: u32, conn_id: u64) -> Option<EntityStateMessage> {
         if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
-            let owned = identity.get_connection_id_to_client() == conn_id;
+            let owned = identity.connection_id_to_client() == conn_id;
             let net_id = identity.net_id();
             let serialization = identity.get_server_serialization_at_tick(NetworkServerStatic::get_static_tick_rate());
             if owned {
@@ -450,7 +450,7 @@ impl NetworkServer {
         }
 
         // 是否是所有者
-        let is_owner = identity.get_connection_id_to_client() == conn.connection_id();
+        let is_owner = identity.connection_id_to_client() == conn.connection_id();
         // 是否是本地玩家
         let is_local_player = conn.net_id() == identity.net_id();
         // 创建 SpawnMessage 的 payload
@@ -644,24 +644,30 @@ impl NetworkServer {
             return;
         }
 
-        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
-            match options {
-                RemovePlayerOptions::KeepActive => {
+
+        match options {
+            RemovePlayerOptions::KeepActive => {
+                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
                     identity.set_connection_id_to_client(0);
-                    conn.owned().retain(|id| *id != identity.net_id());
-                    Self::send_change_owner_message(identity.net_id(), conn);
+                } else {
+                    error!(format!("Server.RemovePlayer: netId {} not found in spawned.", conn.net_id()));
+                    return;
                 }
-                RemovePlayerOptions::UnSpawn => {
-                    // TODO UnSpawn(conn.identity.gameObject);
-                }
-                RemovePlayerOptions::Destroy => {
-                    // TODO Destroy(conn.identity.gameObject);
-                }
+                let net_id = conn.net_id();
+                conn.owned().retain(|id| *id != net_id);
+                Self::send_change_owner_message(net_id, conn);
+            }
+            RemovePlayerOptions::UnSpawn => {
+                Self::un_spawn(conn.net_id());
+            }
+            RemovePlayerOptions::Destroy => {
+                // TODO Destroy(conn.identity.gameObject);
             }
         }
         conn.set_net_id(0);
     }
 
+    // SendChangeOwnerMessage(
     pub fn send_change_owner_message(net_id: u32, conn: &mut NetworkConnectionToClient) {
         // 如果 net_id 为 0
         if net_id == 0 {
@@ -678,14 +684,72 @@ impl NetworkServer {
             if identity.server_only {
                 return;
             }
-            let is_owner = identity.get_connection_id_to_client() == conn.connection_id();
+            let is_owner = identity.connection_id_to_client() == conn.connection_id();
             let is_local_player = conn.net_id() == net_id && is_owner;
             let change_owner_message = ChangeOwnerMessage::new(net_id, is_owner, is_local_player);
             conn.send_network_message(change_owner_message, TransportChannel::Reliable);
-        } else { // 如果 NetworkIdentity 不存在
-            error!(format!("Server.SendChangeOwnerMessage: netId {} not found in spawned.", net_id));
+        }
+    }
+
+    // UnSpawn
+    pub fn un_spawn(net_id: u32) {
+        Self::un_spawn_internal(net_id, true);
+    }
+
+    fn un_spawn_internal(net_id: u32, reset_state: bool) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("UnSpawn: NetworkServer is not active. Cannot unspawn objects without an active server.".to_string());
             return;
         }
+
+        // TODO aoi
+
+        if let Some((_, mut identity)) = NetworkServerStatic::get_static_spawned_network_identities().remove(&net_id) {
+            if identity.game_object.is_null() {
+                warn!("UnSpawn: game object is null.".to_string());
+                return;
+            }
+            // TODO 可能会死锁 待确认
+            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.connection_id_to_client()) {
+                connection.remove_owned_object(identity.net_id());
+            }
+            let net_id = identity.net_id();
+            Self::send_to_observers(&mut identity, ObjectDestroyMessage::new(net_id), TransportChannel::Reliable);
+
+            identity.clear_observers();
+
+            identity.on_stop_server();
+
+            if reset_state {
+                identity.reset_state();
+            }
+        }
+    }
+
+    fn send_to_observers(identity: &mut NetworkIdentity, mut message: ObjectDestroyMessage, channel: TransportChannel) {
+        if identity.is_null() || identity.observers.len() == 0 {
+            return;
+        }
+
+        NetworkWriterPool::get_return(|writer| {
+            NetworkMessages::pack(&mut message, writer);
+            let segment = writer.to_array_segment();
+
+            let max = NetworkMessages::max_message_size(channel);
+            if writer.get_position() > max {
+                warn!("Server.SendToObservers: message is too large to send. Consider using a higher channel or splitting the message into smaller parts.");
+                return;
+            }
+
+            for i in 0..identity.observers.len() {
+                let conn_id = identity.observers[i];
+                if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+                    connection.send(segment, channel);
+                }
+            }
+
+            // TODO NetworkDiagnostics.OnSend(message, channelId, segment.Count, identity.observers.Count);
+        });
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
@@ -712,11 +776,11 @@ impl NetworkServer {
     }
 
     fn spawn(identity: NetworkIdentity, conn_id: u64) {
-        Self::spawn_obj(identity, conn_id);
+        Self::spawn_object(identity, conn_id);
     }
 
     // SpawnObject(
-    fn spawn_obj(mut identity: NetworkIdentity, conn_id: u64) {
+    fn spawn_object(mut identity: NetworkIdentity, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object));
             return;
@@ -767,9 +831,9 @@ impl NetworkServer {
         if initialize {
             if identity.visibility != Visibility::ForceHidden {
                 Self::add_all_ready_server_connections_to_observers(identity);
-            } else if (identity.get_connection_id_to_client() != 0) {
+            } else if (identity.connection_id_to_client() != 0) {
                 // force hidden, but add owner connection
-                identity.add_observer(identity.get_connection_id_to_client());
+                identity.add_observer(identity.connection_id_to_client());
             }
         }
     }
@@ -788,11 +852,11 @@ impl NetworkServer {
 
     fn respawn(mut identity: NetworkIdentity) {
         if identity.net_id() == 0 {
-            let conn_id = identity.get_connection_id_to_client();
+            let conn_id = identity.connection_id_to_client();
             Self::spawn(identity, conn_id);
         } else {
             // 找到连接
-            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.get_connection_id_to_client()) {
+            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.connection_id_to_client()) {
                 Self::send_spawn_message(&mut identity, &mut connection);
             }
         }
@@ -918,7 +982,7 @@ impl NetworkServer {
             // 是否需要权限
             let requires_authority = RemoteProcedureCalls::command_requires_authority(message.function_hash);
             // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
-            if requires_authority && identity.get_connection_id_to_client() != connection_id {
+            if requires_authority && identity.connection_id_to_client() != connection_id {
                 // Attempt to identify the component and method to narrow down the cause of the error.
                 if identity.network_behaviours.len() > message.component_index as usize {
                     if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
@@ -949,7 +1013,7 @@ impl NetworkServer {
     fn on_entity_state_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
         if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&message.net_id) {
-            if identity.get_connection_id_to_client() == connection_id {
+            if identity.connection_id_to_client() == connection_id {
                 NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
                     if !identity.deserialize_server(reader) {
                         if NetworkServerStatic::get_static_exceptions_disconnect() {

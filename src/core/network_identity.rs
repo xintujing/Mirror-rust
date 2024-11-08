@@ -113,7 +113,7 @@ impl NetworkIdentity {
     pub fn is_null(&self) -> bool {
         self.net_id == 0 && self.asset_id == 0 && self.game_object.is_null() && self.network_behaviours.len() == 0 && self.scene_id == 0
     }
-    pub fn get_connection_id_to_client(&self) -> u64 {
+    pub fn connection_id_to_client(&self) -> u64 {
         self.conn_to_client
     }
     pub fn set_connection_id_to_client(&mut self, conn_id: u64) {
@@ -314,6 +314,27 @@ impl NetworkIdentity {
             ));
         }
         NetworkCommonBehaviour::new(network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
+    }
+    pub fn clear_observers(&mut self) {
+        for i in 0..self.observers.len() {
+            let conn_id = self.observers[i];
+            // TODO 可能死锁 待确认
+            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+                conn.remove_from_observing(self, true);
+            }
+        }
+        self.observers.clear();
+    }
+
+    pub fn reset_state(&mut self) {
+        self.has_spawned = false;
+        self.is_owned = false;
+        // TODO NotifyAuthority();
+
+        self.net_id = 0;
+        self.conn_to_client = 0;
+
+        self.clear_observers();
     }
 
     // AddObserver(NetworkConnectionToClient conn)

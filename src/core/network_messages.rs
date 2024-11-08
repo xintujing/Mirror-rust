@@ -1,7 +1,9 @@
 use crate::core::batching::batcher::Batcher;
-use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
+use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter};
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::transport::{Transport, TransportChannel};
-use tklog::warn;
+use tklog::{error, warn};
 
 pub struct NetworkMessages;
 
@@ -22,7 +24,14 @@ impl NetworkMessages {
         }
     }
 
-    pub fn unpack_id(reader:& mut NetworkReader)->u16 {
+    pub fn unpack_id(reader: &mut NetworkReader) -> u16 {
         reader.read_ushort()
+    }
+
+    pub fn pack<T>(message: &mut T, writer: &mut NetworkWriter)
+    where
+        T: NetworkMessageWriter + NetworkMessageReader + Send,
+    {
+        message.serialize(writer);
     }
 }
