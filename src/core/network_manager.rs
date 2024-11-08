@@ -1,4 +1,4 @@
-use crate::core::backend_data::BACKEND_DATA;
+use crate::core::backend_data::BackendDataStatic;
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
@@ -106,6 +106,13 @@ pub struct GameObject {
 
 // GameObject 的默认实现
 impl GameObject {
+    pub fn new(prefab: String) -> Self {
+        Self {
+            name: "".to_string(),
+            prefab,
+            transform: Transform::default(),
+        }
+    }
     pub fn default() -> Self {
         Self {
             name: "".to_string(),
@@ -117,13 +124,13 @@ impl GameObject {
         if self.prefab == "" {
             return false;
         }
-        if let None = BACKEND_DATA.get_asset_id_by_asset_name(self.prefab.as_str()) {
+        if let None = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
             return false;
         }
         true
     }
     pub fn get_component(&mut self) -> Option<NetworkIdentity> {
-        if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(self.prefab.as_str()) {
+        if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
             let mut identity = NetworkIdentity::new(asset_id);
             identity.game_object = self.clone();
             return Some(identity);
@@ -279,8 +286,8 @@ impl NetworkManager {
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
         if network_manager.auto_create_player() {
             // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
-            if let Some(asset_id) = BACKEND_DATA.get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str()) {
-                if let None = BACKEND_DATA.get_network_identity_data_by_asset_id(asset_id) {
+            if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str()) {
+                if let None = BackendDataStatic::get_backend_data().get_network_identity_data_by_asset_id(asset_id) {
                     error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
                     return;
                 }
@@ -463,30 +470,39 @@ impl NetworkManagerTrait for NetworkManager {
 
 
     fn awake() {
-        let mut manager = Self {
+        let backend_data = BackendDataStatic::get_backend_data();
+        if backend_data.network_manager_settings.len() == 0 {
+            panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
+        }
+        let network_manager_setting = &backend_data.network_manager_settings[0];
+
+        let mut spawn_prefabs = Vec::new();
+        for spawn_prefab in &network_manager_setting.spawn_prefabs {
+            spawn_prefabs.push(GameObject::new(spawn_prefab.clone()));
+        }
+
+        let manager = Self {
             mode: NetworkManagerMode::Offline,
-            dont_destroy_on_load: true,
-            editor_auto_start: false,
-            send_rate: 60,
-            offline_scene: "",
-            online_scene: "Assets/QuickStart/Scenes/MyOtherScene.scene",
+            dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
+            editor_auto_start: network_manager_setting.editor_auto_start,
+            send_rate: network_manager_setting.send_rate,
+            offline_scene: network_manager_setting.offline_scene.as_str(),
+            online_scene: network_manager_setting.online_scene.as_str(),
             offline_scene_load_delay: 0.0,
-            network_address: "0.0.0.0".to_string(),
-            max_connections: 100,
-            disconnect_inactive_connections: false,
-            disconnect_inactive_timeout: 60.0,
+            network_address: network_manager_setting.network_address.clone(),
+            max_connections: network_manager_setting.max_connections,
+            disconnect_inactive_connections: network_manager_setting.disconnect_inactive_connections,
+            disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
             authenticator: None,
-            player_obj: GameObject::default(),
-            auto_create_player: true,
+            player_obj: GameObject::new(network_manager_setting.player_prefab.clone()),
+            auto_create_player: network_manager_setting.auto_create_player,
             player_spawn_method: PlayerSpawnMethod::Random,
-            spawn_prefabs: Vec::new(),
-            exceptions_disconnect: true,
+            spawn_prefabs,
+            exceptions_disconnect: network_manager_setting.exceptions_disconnect,
             evaluation_method: ConnectionQualityMethod::Simple,
-            evaluation_interval: 3.0,
-            time_interpolation_gui: false,
+            evaluation_interval: network_manager_setting.evaluation_interval,
+            time_interpolation_gui: network_manager_setting.time_interpolation_gui,
         };
-        // TODO  fix  NetworkManager cfg
-        manager.player_obj.prefab = "Assets/QuickStart/Player.prefab".to_string();
 
         NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));
     }

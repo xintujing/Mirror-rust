@@ -3,7 +3,27 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 lazy_static! {
-    pub static ref BACKEND_DATA: BackendData = BackendData::import("backend_data.json");
+    static ref BACKEND_DATA: BackendData = BackendDataStatic::import("tobackend.json");
+}
+
+pub struct BackendDataStatic;
+
+impl BackendDataStatic {
+    #[allow(dead_code)]
+    pub fn import(path: &'static str) -> BackendData {
+        // 读取 JSON 文件内容
+        if let Ok(data) = std::fs::read_to_string(path) {
+            // 将 JSON 文件内容反序列化为 Data 结构体
+            if let Ok(backend_data) = serde_json::from_str::<BackendData>(&data) {
+                return backend_data;
+            }
+        }
+        panic!("Failed to import BackData");
+    }
+    #[allow(dead_code)]
+    pub fn get_backend_data() -> &'static BackendData {
+        &BACKEND_DATA
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -71,21 +91,26 @@ pub struct NetworkTransformBaseSetting {
     pub sync_rotation: bool,
     #[serde(rename = "syncScale")]
     pub sync_scale: bool,
+
     #[serde(rename = "onlySyncOnChange")]
     pub only_sync_on_change: bool,
     #[serde(rename = "compressRotation")]
     pub compress_rotation: bool,
+
     #[serde(rename = "interpolatePosition")]
     pub interpolate_position: bool,
     #[serde(rename = "interpolateRotation")]
     pub interpolate_rotation: bool,
     #[serde(rename = "interpolateScale")]
     pub interpolate_scale: bool,
-    #[serde(rename = "coordinateSpace")]
+
     /// need fix
+    #[serde(rename = "coordinateSpace")]
     pub coordinate_space: u8,
+
     #[serde(rename = "sendIntervalMultiplier")]
     pub send_interval_multiplier: u32,
+
     #[serde(rename = "timelineOffset")]
     pub timeline_offset: bool,
 }
@@ -95,8 +120,10 @@ pub struct NetworkTransformBaseSetting {
 pub struct NetworkTransformReliableSetting {
     #[serde(rename = "onlySyncOnChangeCorrectionMultiplier")]
     pub only_sync_on_change_correction_multiplier: f32,
+
     #[serde(rename = "rotationSensitivity")]
     pub rotation_sensitivity: f32,
+
     #[serde(rename = "positionPrecision")]
     pub position_precision: f32,
     #[serde(rename = "scalePrecision")]
@@ -109,6 +136,7 @@ pub struct NetworkTransformUnreliableSetting {
     pub buffer_reset_multiplier: f32,
     #[serde(rename = "changedDetection")]
     pub changed_detection: bool,
+
     #[serde(rename = "positionSensitivity")]
     pub position_sensitivity: f32,
     #[serde(rename = "rotationSensitivity")]
@@ -133,14 +161,91 @@ pub struct NetworkBehaviourComponent {
     pub network_transform_unreliable_setting: NetworkTransformUnreliableSetting,
 }
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SnapshotInterpolationSetting {
+    #[serde(rename = "bufferTimeMultiplier")]
+    pub buffer_time_multiplier: f64,
+    #[serde(rename = "bufferLimit")]
+    pub buffer_limit: i32,
+    #[serde(rename = "catchupNegativeThreshold")]
+    pub catchup_negative_threshold: f32,
+    #[serde(rename = "catchupPositiveThreshold")]
+    pub catchup_positive_threshold: f32,
+    #[serde(rename = "catchupSpeed")]
+    pub catchup_speed: f64,
+    #[serde(rename = "slowdownSpeed")]
+    pub slowdown_speed: f64,
+    #[serde(rename = "driftEmaDuration")]
+    pub drift_ema_duration: i32,
+    #[serde(rename = "dynamicAdjustment")]
+    pub dynamic_adjustment: bool,
+    #[serde(rename = "dynamicAdjustmentTolerance")]
+    pub dynamic_adjustment_tolerance: f32,
+    #[serde(rename = "deliveryTimeEmaDuration")]
+    pub delivery_time_ema_duration: i32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NetworkManagerSetting {
+    #[serde(rename = "dontDestroyOnLoad")]
+    pub dont_destroy_on_load: bool,
+    #[serde(rename = "runInBackground")]
+    pub run_in_background: bool,
+    #[serde(rename = "headlessStartMode")]
+    pub headless_start_mode: String,
+    #[serde(rename = "editorAutoStart")]
+    pub editor_auto_start: bool,
+    #[serde(rename = "sendRate")]
+    pub send_rate: u32,
+    #[serde(rename = "autoStartServerBuild")]
+    pub auto_start_server_build: bool,
+    #[serde(rename = "autoConnectClientBuild")]
+    pub auto_connect_client_build: bool,
+    #[serde(rename = "offlineScene")]
+    pub offline_scene: String,
+    #[serde(rename = "onlineScene")]
+    pub online_scene: String,
+    #[serde(rename = "transport")]
+    pub transport: String,
+    #[serde(rename = "networkAddress")]
+    pub network_address: String,
+    #[serde(rename = "maxConnections")]
+    pub max_connections: usize,
+    #[serde(rename = "disconnectInactiveConnections")]
+    pub disconnect_inactive_connections: bool,
+    #[serde(rename = "disconnectInactiveTimeout")]
+    pub disconnect_inactive_timeout: f32,
+    #[serde(rename = "authenticator")]
+    pub authenticator: String,
+    #[serde(rename = "playerPrefab")]
+    pub player_prefab: String,
+    #[serde(rename = "autoCreatePlayer")]
+    pub auto_create_player: bool,
+    #[serde(rename = "playerSpawnMethod")]
+    pub player_spawn_method: String,
+    #[serde(rename = "spawnPrefabs")]
+    pub spawn_prefabs: Vec<String>,
+    #[serde(rename = "exceptionsDisconnect")]
+    pub exceptions_disconnect: bool,
+    #[serde(rename = "snapshotSettings")]
+    pub snapshot_settings: SnapshotInterpolationSetting,
+    #[serde(rename = "evaluationMethod")]
+    pub evaluation_method: String,
+    #[serde(rename = "evaluationInterval")]
+    pub evaluation_interval: f32,
+    #[serde(rename = "timeInterpolationGui")]
+    pub time_interpolation_gui: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkIdentityData {
     #[serde(rename = "assetId")]
     pub asset_id: u32,
     #[serde(rename = "sceneId")]
     pub scene_id: u64,
-    #[serde(rename = "networkBehaviourComponents")]
     /// need fix  dont need use KeyValue
+    #[serde(rename = "networkBehaviourComponents")]
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
 }
 
@@ -150,6 +255,8 @@ pub struct BackendData {
     pub methods: Vec<MethodData>,
     #[serde(rename = "networkIdentities")]
     pub network_identities: Vec<NetworkIdentityData>,
+    #[serde(rename = "networkManagerSettings")]
+    pub network_manager_settings: Vec<NetworkManagerSetting>,
     #[serde(rename = "sceneIds")]
     pub scene_ids: Vec<KeyValue<String, u64>>,
     #[serde(rename = "syncVars")]
@@ -159,17 +266,6 @@ pub struct BackendData {
 }
 #[allow(dead_code)]
 impl BackendData {
-    #[allow(dead_code)]
-    pub fn import(path: &'static str) -> Self {
-        // 读取 JSON 文件内容
-        if let Ok(data) = std::fs::read_to_string(path) {
-            // 将 JSON 文件内容反序列化为 Data 结构体
-            if let Ok(backend_data) = serde_json::from_str::<BackendData>(&data) {
-                return backend_data;
-            }
-        }
-        panic!("Failed to import BackData");
-    }
     #[allow(dead_code)]
     pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<&MethodData> {
         for method_data in &self.methods {
@@ -288,7 +384,7 @@ mod tests {
 
     #[test]
     fn test_import_data() {
-        let backend_data = BackendData::import("backend_data.json");
+        let backend_data = BackendDataStatic::import("tobackend.json");
 
         println!("{:?}", backend_data.get_rpc_hash_code_s(42311));
 
@@ -302,5 +398,7 @@ mod tests {
         }
 
         println!("{:?}", backend_data.get_network_identity_data_by_asset_id(0));
+
+        println!("{:?}", backend_data.network_manager_settings);
     }
 }

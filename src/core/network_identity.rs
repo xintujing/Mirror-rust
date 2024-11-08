@@ -4,7 +4,7 @@ use crate::components::network_transform::network_transform_reliable::NetworkTra
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::components::SyncVar;
-use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
+use crate::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_manager::GameObject;
@@ -155,7 +155,7 @@ impl NetworkIdentity {
         None
     }
     pub fn initialize_network_behaviours(&mut self) {
-        for component in BACKEND_DATA.get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
+        for component in BackendDataStatic::get_backend_data().get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
             // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
                 // 创建 NetworkTransform
@@ -317,7 +317,7 @@ impl NetworkIdentity {
     }
     pub fn new_network_common_component(network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
         let sync_vars = DashMap::new();
-        for (index, sync_var) in BACKEND_DATA.get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
+        for (index, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
             sync_vars.insert(index as u8, SyncVar::new(
                 sync_var.full_name.clone(),
                 sync_var.value.to_vec(),
