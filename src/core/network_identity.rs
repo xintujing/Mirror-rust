@@ -62,6 +62,7 @@ pub struct NetworkIdentity {
     pub scene_id: u64,
     pub asset_id: u32,
     net_id: u32,
+    had_authority: bool,
     pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
@@ -83,6 +84,7 @@ impl NetworkIdentity {
             scene_id: 0,
             asset_id,
             net_id: 0,
+            had_authority: false,
             game_object: GameObject::default(),
             server_only: false,
             owned_type: OwnedType::Client,
@@ -178,7 +180,6 @@ impl NetworkIdentity {
         if self.has_spawned {
             error!("NetworkIdentity has already spawned.");
             self.spawned_from_instantiate = true;
-            // TODO Destroy
         }
         self.has_spawned = true;
     }
@@ -332,12 +333,18 @@ impl NetworkIdentity {
     pub fn reset_state(&mut self) {
         self.has_spawned = false;
         self.is_owned = false;
-        // TODO NotifyAuthority();
+        self.notify_authority();
 
         self.net_id = 0;
         self.conn_to_client = 0;
 
         self.clear_observers();
+    }
+
+    pub fn notify_authority(&mut self) {
+        // TODO NotifyAuthority();
+        if !self.had_authority && self.is_owned {}
+        if self.had_authority && !self.is_owned {}
     }
 
     // AddObserver(NetworkConnectionToClient conn)
