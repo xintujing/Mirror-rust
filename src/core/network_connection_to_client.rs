@@ -198,14 +198,14 @@ impl NetworkConnectionToClient {
     }
 
     pub fn add_owned_object(&mut self, net_id: u32) {
-        self.network_connection.owned.push(net_id);
+        self.owned().push(net_id);
     }
     pub fn remove_owned_object(&mut self, net_id: u32) {
-        self.network_connection.owned.retain(|x| net_id != net_id);
+        self.owned().retain(|x| net_id != net_id);
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        for net_id in self.network_connection.owned.iter() {
+        for net_id in self.owned().iter() {
             if *net_id != 0 {
                 if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
                     if identity.scene_id != 0 {
@@ -217,6 +217,6 @@ impl NetworkConnectionToClient {
             }
             NetworkServerStatic::get_static_spawned_network_identities().remove(net_id);
         }
-        self.network_connection.owned.clear();
+        self.owned().clear();
     }
 }

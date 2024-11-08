@@ -1,5 +1,5 @@
 use crate::core::batching::un_batcher::UnBatcher;
-use crate::core::messages::{CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::Visibility::ForceShown;
@@ -649,7 +649,7 @@ impl NetworkServer {
                 RemovePlayerOptions::KeepActive => {
                     identity.set_connection_id_to_client(0);
                     conn.owned().retain(|id| *id != identity.net_id());
-                    // TODO SendChangeOwnerMessage
+                    Self::send_change_owner_message(identity.net_id(), conn);
                 }
                 RemovePlayerOptions::UnSpawn => {
                     // TODO UnSpawn(conn.identity.gameObject);
@@ -660,6 +660,32 @@ impl NetworkServer {
             }
         }
         conn.set_net_id(0);
+    }
+
+    pub fn send_change_owner_message(net_id: u32, conn: &mut NetworkConnectionToClient) {
+        // 如果 net_id 为 0
+        if net_id == 0 {
+            return;
+        }
+
+        // 如果连接没有观察者
+        if !conn.observing.contains(&net_id) {
+            return;
+        }
+
+        // 如果 NetworkIdentity 存在
+        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
+            if identity.server_only {
+                return;
+            }
+            let is_owner = identity.get_connection_id_to_client() == conn.connection_id();
+            let is_local_player = conn.net_id() == net_id && is_owner;
+            let change_owner_message = ChangeOwnerMessage::new(net_id, is_owner, is_local_player);
+            conn.send_network_message(change_owner_message, TransportChannel::Reliable);
+        } else { // 如果 NetworkIdentity 不存在
+            error!(format!("Server.SendChangeOwnerMessage: netId {} not found in spawned.", net_id));
+            return;
+        }
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {

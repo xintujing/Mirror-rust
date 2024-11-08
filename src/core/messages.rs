@@ -411,6 +411,31 @@ impl ChangeOwnerMessage {
     }
 }
 
+impl NetworkMessageWriter for ChangeOwnerMessage {
+    fn serialize(&mut self, writer: &mut NetworkWriter) {
+        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_uint(self.net_id);
+        writer.write_bool(self.is_owner);
+        writer.write_bool(self.is_local_player);
+    }
+}
+
+impl NetworkMessageReader for ChangeOwnerMessage {
+    fn deserialize(reader: &mut NetworkReader) -> Self {
+        let net_id = reader.read_uint();
+        let is_owner = reader.read_bool();
+        let is_local_player = reader.read_bool();
+        Self {
+            net_id,
+            is_owner,
+            is_local_player,
+        }
+    }
+
+    fn get_hash_code() -> u16 {
+        Self::FULL_NAME.get_stable_hash_code16()
+    }
+}
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct ObjectSpawnStartedMessage {}
 impl ObjectSpawnStartedMessage {
