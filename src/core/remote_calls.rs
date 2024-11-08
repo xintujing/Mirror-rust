@@ -104,11 +104,11 @@ impl RemoteProcedureCalls {
         (false, None)
     }
 
-    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, component: &mut Box<dyn NetworkBehaviourTrait>, connection_id: u64) -> bool {
+    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, component: &mut Box<dyn NetworkBehaviourTrait>, conn_id: u64) -> bool {
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {
-                (invoker.remote_call_delegate.function)(component, reader, connection_id);
+                (invoker.remote_call_delegate.function)(component, reader, conn_id);
                 return true;
             }
         }

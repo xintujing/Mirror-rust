@@ -2,17 +2,19 @@ use crate::components::network_behaviour::{NetworkBehaviourTrait, SyncDirection,
 use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
+use crate::components::network_transform::transform_sync_data::SyncData;
 use crate::components::SyncVar;
 use crate::core::backend_data::{NetworkBehaviourComponent, BACKEND_DATA};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_manager::GameObject;
-use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
+use crate::tools::utils::to_hex_string;
 use atomic::Atomic;
 use bytes::Bytes;
 use dashmap::mapref::multiple::RefMutMulti;
@@ -130,9 +132,14 @@ impl NetworkIdentity {
             return;
         }
         let invoke_component = &mut self.network_behaviours[component_index as usize];
+        if function_hash == 55513 {
+            let data = SyncData::deserialize(reader);
+            debug!(format!("data: {:?}", data));
+        }
+
         if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
             // TODO  handle_remote_call
-            // error!("Failed to invoke remote call for function hash: ", function_hash);
+            error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
     pub fn reset_statics() {

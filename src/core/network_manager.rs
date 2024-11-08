@@ -90,7 +90,9 @@ impl Transform {
     }
 
     pub fn default() -> Self {
-        Self::new(Vector3::new(0.0, 0.0, 0.0), Quaternion::new(1.0, 0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0))
+        Self::new(Vector3::new(0.0, 1.0, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0))
     }
 }
 
@@ -467,7 +469,7 @@ impl NetworkManagerTrait for NetworkManager {
             editor_auto_start: false,
             send_rate: 60,
             offline_scene: "",
-            online_scene: "Assets/QuickStart/Scenes/MyScene.scene",
+            online_scene: "Assets/QuickStart/Scenes/MyOtherScene.scene",
             offline_scene_load_delay: 0.0,
             network_address: "0.0.0.0".to_string(),
             max_connections: 100,

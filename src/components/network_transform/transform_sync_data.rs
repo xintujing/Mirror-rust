@@ -195,6 +195,8 @@ impl Debug for SyncData {
 
 impl NetworkMessageReader for SyncData {
     fn deserialize(reader: &mut NetworkReader) -> Self {
+        /// TODO 长度 在暂时不知道有何用
+        let _ = reader.read_uint();
 
         // 改变的数据
         let changed = reader.read_byte();
