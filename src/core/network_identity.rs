@@ -110,6 +110,9 @@ impl NetworkIdentity {
     }
     pub fn set_net_id(&mut self, net_id: u32) {
         self.net_id = net_id;
+        for component in self.network_behaviours.iter_mut() {
+            component.set_net_id(self.net_id);
+        }
         if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
             conn.set_net_id(self.net_id);
         }
@@ -122,23 +125,22 @@ impl NetworkIdentity {
     }
     pub fn set_connection_to_client(&mut self, conn_id: u64) {
         self.conn_to_client = conn_id;
+        for component in self.network_behaviours.iter_mut() {
+            component.set_connection_to_client(self.conn_to_client);
+        }
         if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
             conn.owned().push(self.net_id);
         }
     }
-    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, connection_id: u64) {
+    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, conn_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
             error!("Component index out of bounds: ", component_index);
             return;
         }
+        // 获取 component
         let invoke_component = &mut self.network_behaviours[component_index as usize];
-        if function_hash == 55513 {
-            let data = SyncData::deserialize(reader);
-            debug!(format!("data: {:?}", data));
-        }
-
-        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, reader, invoke_component, connection_id) {
-            // TODO  handle_remote_call
+        // 调用 invoke
+        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, invoke_component, reader, conn_id) {
             error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }

@@ -1,11 +1,12 @@
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
+use std::hash::Hash;
 
 #[derive(Debug)]
-pub enum CoordinateSpace{
+pub enum CoordinateSpace {
     Local,
-    World
+    World,
 }
 
 impl CoordinateSpace {
@@ -22,8 +23,8 @@ impl CoordinateSpace {
 pub struct NetworkTransformBase {
     pub is_client_with_authority: bool,
 
-    pub client_snapshots: BTreeSet<TransformSnapshot>,
-    pub server_snapshots: BTreeSet<TransformSnapshot>,
+    pub client_snapshots: BTreeMap<String, TransformSnapshot>,
+    pub server_snapshots: BTreeMap<String, TransformSnapshot>,
     pub time_stamp_adjustment: f64,
     pub offset: f64,
     // pub network_behaviour_setting: NetworkBehaviourSetting,

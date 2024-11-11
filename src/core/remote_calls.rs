@@ -17,12 +17,12 @@ pub enum RemoteCallType {
 pub type RemoteCallDelegateType = Box<dyn Fn(&mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64) + Send + Sync>;
 
 pub struct RemoteCallDelegate {
-    pub method_name: String,
+    pub method_name: &'static str,
     pub function: RemoteCallDelegateType,
 }
 
 impl RemoteCallDelegate {
-    pub fn new(method_name: String, function: RemoteCallDelegateType) -> Self {
+    pub fn new(method_name: &'static str, function: RemoteCallDelegateType) -> Self {
         RemoteCallDelegate {
             method_name,
             function,
@@ -104,7 +104,7 @@ impl RemoteProcedureCalls {
         (false, None)
     }
 
-    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, component: &mut Box<dyn NetworkBehaviourTrait>, conn_id: u64) -> bool {
+    pub fn invoke(func_hash: u16, remote_call_type: RemoteCallType, component: &mut Box<dyn NetworkBehaviourTrait>,reader: &mut NetworkReader, conn_id: u64) -> bool {
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {

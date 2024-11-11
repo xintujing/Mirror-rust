@@ -4,6 +4,7 @@ use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use std::any::Any;
 use std::fmt::Debug;
+use std::sync::Once;
 
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum SyncDirection {
@@ -39,6 +40,8 @@ pub struct NetworkBehaviour {
     sync_var_dirty_bits: u64,
     // syncObjectDirtyBits
     sync_object_dirty_bits: u64,
+    net_id: u32,
+    connection_to_client: u64,
 }
 
 impl NetworkBehaviour {
@@ -51,6 +54,8 @@ impl NetworkBehaviour {
             component_index,
             sync_var_dirty_bits: 0,
             sync_object_dirty_bits: 0,
+            net_id: 0,
+            connection_to_client: 0,
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -76,7 +81,19 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_sync_var_dirty_bits(&mut self, value: u64);
     fn sync_object_dirty_bits(&self) -> u64;
     fn set_sync_object_dirty_bits(&mut self, value: u64);
+    fn net_id(&self) -> u32;
+    fn set_net_id(&mut self, value: u32);
+    fn connection_to_client(&self) -> u64;
+    fn set_connection_to_client(&mut self, value: u64);
     // 字段 get  set end
+    fn call_register_delegate<F>(reg_fn: F)
+    where
+        F: FnOnce(),
+        Self: Sized,
+    {
+        static ONCE: Once = Once::new();
+        ONCE.call_once(reg_fn);
+    }
     fn is_dirty(&self) -> bool;
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);
@@ -113,12 +130,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
 
         // TODO syncObjects
     }
-    fn as_any(&self) -> &dyn Any
-    where
-        Self: Sized,
-    {
-        self
-    }
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl NetworkBehaviourTrait for NetworkBehaviour {
@@ -178,6 +190,22 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
         self.sync_object_dirty_bits = value;
     }
 
+    fn net_id(&self) -> u32 {
+        self.net_id
+    }
+
+    fn set_net_id(&mut self, value: u32) {
+        self.net_id = value;
+    }
+
+    fn connection_to_client(&self) -> u64 {
+        self.connection_to_client
+    }
+
+    fn set_connection_to_client(&mut self, value: u64) {
+        self.connection_to_client = value;
+    }
+
     fn is_dirty(&self) -> bool {
         self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64 &&
             NetworkTime::local_time() - self.last_sync_time > self.sync_interval
@@ -202,5 +230,9 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
 
     fn on_stop_server(&mut self) {
         todo!()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }

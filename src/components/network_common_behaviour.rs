@@ -4,6 +4,7 @@ use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use dashmap::DashMap;
+use std::any::Any;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -80,10 +81,25 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         self.network_behaviour.set_sync_object_dirty_bits(value)
     }
 
+    fn net_id(&self) -> u32 {
+        self.network_behaviour.net_id()
+    }
+
+    fn set_net_id(&mut self, value: u32) {
+        self.network_behaviour.set_net_id(value)
+    }
+
+    fn connection_to_client(&self) -> u64 {
+        self.network_behaviour.connection_to_client()
+    }
+
+    fn set_connection_to_client(&mut self, value: u64) {
+        self.network_behaviour.set_connection_to_client(value)
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
-
 
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
@@ -102,4 +118,8 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     fn on_start_server(&mut self) {}
 
     fn on_stop_server(&mut self) {}
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }

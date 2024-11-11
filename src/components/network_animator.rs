@@ -65,6 +65,22 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.set_sync_object_dirty_bits(value)
     }
 
+    fn net_id(&self) -> u32 {
+        self.network_behaviour.net_id()
+    }
+
+    fn set_net_id(&mut self, value: u32) {
+        self.network_behaviour.set_net_id(value)
+    }
+
+    fn connection_to_client(&self) -> u64 {
+        self.network_behaviour.connection_to_client()
+    }
+
+    fn set_connection_to_client(&mut self, value: u64) {
+        self.network_behaviour.set_connection_to_client(value)
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
@@ -89,7 +105,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         todo!()
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 }

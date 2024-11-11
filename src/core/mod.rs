@@ -17,7 +17,7 @@ mod network_authenticator;
 mod connection_quality;
 pub mod network_reader;
 mod network_reader_extensions;
-mod remote_calls;
+pub mod remote_calls;
 mod network_reader_pool;
 pub mod network_connection_to_client;
 pub mod network_connection;

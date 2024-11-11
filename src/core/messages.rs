@@ -222,7 +222,7 @@ impl NetworkMessageReader for CommandMessage {
         let net_id = reader.read_uint();
         let component_index = reader.read_byte();
         let function_hash = reader.read_ushort();
-        let payload = reader.read_remaining_bytes();
+        let payload = reader.read_bytes_and_size();
         Self {
             net_id,
             component_index,
@@ -277,7 +277,7 @@ impl NetworkMessageReader for RpcMessage {
         let net_id = reader.read_uint();
         let component_index = reader.read_byte();
         let function_hash = reader.read_ushort();
-        let payload = reader.read_remaining_bytes();
+        let payload = reader.read_bytes_and_size();
         Self {
             net_id,
             component_index,
@@ -356,7 +356,7 @@ impl NetworkMessageReader for SpawnMessage {
         let position = reader.read_vector3();
         let rotation = reader.read_quaternion();
         let scale = reader.read_vector3();
-        let payload = reader.read_remaining_bytes();
+        let payload = reader.read_bytes_and_size();
         Self {
             net_id,
             is_local_player,
@@ -571,7 +571,7 @@ impl EntityStateMessage {
 impl NetworkMessageReader for EntityStateMessage {
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.read_uint();
-        let payload = reader.read_remaining_bytes();
+        let payload = reader.read_bytes_and_size();
         Self { net_id, payload }
     }
 

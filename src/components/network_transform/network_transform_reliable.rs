@@ -1,10 +1,11 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::network_transform::network_transform_base::NetworkTransformBase;
-use crate::components::network_transform::transform_sync_data::SyncData;
+use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting, NetworkTransformReliableSetting};
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use nalgebra::{Quaternion, Vector3};
+use std::any::Any;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -46,7 +47,7 @@ impl NetworkTransformReliable {
             last_deserialized_position: Default::default(),
             last_serialized_scale: Default::default(),
             last_deserialized_scale: Default::default(),
-            sync_data: SyncData::new(0, position, quaternion, scale),
+            sync_data: SyncData::new(Changed::None, position, quaternion, scale),
         }
     }
 }
@@ -110,6 +111,22 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_behaviour.set_sync_object_dirty_bits(value)
     }
 
+    fn net_id(&self) -> u32 {
+        self.network_behaviour.net_id()
+    }
+
+    fn set_net_id(&mut self, value: u32) {
+        self.network_behaviour.set_net_id(value)
+    }
+
+    fn connection_to_client(&self) -> u64 {
+        self.network_behaviour.connection_to_client()
+    }
+
+    fn set_connection_to_client(&mut self, value: u64) {
+        self.network_behaviour.set_connection_to_client(value)
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
@@ -130,6 +147,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
 
     fn on_stop_server(&mut self) {
         todo!()
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     // fn serialize(&mut self, initial_state: bool) -> Batch {

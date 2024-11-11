@@ -147,7 +147,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_bytes_and_size(&mut self) -> Vec<u8> {
-        let count = self.decompress_var_uint() as usize;
+        let count = self.read_uint() as usize;
         if count == 0 {
             return Vec::new();
         }
@@ -155,7 +155,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_array_segment_and_size(&mut self) -> &[u8] {
-        let count = self.decompress_var_uint() as usize;
+        let count = self.read_uint() as usize;
         if count == 0 {
             return &[];
         }

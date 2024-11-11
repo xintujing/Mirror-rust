@@ -7,7 +7,7 @@ use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpo
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
 
 pub struct NetworkConnectionToClient {
     network_connection: NetworkConnection,
@@ -21,7 +21,7 @@ pub struct NetworkConnectionToClient {
     pub remote_timescale: f64,
     pub buffer_time_multiplier: f64,
     pub buffer_time: f64,
-    pub snapshots: BTreeSet<TimeSnapshot>,
+    pub snapshots: BTreeMap<String,TimeSnapshot>,
     pub snapshot_buffer_size_limit: i32,
     pub _rtt: ExponentialMovingAverage,
 }
@@ -40,7 +40,7 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             remote_timescale: ts,
             buffer_time_multiplier: 2.0,
             buffer_time: 0.0,
-            snapshots: BTreeSet::new(),
+            snapshots: Default::default(),
             snapshot_buffer_size_limit: 64,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         };
@@ -153,7 +153,7 @@ impl NetworkConnectionToClient {
                 snapshot,
                 &mut self.remote_timeline,
                 &mut self.remote_timescale,
-                NetworkTime::get_ping_interval(),
+                NetworkServerStatic::get_static_send_interval() as f64,
                 self.buffer_time,
                 snapshot_settings.catchup_speed,
                 snapshot_settings.slowdown_speed,

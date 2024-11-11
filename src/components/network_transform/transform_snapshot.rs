@@ -1,8 +1,8 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
-use nalgebra::{Quaternion, Vector3};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use tklog::warn;
 
-#[derive(Clone, Debug, PartialEq,Copy)]
+#[derive(Clone, Debug, PartialEq, Copy)]
 pub struct TransformSnapshot {
     pub remote_time: f64,
     pub local_time: f64,
@@ -31,7 +31,9 @@ impl TransformSnapshot {
     }
 }
 
-impl Eq for TransformSnapshot {}
+impl Eq for TransformSnapshot {
+
+}
 impl Ord for TransformSnapshot {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if let Some(ordering) = self.remote_time.partial_cmp(&other.remote_time) {

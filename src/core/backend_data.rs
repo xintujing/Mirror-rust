@@ -76,14 +76,14 @@ pub struct SyncVarData {
     pub dirty_bit: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
 pub struct NetworkBehaviourSetting {
     #[serde(rename = "syncDirection")]
     /// need fix
     pub sync_direction: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
 pub struct NetworkTransformBaseSetting {
     #[serde(rename = "syncPosition")]
     pub sync_position: bool,
@@ -130,7 +130,7 @@ pub struct NetworkTransformReliableSetting {
     pub scale_precision: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
 pub struct NetworkTransformUnreliableSetting {
     #[serde(rename = "bufferResetMultiplier")]
     pub buffer_reset_multiplier: f32,

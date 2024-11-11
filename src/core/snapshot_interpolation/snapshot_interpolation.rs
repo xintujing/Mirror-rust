@@ -1,6 +1,7 @@
 use crate::core::network_time::ExponentialMovingAverage;
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
-use std::collections::BTreeSet;
+use std::collections::BTreeMap;
+use tklog::debug;
 
 pub struct SnapshotInterpolation;
 
@@ -58,7 +59,7 @@ impl SnapshotInterpolation {
     }
 
     pub fn insert_if_not_exists<T>(
-        buffer: &mut BTreeSet<T>,
+        buffer: &mut BTreeMap<String, T>,
         buffer_limit: usize,
         snapshot: T,
     ) -> bool
@@ -67,7 +68,7 @@ impl SnapshotInterpolation {
     {
         if buffer.len() >= buffer_limit { return false; }
         let before = buffer.len();
-        buffer.insert(snapshot);
+        buffer.insert(snapshot.remote_time().to_string(), snapshot);
         buffer.len() > before
     }
 
@@ -88,7 +89,7 @@ impl SnapshotInterpolation {
     }
 
     pub fn insert_and_adjust<T>(
-        buffer: &mut BTreeSet<T>,
+        buffer: &mut BTreeMap<String, T>,
         buffer_limit: usize,
         snapshot: T,
         local_timeline: &mut f64,
@@ -110,8 +111,9 @@ impl SnapshotInterpolation {
 
         if Self::insert_if_not_exists(buffer, buffer_limit, snapshot.clone()) {
             if buffer.len() >= 2 {
-                let previous_local_time = buffer.iter().rev().nth(1).unwrap().local_time();
-                let lastest_local_time = buffer.iter().rev().next().unwrap().local_time();
+                // 拿到倒数第二个和最后一个
+                let previous_local_time = buffer.iter().rev().nth(1).unwrap().1.local_time();
+                let lastest_local_time = buffer.iter().last().unwrap().1.local_time();
                 let local_delivery_time = lastest_local_time - previous_local_time;
                 delivery_time_ema.add(local_delivery_time);
             }
@@ -130,40 +132,40 @@ impl SnapshotInterpolation {
     }
 
     pub fn sample<T>(
-        buffer: &BTreeSet<T>,
+        buffer: &BTreeMap<String, T>,
         local_timeline: f64,
-    ) -> (Option<&T>, Option<&T>, f64)
+    ) -> (String, String, f64)
     where
         T: Snapshot,
     {
-        let mut from = None;
-        let mut to = None;
-        let mut t = 0.0;
-
-        for i in 0..buffer.len() - 1 {
-            let first = buffer.iter().nth(i).unwrap();
-            let second = buffer.iter().nth(i + 1).unwrap();
-            if local_timeline >= first.remote_time() && local_timeline <= second.remote_time() {
-                from = Some(first);
-                to = Some(second);
-                t = (local_timeline - first.remote_time()) / (second.remote_time() - first.remote_time());
-                break;
+        if buffer.len() > 1 {
+            for i in 0..buffer.len() - 1 {
+                let first = buffer.iter().nth(i).unwrap();
+                let second = buffer.iter().nth(i + 1).unwrap();
+                debug!(format!("1 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
+                if local_timeline >= first.1.remote_time() && local_timeline <= second.1.remote_time() {
+                    debug!(format!("2 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
+                    let from = first.0.to_string();
+                    let to = second.0.to_string();
+                    let t = (local_timeline - first.1.remote_time()) / (second.1.remote_time() - first.1.remote_time());
+                    return (from, to, t);
+                }
             }
         }
 
-        if from.is_none() {
-            if buffer.iter().next().unwrap().remote_time() > local_timeline {
-                from = buffer.iter().next();
-                to = buffer.iter().next();
-                t = 0.0;
-            } else {
-                from = buffer.iter().last();
-                to = buffer.iter().last();
-                t = 0.0;
-            }
+        // 拿到第一个
+        if buffer.iter().nth(0).unwrap().1.remote_time() > local_timeline {
+            let from = 0.to_string();
+            let to = 0.to_string();
+            let t = 0.0;
+            (from, to, t)
+        } else {
+            let last = buffer.iter().last().unwrap();
+            let from = last.0.to_string();
+            let to = last.0.to_string();
+            let t = 0.0;
+            (from, to, t)
         }
-
-        (from, to, t)
     }
 
     pub fn step_time(delta_time: f64, local_timeline: &mut f64, local_timescale: f64) {
@@ -171,26 +173,28 @@ impl SnapshotInterpolation {
     }
 
     pub fn step_interpolation<T>(
-        buffer: &mut BTreeSet<T>,
+        buffer: &mut BTreeMap<String, T>,
         local_timeline: f64,
-    ) -> (Option<T>, Option<T>, f64)
+    ) -> (T, T, f64)
     where
         T: Snapshot,
     {
-        let binding = buffer.clone();
-        let (mut from, mut to, mut t) = Self::sample(&binding, local_timeline);
-        if let Some(from) = from {
-            buffer.remove(from);
+        let (from, to, t) = Self::sample(buffer, local_timeline);
+        if from == to {
+            let snapshot = buffer.get(&from).unwrap();
+            return (snapshot.clone(), snapshot.clone(), t);
         }
-        (from.copied(), to.copied(), t)
+        let from_snapshot = buffer.remove(&from).unwrap();
+        let to_snapshot = buffer.get(&to).unwrap();
+        (from_snapshot, *to_snapshot, t)
     }
 
     pub fn step<T>(
-        buffer: &mut BTreeSet<T>,
+        buffer: &mut BTreeMap<String, T>,
         delta_time: f64,
         local_timeline: &mut f64,
         local_timescale: f64,
-    ) -> (Option<T>, Option<T>, f64)
+    ) -> (T, T, f64)
     where
         T: Snapshot,
     {
