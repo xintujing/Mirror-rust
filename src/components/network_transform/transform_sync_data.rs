@@ -3,10 +3,10 @@ use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWr
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use std::fmt::Debug;
 
-#[derive(Clone, Copy, PartialEq,Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct SyncData {
     // 改变的数据
-    pub changed_data_byte: Changed,
+    pub changed_data_byte: u8,
     // 位置
     pub position: Vector3<f32>,
     // 四元数
@@ -25,9 +25,9 @@ impl SyncData {
 
     #[allow(dead_code)]
     pub fn new(changed: Changed, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
-        let rotation=UnitQuaternion::from_quaternion(quat_rotation);
+        let rotation = UnitQuaternion::from_quaternion(quat_rotation);
         Self {
-            changed_data_byte: changed,
+            changed_data_byte: changed.to_u8(),
             position,
             quat_rotation,
             vec_rotation: Vector3::new(rotation.euler_angles().0, rotation.euler_angles().1, rotation.euler_angles().2),
@@ -205,18 +205,18 @@ impl NetworkMessageReader for SyncData {
         let mut quaternion = Quaternion::identity();
         // 欧拉角
         let mut vec_rotation = Vector3::new(0.0, 0.0, 0.0);
-        if (changed & Changed::CompressRot.to_u8()) > 0 {
-            if (changed & Changed::RotX.to_u8()) > 0 {
+        if (changed & Changed::CompressRot.to_u8()) > Changed::None.to_u8() {
+            if (changed & Changed::RotX.to_u8()) > Changed::None.to_u8() {
                 quaternion = SyncData::decompress_quaternion(reader.read_uint());
             }
         } else {
-            if changed & Changed::RotX.to_u8() > 0 {
+            if changed & Changed::RotX.to_u8() > Changed::None.to_u8() {
                 vec_rotation.x = reader.read_float();
             }
-            if changed & Changed::RotY.to_u8() > 0 {
+            if changed & Changed::RotY.to_u8() > Changed::None.to_u8() {
                 vec_rotation.y = reader.read_float();
             }
-            if changed & Changed::RotZ.to_u8() > 0 {
+            if changed & Changed::RotZ.to_u8() > Changed::None.to_u8() {
                 vec_rotation.z = reader.read_float();
             }
         }
@@ -230,7 +230,7 @@ impl NetworkMessageReader for SyncData {
         }
 
         Self {
-            changed_data_byte: Changed::from_u8(changed),
+            changed_data_byte: changed,
             position,
             quat_rotation: quaternion,
             vec_rotation,
@@ -245,40 +245,40 @@ impl NetworkMessageReader for SyncData {
 
 impl NetworkMessageWriter for SyncData {
     fn serialize(&mut self, write: &mut NetworkWriter) {
-        write.write_byte(self.changed_data_byte.to_u8());
+        write.write_byte(self.changed_data_byte);
 
         // 位置
-        if (self.changed_data_byte.to_u8() & Changed::PosX.to_u8()) > 0 {
+        if (self.changed_data_byte & Changed::PosX.to_u8()) > Changed::None.to_u8() {
             write.write_float(self.position.x);
         }
 
-        if (self.changed_data_byte.to_u8() & Changed::PosY.to_u8()) > 0 {
+        if (self.changed_data_byte & Changed::PosY.to_u8()) > Changed::None.to_u8() {
             write.write_float(self.position.y);
         }
 
-        if (self.changed_data_byte.to_u8() & Changed::PosZ.to_u8()) > 0 {
+        if (self.changed_data_byte & Changed::PosZ.to_u8()) > Changed::None.to_u8() {
             write.write_float(self.position.z);
         }
 
         // rotation
-        if (self.changed_data_byte.to_u8() & Changed::CompressRot.to_u8()) > 0 {
+        if (self.changed_data_byte & Changed::CompressRot.to_u8()) > Changed::None.to_u8() {
             write.write_uint(SyncData::compress_quaternion(self.quat_rotation));
         } else {
-            if (self.changed_data_byte.to_u8() & Changed::RotX.to_u8()) > 0 {
+            if (self.changed_data_byte & Changed::RotX.to_u8()) > Changed::None.to_u8() {
                 write.write_float(self.vec_rotation.x);
             }
 
-            if (self.changed_data_byte.to_u8() & Changed::RotY.to_u8()) > 0 {
+            if (self.changed_data_byte & Changed::RotY.to_u8()) > Changed::None.to_u8() {
                 write.write_float(self.vec_rotation.y);
             }
 
-            if (self.changed_data_byte.to_u8() & Changed::RotZ.to_u8()) > 0 {
+            if (self.changed_data_byte & Changed::RotZ.to_u8()) > Changed::None.to_u8() {
                 write.write_float(self.vec_rotation.z);
             }
         }
 
         // 缩放
-        if (self.changed_data_byte.to_u8() & Changed::Scale.to_u8()) == Changed::Scale.to_u8() {
+        if (self.changed_data_byte & Changed::Scale.to_u8()) == Changed::Scale.to_u8() {
             write.write_float(self.scale.x);
             write.write_float(self.scale.y);
             write.write_float(self.scale.z);
@@ -286,7 +286,7 @@ impl NetworkMessageWriter for SyncData {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Changed {
     None = 0,
@@ -306,20 +306,5 @@ pub enum Changed {
 impl Changed {
     pub fn to_u8(&self) -> u8 {
         *self as u8
-    }
-
-    pub fn from_u8(byte: u8) -> Changed {
-        match byte {
-            0 => Changed::None,
-            1 => Changed::PosX,
-            2 => Changed::PosY,
-            4 => Changed::PosZ,
-            8 => Changed::CompressRot,
-            16 => Changed::RotX,
-            32 => Changed::RotY,
-            64 => Changed::RotZ,
-            128 => Changed::Scale,
-            _ => Changed::None,
-        }
     }
 }

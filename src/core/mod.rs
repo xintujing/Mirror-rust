@@ -8,10 +8,10 @@ pub mod snapshot_interpolation;
 pub mod backend_data;
 mod network_identity;
 mod network_messages;
-mod messages;
+pub mod messages;
 
 mod network_writer_extensions;
-mod network_writer_pool;
+pub mod network_writer_pool;
 mod batching;
 mod network_authenticator;
 mod connection_quality;

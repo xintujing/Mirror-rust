@@ -256,9 +256,9 @@ impl NetworkManager {
         // 如果 场景名称不为空 且 场景名称不等于 NetworkManager 的 offline_scene
         if network_scene_name != "" && network_scene_name != network_manager.offline_scene() {
             // 创建 SceneMessage 消息
-            let scene_message = SceneMessage::new(network_scene_name.to_string(), SceneOperation::Normal, false);
+            let mut scene_message = SceneMessage::new(network_scene_name.to_string(), SceneOperation::Normal, false);
             // 发送 SceneMessage 消息
-            conn.send_network_message(scene_message, TransportChannel::Reliable);
+            conn.send_network_message(&mut scene_message, TransportChannel::Reliable);
         }
 
         Self::on_server_connect(conn);

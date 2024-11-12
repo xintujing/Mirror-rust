@@ -43,7 +43,7 @@ pub trait NetworkConnectionTrait {
     fn set_authenticated(&mut self, authenticated: bool);
     fn owned(&mut self) -> &mut Vec<u32>;
     fn set_owned(&mut self, owned: Vec<u32>);
-    fn send_network_message<T>(&mut self, mut message: T, channel: TransportChannel)
+    fn send_network_message<T>(&mut self, message: &mut T, channel: TransportChannel)
     where
         T: NetworkMessageWriter + NetworkMessageReader + Send,
     {
@@ -69,7 +69,7 @@ pub trait NetworkConnectionTrait {
         let local_time = NetworkTime::local_time();
         if local_time >= self.last_ping_time() + NetworkTime::get_ping_interval() {
             self.set_last_ping_time(local_time);
-            self.send_network_message(NetworkPingMessage::new(local_time, 0.0), TransportChannel::Unreliable);
+            self.send_network_message(&mut NetworkPingMessage::new(local_time, 0.0), TransportChannel::Unreliable);
         }
     }
     fn is_alive(&self, timeout: f64) -> bool {

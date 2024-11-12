@@ -127,6 +127,14 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_behaviour.set_connection_to_client(value)
     }
 
+    fn observers(&self) -> &Vec<u64> {
+        self.network_behaviour.observers()
+    }
+
+    fn set_observers(&mut self, value: Vec<u64>) {
+        self.network_behaviour.set_observers(value)
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }

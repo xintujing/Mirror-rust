@@ -1,10 +1,15 @@
 use crate::core::backend_data::NetworkBehaviourSetting;
+use crate::core::messages::RpcMessage;
+use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_reader::NetworkReader;
+use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::transport::TransportChannel;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
+use tklog::error;
 
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum SyncDirection {
@@ -42,6 +47,7 @@ pub struct NetworkBehaviour {
     sync_object_dirty_bits: u64,
     net_id: u32,
     connection_to_client: u64,
+    observers: Vec<u64>,
 }
 
 impl NetworkBehaviour {
@@ -56,6 +62,7 @@ impl NetworkBehaviour {
             sync_object_dirty_bits: 0,
             net_id: 0,
             connection_to_client: 0,
+            observers: Default::default(),
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -85,6 +92,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_net_id(&mut self, value: u32);
     fn connection_to_client(&self) -> u64;
     fn set_connection_to_client(&mut self, value: u64);
+    fn observers(&self) -> &Vec<u64>;
+    fn set_observers(&mut self, value: Vec<u64>);
     // 字段 get  set end
     fn call_register_delegate<F>(reg_fn: F)
     where
@@ -131,6 +140,19 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         // TODO syncObjects
     }
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn send_rpc_internal(&self, function_full_name: &'static str, function_hash_code: i32, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
+        if !NetworkServerStatic::get_static_active() {
+            error!(format!("RPC Function {} called without an active server.", function_full_name));
+            return;
+        }
+        let mut rpc = RpcMessage::new(self.net_id(), self.component_index(), function_hash_code as u16, writer.to_bytes());
+        println!("rpc: {:?}", rpc);
+        for observer in self.observers().iter() {
+            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
+                connection.send_network_message(&mut rpc, channel);
+            }
+        }
+    }
 }
 
 impl NetworkBehaviourTrait for NetworkBehaviour {
@@ -204,6 +226,14 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
 
     fn set_connection_to_client(&mut self, value: u64) {
         self.connection_to_client = value;
+    }
+
+    fn observers(&self) -> &Vec<u64> {
+        &self.observers
+    }
+
+    fn set_observers(&mut self, value: Vec<u64>) {
+        self.observers = value;
     }
 
     fn is_dirty(&self) -> bool {

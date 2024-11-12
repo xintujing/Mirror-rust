@@ -61,15 +61,15 @@ impl NetworkIdentitySerialization {
 #[derive(Debug)]
 pub struct NetworkIdentity {
     conn_to_client: u64,
-    pub scene_id: u64,
-    pub asset_id: u32,
     net_id: u32,
     had_authority: bool,
+    observers: Vec<u64>,
+    pub scene_id: u64,
+    pub asset_id: u32,
     pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
     pub is_owned: bool,
-    pub observers: Vec<u64>,
     pub is_init: bool,
     pub destroy_called: bool,
     pub visibility: Visibility,
@@ -130,6 +130,15 @@ impl NetworkIdentity {
         }
         if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
             conn.owned().push(self.net_id);
+        }
+    }
+    pub fn observers(&self) -> &Vec<u64> {
+        &self.observers
+    }
+    pub fn set_observers(&mut self, observers: Vec<u64>) {
+        self.observers = observers;
+        for component in self.network_behaviours.iter_mut() {
+            component.set_observers(self.observers.clone());
         }
     }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, conn_id: u64) {
@@ -331,12 +340,12 @@ impl NetworkIdentity {
     pub fn clear_observers(&mut self) {
         for i in 0..self.observers.len() {
             let conn_id = self.observers[i];
-            // TODO 可能死锁 待确认
             if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
                 conn.remove_from_observing(self, true);
             }
         }
         self.observers.clear();
+        self.update_network_behaviour_trait_observers();
     }
 
     pub fn reset_state(&mut self) {
@@ -370,6 +379,9 @@ impl NetworkIdentity {
         // 添加观察者
         self.observers.push(conn_id);
 
+        // 更新观察者
+        self.update_network_behaviour_trait_observers();
+
         if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
             // 添加到观察者
             conn.add_to_observing(self);
@@ -382,6 +394,8 @@ impl NetworkIdentity {
     }
     pub fn remove_observer(&mut self, conn_id: u64) {
         self.observers.retain(|id| *id != conn_id);
+        // 更新观察者
+        self.update_network_behaviour_trait_observers();
     }
     pub fn set_client_owner(&mut self, conn_id: u64) {
         // do nothing if it already has an owner
@@ -405,6 +419,13 @@ impl NetworkIdentity {
     pub fn set_static_client_authority_callback(callback: ClientAuthorityCallback) {
         unsafe {
             CLIENT_AUTHORITY_CALLBACK = Some(callback);
+        }
+    }
+
+    // 自定义方法
+    fn update_network_behaviour_trait_observers(&mut self) {
+        for component in self.network_behaviours.iter_mut() {
+            component.set_observers(self.observers.to_vec());
         }
     }
 }

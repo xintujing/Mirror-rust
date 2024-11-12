@@ -375,7 +375,7 @@ impl NetworkServer {
             }
 
             if connection.is_ready() {
-                connection.send_network_message(TimeSnapshotMessage::new(), TransportChannel::Unreliable);
+                connection.send_network_message(&mut TimeSnapshotMessage::new(), TransportChannel::Unreliable);
                 Self::broadcast_to_connection(&mut connection);
             }
             connection.update();
@@ -387,9 +387,9 @@ impl NetworkServer {
         for i in 0..conn.observing.len() {
             let net_id = conn.observing[i];
             if net_id != 0 {
-                if let Some(message) = Self::serialize_for_connection(net_id, conn.connection_id()) {
+                if let Some(mut message) = Self::serialize_for_connection(net_id, conn.connection_id()) {
                     debug!(format!("Server.broadcast_to_connection: connectionId: {}, netId: {}", conn.connection_id(), net_id));
-                    conn.send_network_message(message, TransportChannel::Reliable);
+                    conn.send_network_message(&mut message, TransportChannel::Reliable);
                 }
             } else {
                 warn!(format!("Server.broadcast_to_connection: identity is null. Removing from observing list. connectionId: {}, netId: {}", conn.connection_id(), net_id));
@@ -434,8 +434,8 @@ impl NetworkServer {
 
     pub fn hide_for_connection(identity: &mut NetworkIdentity, conn: &mut NetworkConnectionToClient) {
         if conn.is_ready() {
-            let message = ObjectHideMessage::new(identity.net_id());
-            conn.send_network_message(message, TransportChannel::Reliable);
+            let mut message = ObjectHideMessage::new(identity.net_id());
+            conn.send_network_message(&mut message, TransportChannel::Reliable);
         }
     }
 
@@ -452,18 +452,18 @@ impl NetworkServer {
         // 创建 SpawnMessage 的 payload
         let payload = Self::create_spawn_message_payload(is_owner, identity);
         // 发送 SpawnMessage
-        let spawn_message = SpawnMessage::new(identity.net_id(),
-                                              is_local_player,
-                                              is_owner,
-                                              identity.scene_id,
-                                              identity.asset_id,
-                                              identity.game_object.transform.positions,
-                                              identity.game_object.transform.rotation,
-                                              identity.game_object.transform.scale,
-                                              payload);
+        let mut spawn_message = SpawnMessage::new(identity.net_id(),
+                                                  is_local_player,
+                                                  is_owner,
+                                                  identity.scene_id,
+                                                  identity.asset_id,
+                                                  identity.game_object.transform.positions,
+                                                  identity.game_object.transform.rotation,
+                                                  identity.game_object.transform.scale,
+                                                  payload);
         println!("spawn_message: {:?}", spawn_message);
         // 发送 SpawnMessage
-        conn.send_network_message(spawn_message, TransportChannel::Reliable);
+        conn.send_network_message(&mut spawn_message, TransportChannel::Reliable);
     }
 
     fn create_spawn_message_payload(is_owner: bool, identity: &mut NetworkIdentity) -> Vec<u8> {
@@ -708,8 +708,8 @@ impl NetworkServer {
         }
         let is_owner = identity.connection_to_client() == conn.connection_id();
         let is_local_player = conn.net_id() == identity.net_id() && is_owner;
-        let change_owner_message = ChangeOwnerMessage::new(identity.net_id(), is_owner, is_local_player);
-        conn.send_network_message(change_owner_message, TransportChannel::Reliable);
+        let mut change_owner_message = ChangeOwnerMessage::new(identity.net_id(), is_owner, is_local_player);
+        conn.send_network_message(&mut change_owner_message, TransportChannel::Reliable);
     }
 
     // UnSpawn
@@ -747,7 +747,7 @@ impl NetworkServer {
     }
 
     fn send_to_observers(identity: &mut NetworkIdentity, mut message: ObjectDestroyMessage, channel: TransportChannel) {
-        if identity.is_null() || identity.observers.len() == 0 {
+        if identity.is_null() || identity.observers().len() == 0 {
             return;
         }
 
@@ -761,8 +761,8 @@ impl NetworkServer {
                 return;
             }
 
-            for i in 0..identity.observers.len() {
-                let conn_id = identity.observers[i];
+            for i in 0..identity.observers().len() {
+                let conn_id = identity.observers()[i];
                 if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
                     connection.send(segment, channel);
                 }
@@ -956,7 +956,7 @@ impl NetworkServer {
             if !connection.is_ready() {
                 return;
             }
-            connection.send_network_message(ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
+            connection.send_network_message(&mut ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
         }
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
@@ -973,7 +973,7 @@ impl NetworkServer {
 
         // 发送 ObjectSpawnFinishedMessage 消息
         if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
-            connection.send_network_message(ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
+            connection.send_network_message(&mut ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
         }
     }
 
@@ -1060,7 +1060,6 @@ impl NetworkServer {
     // 处理 OnTimeSnapshotMessage 消息
     fn on_time_snapshot_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            let message = TimeSnapshotMessage::deserialize(reader);
             let snapshot = TimeSnapshot::new(connection.remote_time_stamp(), NetworkTime::local_time());
             connection.on_time_snapshot(snapshot);
         }

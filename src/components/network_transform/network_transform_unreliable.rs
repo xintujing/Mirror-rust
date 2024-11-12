@@ -8,9 +8,11 @@ use crate::core::network_manager::NetworkManagerStatic;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
-use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
+use crate::core::transport::TransportChannel;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
@@ -20,15 +22,12 @@ use tklog::{debug, error};
 #[derive(Debug)]
 pub struct NetworkTransformUnreliable {
     network_transform_base: NetworkTransformBase,
-    // network_transform_unreliable_setting: NetworkTransformUnreliableSetting
     pub buffer_reset_multiplier: f32,
     pub changed_detection: bool,
     pub position_sensitivity: f32,
     pub rotation_sensitivity: f32,
     pub scale_sensitivity: f32,
-
     pub network_behaviour: NetworkBehaviour,
-
     pub sync_data: SyncData,
 }
 
@@ -67,8 +66,11 @@ impl NetworkTransformUnreliable {
         }
     }
     fn user_code_cmd_client_to_server_sync_sync_data(&mut self, sync_data: SyncData) {
-        debug!("CmdClientToServerSync called on server.");
         self.on_client_to_server_sync(sync_data);
+        if *self.sync_direction() != SyncDirection::ClientToServer {
+            return;
+        }
+        self.rpc_server_to_client_sync(sync_data);
     }
 
     // void OnClientToServerSync
@@ -104,8 +106,8 @@ impl NetworkTransformUnreliable {
     }
 
     fn update_sync_data(sync_data: &mut SyncData, snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
-        if sync_data.changed_data_byte == Changed::None ||
-            sync_data.changed_data_byte == Changed::CompressRot {
+        if sync_data.changed_data_byte == Changed::None.to_u8() ||
+            sync_data.changed_data_byte == Changed::CompressRot.to_u8() {
             if let Some((_, last_snapshot)) = snapshots.iter().last() {
                 sync_data.position = last_snapshot.position;
                 sync_data.quat_rotation = last_snapshot.rotation;
@@ -120,59 +122,59 @@ impl NetworkTransformUnreliable {
 
             if let Some((_, last_snapshot)) = snapshots.iter().last() {
                 // x
-                if sync_data.changed_data_byte.to_u8() & Changed::PosX.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
                     sync_data.position.x = last_snapshot.position.x;
                 }
                 // y
-                if sync_data.changed_data_byte.to_u8() & Changed::PosY.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
                     sync_data.position.y = last_snapshot.position.y;
                 }
                 // z
-                if sync_data.changed_data_byte.to_u8() & Changed::PosZ.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
                     sync_data.position.z = last_snapshot.position.z;
                 }
             } else {
                 // x
-                if sync_data.changed_data_byte.to_u8() & Changed::PosX.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
                     //  TODO
                 }
                 // y
-                if sync_data.changed_data_byte.to_u8() & Changed::PosY.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
                     //  TODO
                 }
                 // z
-                if sync_data.changed_data_byte.to_u8() & Changed::PosZ.to_u8() > 0 {
+                if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
                     //  TODO
                 }
             }
 
-            if sync_data.changed_data_byte.to_u8() & Changed::CompressRot.to_u8() == 0 {
+            if sync_data.changed_data_byte & Changed::CompressRot.to_u8() == 0 {
                 if let Some((_, last_snapshot)) = snapshots.iter().last() {
                     let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
                     // x
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotX.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
                         sync_data.vec_rotation.x = euler_angles.0;
                     }
                     // y
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotY.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
                         sync_data.vec_rotation.y = euler_angles.1;
                     }
                     // z
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotZ.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
                         sync_data.vec_rotation.z = euler_angles.2;
                     }
                     sync_data.quat_rotation = *UnitQuaternion::from_euler_angles(sync_data.vec_rotation.x, sync_data.vec_rotation.y, sync_data.vec_rotation.z).quaternion();
                 } else {
                     // x
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotX.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
                         //  TODO
                     }
                     // y
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotY.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
                         //  TODO
                     }
                     // z
-                    if sync_data.changed_data_byte.to_u8() & Changed::RotZ.to_u8() > 0 {
+                    if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
                         //  TODO
                     }
                 }
@@ -198,8 +200,22 @@ impl NetworkTransformUnreliable {
         // if (!scale.HasValue) scale = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].scale : GetScale();
         let new_snapshot = TransformSnapshot::new(timestamp, NetworkTime::local_time(), position, rotation, scale);
         let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
-
         SnapshotInterpolation::insert_if_not_exists(snapshots, snapshot_settings.buffer_limit, new_snapshot);
+    }
+
+    // RpcServerToClientSync
+    // [ClientRpc(channel = 1)]
+    fn rpc_server_to_client_sync(&mut self, mut sync_data: SyncData) {
+        NetworkWriterPool::get_return(|writer| {
+            sync_data.serialize(writer);
+            self.send_rpc_internal(
+                "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)",
+                -1891602648,
+                writer,
+                TransportChannel::Reliable,
+                true,
+            );
+        });
     }
 }
 #[allow(dead_code)]
@@ -274,6 +290,14 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
 
     fn set_connection_to_client(&mut self, value: u64) {
         self.network_behaviour.set_connection_to_client(value)
+    }
+
+    fn observers(&self) -> &Vec<u64> {
+        self.network_behaviour.observers()
+    }
+
+    fn set_observers(&mut self, value: Vec<u64>) {
+        self.network_behaviour.set_observers(value)
     }
 
     fn is_dirty(&self) -> bool {

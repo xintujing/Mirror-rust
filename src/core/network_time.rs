@@ -95,10 +95,10 @@ impl NetworkTime {
         let unadjusted_error = local_time - message.local_time;
         let adjusted_error = local_time - message.predicted_time_adjusted;
         // new prediction error
-        let pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
+        let mut pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
         if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
             // send pong message
-            connection.send_network_message(pong_message, TransportChannel::Reliable);
+            connection.send_network_message(&mut pong_message, TransportChannel::Reliable);
         }
     }
 
