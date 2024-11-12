@@ -60,11 +60,12 @@ impl NetworkTransformUnreliable {
         } else {
             let sync_data = SyncData::deserialize(reader);
             component.as_any_mut().
-                downcast_mut::<NetworkTransformUnreliable>().
+                downcast_mut::<Self>().
                 unwrap().
                 user_code_cmd_client_to_server_sync_sync_data(sync_data);
         }
     }
+    // UserCode_CmdClientToServerSync__SyncData
     fn user_code_cmd_client_to_server_sync_sync_data(&mut self, sync_data: SyncData) {
         self.on_client_to_server_sync(sync_data);
         if *self.sync_direction() != SyncDirection::ClientToServer {
