@@ -50,23 +50,23 @@ impl NetworkTransformUnreliable {
         // Register Remote Procedure Calls
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
                                                 RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_sync_data)), true);
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
-    pub fn invoke_user_code_cmd_client_to_server_sync_sync_data(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
-        } else {
-            let sync_data = SyncData::deserialize(reader);
-            component.as_any_mut().
-                downcast_mut::<Self>().
-                unwrap().
-                user_code_cmd_client_to_server_sync_sync_data(sync_data);
+            return;
         }
+        let sync_data = SyncData::deserialize(reader);
+        component.as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_client_to_server_sync__sync_data(sync_data);
     }
     // UserCode_CmdClientToServerSync__SyncData
-    fn user_code_cmd_client_to_server_sync_sync_data(&mut self, sync_data: SyncData) {
+    fn user_code_cmd_client_to_server_sync__sync_data(&mut self, sync_data: SyncData) {
         self.on_client_to_server_sync(sync_data);
         if *self.sync_direction() != SyncDirection::ClientToServer {
             return;
@@ -92,12 +92,9 @@ impl NetworkTransformUnreliable {
         if self.network_transform_base.only_sync_on_change {
             let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * self.network_behaviour.sync_interval();
 
-            // if (serverSnapshots.Count > 0 && serverSnapshots.Values[serverSnapshots.Count - 1].remoteTime + timeIntervalCheck < timestamp)
-            // ResetState();
-
             if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
                 if last_snapshot.remote_time + time_interval_check < timestamp {
-                    // TODO ResetState();
+                    self.network_transform_base.reset_state();
                 }
             }
         }
@@ -116,77 +113,79 @@ impl NetworkTransformUnreliable {
             } else {
                 // TODO
             }
-        } else {
-            // Just going to update these without checking if syncposition or not,
-            // because if not syncing position, NT will not apply any position data
-            // to the target during Apply().
+            return;
+        }
 
-            if let Some((_, last_snapshot)) = snapshots.iter().last() {
-                // x
-                if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
-                    sync_data.position.x = last_snapshot.position.x;
-                }
-                // y
-                if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
-                    sync_data.position.y = last_snapshot.position.y;
-                }
-                // z
-                if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
-                    sync_data.position.z = last_snapshot.position.z;
-                }
-            } else {
-                // x
-                if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
-                    //  TODO
-                }
-                // y
-                if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
-                    //  TODO
-                }
-                // z
-                if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
-                    //  TODO
-                }
+        // Just going to update these without checking if syncposition or not,
+        // because if not syncing position, NT will not apply any position data
+        // to the target during Apply().
+
+        if let Some((_, last_snapshot)) = snapshots.iter().last() {
+            // x
+            if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
+                sync_data.position.x = last_snapshot.position.x;
             }
-
-            if sync_data.changed_data_byte & Changed::CompressRot.to_u8() == 0 {
-                if let Some((_, last_snapshot)) = snapshots.iter().last() {
-                    let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
-                    // x
-                    if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
-                        sync_data.vec_rotation.x = euler_angles.0;
-                    }
-                    // y
-                    if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
-                        sync_data.vec_rotation.y = euler_angles.1;
-                    }
-                    // z
-                    if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
-                        sync_data.vec_rotation.z = euler_angles.2;
-                    }
-                    sync_data.quat_rotation = *UnitQuaternion::from_euler_angles(sync_data.vec_rotation.x, sync_data.vec_rotation.y, sync_data.vec_rotation.z).quaternion();
-                } else {
-                    // x
-                    if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
-                        //  TODO
-                    }
-                    // y
-                    if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
-                        //  TODO
-                    }
-                    // z
-                    if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
-                        //  TODO
-                    }
-                }
-            } else {
-                if let Some((_, last_snapshot)) = snapshots.iter().last() {
-                    sync_data.quat_rotation = last_snapshot.rotation;
-                } else {
-                    // TODO
-                }
+            // y
+            if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
+                sync_data.position.y = last_snapshot.position.y;
+            }
+            // z
+            if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
+                sync_data.position.z = last_snapshot.position.z;
+            }
+        } else {
+            // x
+            if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
+                //  TODO
+            }
+            // y
+            if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
+                //  TODO
+            }
+            // z
+            if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
+                //  TODO
             }
         }
+
+        if sync_data.changed_data_byte & Changed::CompressRot.to_u8() == 0 {
+            if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
+                // x
+                if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
+                    sync_data.vec_rotation.x = euler_angles.0;
+                }
+                // y
+                if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
+                    sync_data.vec_rotation.y = euler_angles.1;
+                }
+                // z
+                if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
+                    sync_data.vec_rotation.z = euler_angles.2;
+                }
+                sync_data.quat_rotation = *UnitQuaternion::from_euler_angles(sync_data.vec_rotation.x, sync_data.vec_rotation.y, sync_data.vec_rotation.z).quaternion();
+            } else {
+                // x
+                if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
+                    //  TODO
+                }
+                // y
+                if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
+                    //  TODO
+                }
+                // z
+                if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
+                    //  TODO
+                }
+            }
+        } else {
+            if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                sync_data.quat_rotation = last_snapshot.rotation;
+            } else {
+                // TODO
+            }
+        }
+
 
         if let Some((_, last_snapshot)) = snapshots.iter().last() {
             sync_data.scale = last_snapshot.scale;
@@ -213,7 +212,7 @@ impl NetworkTransformUnreliable {
                 "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)",
                 -1891602648,
                 writer,
-                TransportChannel::Reliable,
+                TransportChannel::Unreliable,
                 true,
             );
         });

@@ -19,9 +19,9 @@ pub struct SyncData {
 
 impl SyncData {
     /// 常量定义
-    const TEN_BITS_MAX: u32 = 0x3FF; // 10 bits max value: 1023
-    const QUATERNION_MIN_RANGE: f32 = -1.0;
-    const QUATERNION_MAX_RANGE: f32 = 1.0;
+    const TEN_BITS_MAX: u32 = 0b11_1111_1111; // 10 bits max value: 1023
+    const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
+    const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2; // sqrt(0.5)
 
     #[allow(dead_code)]
     pub fn new(changed: Changed, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
@@ -36,57 +36,73 @@ impl SyncData {
     }
 
     /// 安全地规范化四元数，即使输入包含无效值（如 NaN）
-    fn quaternion_normalize_safe(q: Quaternion<f32>) -> Quaternion<f32> {
-        let norm = q.norm();
-        if norm.is_finite() && norm > 0.0 {
-            q / norm
+    fn quaternion_normalize_safe(v4: Vector4<f32>) -> Quaternion<f32> {
+        const FLT_MIN_NORMAL: f64 = 1.175494351e-38f64;
+        let len = v4.dot(&v4);
+        if len > FLT_MIN_NORMAL as f32 {
+            v4.normalize().into()
         } else {
             Quaternion::identity()
         }
     }
 
     /// 将 `u16` 值缩放到指定的浮点范围
-    fn scale_u16_to_float(
+    fn scale_ushort_to_float(
         value: u16,
-        input_min: u32,
-        input_max: u32,
-        output_min: f32,
-        output_max: f32,
+        min_value: u32,
+        max_value: u32,
+        min_target: f32,
+        max_target: f32,
     ) -> f32 {
-        let normalized = (value as f32 - input_min as f32) / (input_max - input_min) as f32;
-        output_min + normalized * (output_max - output_min)
+        let target_range: f32 = max_target - min_target;
+        let value_range: u16 = (max_value - min_value) as u16;
+        let value_relative: u16 = value - min_value as u16;
+        min_target + (value_relative as f32 / value_range as f32 * target_range)
+    }
+
+    fn scale_float_to_ushort(
+        value: f32,
+        min_value: f32,
+        max_value: f32,
+        min_target: u16,
+        max_target: u16,
+    ) -> u16 {
+        let target_range = max_target - min_target;
+        let value_range = max_value - min_value;
+        let value_relative = value - min_value;
+        min_target + ((value_relative / value_range) as u16 * target_range)
     }
 
     /// 解压缩四元数
-    pub fn decompress_quaternion(v: u32) -> Quaternion<f32> {
+    pub fn decompress_quaternion(data: u32) -> Quaternion<f32> {
         // 获取 cScaled（位 0..10）
-        let c_scaled = (v & SyncData::TEN_BITS_MAX) as u16;
+        let c_scaled = (data & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 bScaled（位 10..20）
-        let b_scaled = ((v >> 10) & SyncData::TEN_BITS_MAX) as u16;
+        let b_scaled = ((data >> 10) & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 aScaled（位 20..30）
-        let a_scaled = ((v >> 20) & SyncData::TEN_BITS_MAX) as u16;
+        let a_scaled = ((data >> 20) & SyncData::TEN_BITS_MAX) as u16;
 
         // 获取 largestIndex（位 30..32）
-        let largest_index = (v >> 30) as usize;
+        let largest_index = (data >> 30) as usize;
 
         // 缩放回浮点数
-        let a = SyncData::scale_u16_to_float(
+        let a = SyncData::scale_ushort_to_float(
             a_scaled,
             0,
             SyncData::TEN_BITS_MAX,
             SyncData::QUATERNION_MIN_RANGE,
             SyncData::QUATERNION_MAX_RANGE,
         );
-        let b = SyncData::scale_u16_to_float(
+        let b = SyncData::scale_ushort_to_float(
             b_scaled,
             0,
             SyncData::TEN_BITS_MAX,
             SyncData::QUATERNION_MIN_RANGE,
             SyncData::QUATERNION_MAX_RANGE,
         );
-        let c = SyncData::scale_u16_to_float(
+        let c = SyncData::scale_ushort_to_float(
             c_scaled,
             0,
             SyncData::TEN_BITS_MAX,
@@ -96,6 +112,7 @@ impl SyncData {
 
         // 计算省略的分量 d，基于 a² + b² + c² + d² = 1
         let d_squared = 1.0 - a * a - b * b - c * c;
+
         let d = if d_squared > 0.0 {
             d_squared.sqrt()
         } else {
@@ -110,77 +127,49 @@ impl SyncData {
             _ => Vector4::new(a, b, c, d),
         };
 
-        // 创建四元数并安全地规范化
-        let quaternion = Quaternion::new(v4.w, v4.x, v4.y, v4.z); // nalgebra 的 Quaternion 顺序为 (w, x, y, z)
-        SyncData::quaternion_normalize_safe(quaternion)
+        SyncData::quaternion_normalize_safe(v4)
     }
 
     /// 压缩四元数
     pub fn compress_quaternion(q: Quaternion<f32>) -> u32 {
-        // 获取四元数的分量
-        let (w, x, y, z) = (q.w, q.i, q.j, q.k);
+        let v4 = Vector4::new(q.i, q.j, q.k, q.w);
+        let (largest_index, _, mut without_largest) = Self::largest_absolute_component_index(v4);
 
-        // 计算省略的分量
-        let largest_index = if w.abs() > x.abs() {
-            if w.abs() > y.abs() {
-                if w.abs() > z.abs() {
-                    0
-                } else {
-                    3
-                }
-            } else if y.abs() > z.abs() {
-                1
-            } else {
-                3
-            }
-        } else if x.abs() > y.abs() {
-            if x.abs() > z.abs() {
-                1
-            } else {
-                3
-            }
-        } else if y.abs() > z.abs() {
-            2
-        } else {
-            3
-        };
-
-        // 根据 largestIndex 重建四元数
-        let (a, b, c) = match largest_index {
-            0 => (w, x, y),
-            1 => (x, w, y),
-            2 => (x, y, w),
-            _ => (x, y, z),
-        };
+        if q[largest_index] < 0f32 {
+            without_largest = -without_largest;
+        }
 
         // 缩放到 u16 范围
-        let a_scaled = ((a - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
-        let b_scaled = ((b - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
-        let c_scaled = ((c - SyncData::QUATERNION_MIN_RANGE) / (SyncData::QUATERNION_MAX_RANGE - SyncData::QUATERNION_MIN_RANGE) * SyncData::TEN_BITS_MAX as f32) as u16;
+        let a_scaled = Self::scale_float_to_ushort(without_largest.x, SyncData::QUATERNION_MIN_RANGE, SyncData::QUATERNION_MAX_RANGE, 0, SyncData::TEN_BITS_MAX as u16);
+        let b_scaled = Self::scale_float_to_ushort(without_largest.y, SyncData::QUATERNION_MIN_RANGE, SyncData::QUATERNION_MAX_RANGE, 0, SyncData::TEN_BITS_MAX as u16);
+        let c_scaled = Self::scale_float_to_ushort(without_largest.z, SyncData::QUATERNION_MIN_RANGE, SyncData::QUATERNION_MAX_RANGE, 0, SyncData::TEN_BITS_MAX as u16);
 
         // 重建 u32 值
         (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | c_scaled as u32
     }
 
-    pub fn quaternion_to_euler_angles(q: Quaternion<f32>) -> Vector3<f32> {
-        let (x, y, z, w) = (q.i, q.j, q.k, q.w);
+    fn largest_absolute_component_index(value: Vector4<f32>) -> (usize, f32, Vector3<f32>) {
+        let abs = value.map(|x| x.abs());
+        let mut largest_abs = abs.x;
+        let mut without_largest = Vector3::new(abs.y, abs.z, abs.w);
+        let mut largest_index = 0;
 
-        let sinr_cosp = 2.0 * (w * x + y * z);
-        let cosr_cosp = 1.0 - 2.0 * (x * x + y * y);
-        let roll = sinr_cosp.atan2(cosr_cosp);
-
-        let sinp = 2.0 * (w * y - z * x);
-        let pitch = if sinp.abs() >= 1.0 {
-            std::f32::consts::FRAC_PI_2.copysign(sinp)
-        } else {
-            sinp.asin()
-        };
-
-        let siny_cosp = 2.0 * (w * z + x * y);
-        let cosy_cosp = 1.0 - 2.0 * (y * y + z * z);
-        let yaw = siny_cosp.atan2(cosy_cosp);
-
-        Vector3::new(roll, pitch, yaw)
+        if abs.y > largest_abs {
+            largest_index = 1;
+            largest_abs = abs.y;
+            without_largest = Vector3::new(abs.x, abs.z, abs.w);
+        }
+        if abs.z > largest_abs {
+            largest_index = 2;
+            largest_abs = abs.z;
+            without_largest = Vector3::new(abs.x, abs.y, abs.w);
+        }
+        if abs.w > largest_abs {
+            largest_index = 3;
+            largest_abs = abs.w;
+            without_largest = Vector3::new(abs.x, abs.y, abs.z);
+        }
+        (largest_index, largest_abs, without_largest)
     }
 }
 
@@ -205,28 +194,35 @@ impl NetworkMessageReader for SyncData {
         let mut quaternion = Quaternion::identity();
         // 欧拉角
         let mut vec_rotation = Vector3::new(0.0, 0.0, 0.0);
-        if (changed & Changed::CompressRot.to_u8()) > Changed::None.to_u8() {
-            if (changed & Changed::RotX.to_u8()) > Changed::None.to_u8() {
+
+        if (changed & Changed::CompressRot.to_u8()) > 0 {
+            if (changed & Changed::RotX.to_u8()) > 0 {
                 quaternion = SyncData::decompress_quaternion(reader.read_uint());
             }
         } else {
-            if changed & Changed::RotX.to_u8() > Changed::None.to_u8() {
+            if changed & Changed::RotX.to_u8() > 0 {
                 vec_rotation.x = reader.read_float();
             }
-            if changed & Changed::RotY.to_u8() > Changed::None.to_u8() {
+            if changed & Changed::RotY.to_u8() > 0 {
                 vec_rotation.y = reader.read_float();
             }
-            if changed & Changed::RotZ.to_u8() > Changed::None.to_u8() {
+            if changed & Changed::RotZ.to_u8() > 0 {
                 vec_rotation.z = reader.read_float();
             }
         }
 
         // 缩放
-        let mut scale = Vector3::new(0.0, 0.0, 0.0);
+        let mut scale = Vector3::new(1.0, 1.0, 1.0);
         if changed & Changed::Scale.to_u8() == Changed::Scale.to_u8() {
             scale.x = reader.read_float();
             scale.y = reader.read_float();
             scale.z = reader.read_float();
+        }
+
+        if changed & Changed::CompressRot.to_u8() > 0 {
+            (vec_rotation.x, vec_rotation.y, vec_rotation.z) = UnitQuaternion::from_quaternion(quaternion).euler_angles();
+        } else {
+            quaternion = *UnitQuaternion::from_euler_angles(vec_rotation.x, vec_rotation.y, vec_rotation.z);
         }
 
         Self {
@@ -248,31 +244,33 @@ impl NetworkMessageWriter for SyncData {
         write.write_byte(self.changed_data_byte);
 
         // 位置
-        if (self.changed_data_byte & Changed::PosX.to_u8()) > Changed::None.to_u8() {
+        if (self.changed_data_byte & Changed::PosX.to_u8()) > 0 {
             write.write_float(self.position.x);
         }
 
-        if (self.changed_data_byte & Changed::PosY.to_u8()) > Changed::None.to_u8() {
+        if (self.changed_data_byte & Changed::PosY.to_u8()) > 0 {
             write.write_float(self.position.y);
         }
 
-        if (self.changed_data_byte & Changed::PosZ.to_u8()) > Changed::None.to_u8() {
+        if (self.changed_data_byte & Changed::PosZ.to_u8()) > 0 {
             write.write_float(self.position.z);
         }
 
         // rotation
-        if (self.changed_data_byte & Changed::CompressRot.to_u8()) > Changed::None.to_u8() {
-            write.write_uint(SyncData::compress_quaternion(self.quat_rotation));
+        if (self.changed_data_byte & Changed::CompressRot.to_u8()) > 0 {
+            if (self.changed_data_byte & Changed::Rot.to_u8()) > 0 {
+                write.write_uint(SyncData::compress_quaternion(self.quat_rotation));
+            }
         } else {
-            if (self.changed_data_byte & Changed::RotX.to_u8()) > Changed::None.to_u8() {
+            if (self.changed_data_byte & Changed::RotX.to_u8()) > 0 {
                 write.write_float(self.vec_rotation.x);
             }
 
-            if (self.changed_data_byte & Changed::RotY.to_u8()) > Changed::None.to_u8() {
+            if (self.changed_data_byte & Changed::RotY.to_u8()) > 0 {
                 write.write_float(self.vec_rotation.y);
             }
 
-            if (self.changed_data_byte & Changed::RotZ.to_u8()) > Changed::None.to_u8() {
+            if (self.changed_data_byte & Changed::RotZ.to_u8()) > 0 {
                 write.write_float(self.vec_rotation.z);
             }
         }

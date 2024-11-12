@@ -64,4 +64,9 @@ impl NetworkTransformBase {
             timeline_offset: network_transform_base_setting.timeline_offset,
         }
     }
+
+    pub fn reset_state(&mut self) {
+        self.client_snapshots.clear();
+        self.server_snapshots.clear();
+    }
 }

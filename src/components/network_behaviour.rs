@@ -147,7 +147,6 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         }
 
         let mut rpc = RpcMessage::new(self.net_id(), self.component_index(), function_hash_code as u16, writer.to_bytes());
-        println!("rpc: {:?}", rpc);
         for observer in self.observers().iter() {
             if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
