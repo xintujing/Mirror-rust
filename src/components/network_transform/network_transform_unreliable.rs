@@ -5,7 +5,7 @@ use crate::components::network_transform::transform_sync_data::{Changed, SyncDat
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_manager::NetworkManagerStatic;
-use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
+use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
@@ -46,11 +46,34 @@ impl NetworkTransformUnreliable {
             sync_data: SyncData::new(Changed::None, position, quaternion, scale),
         }
     }
+
     fn register_delegate() {
-        // Register Remote Procedure Calls
+        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                RemoteCallType::Command,
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
                                                 RemoteCallType::Command,
                                                 RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
+    }
+
+    // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
+    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        component.as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(reader.read_vector3_nullable(), reader.read_quaternion_nullable(), reader.read_vector3_nullable());
+    }
+
+    // UserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
+    fn user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+        // TODO void OnClientToServerSync( Vector3? position, Quaternion? rotation, Vector3? scale)
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
@@ -65,6 +88,7 @@ impl NetworkTransformUnreliable {
             unwrap().
             user_code_cmd_client_to_server_sync__sync_data(sync_data);
     }
+
     // UserCode_CmdClientToServerSync__SyncData
     fn user_code_cmd_client_to_server_sync__sync_data(&mut self, sync_data: SyncData) {
         self.on_client_to_server_sync(sync_data);
@@ -103,6 +127,7 @@ impl NetworkTransformUnreliable {
         Self::add_snapshot(&mut self.network_transform_base.server_snapshots, timestamp, sync_data.position, sync_data.quat_rotation, sync_data.scale);
     }
 
+    // void UpdateSyncData
     fn update_sync_data(sync_data: &mut SyncData, snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
         if sync_data.changed_data_byte == Changed::None.to_u8() ||
             sync_data.changed_data_byte == Changed::CompressRot.to_u8() {
@@ -194,6 +219,7 @@ impl NetworkTransformUnreliable {
         }
     }
 
+    // void AddSnapshot
     fn add_snapshot(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, timestamp: f64, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
         // if (!position.HasValue) position = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].position : GetPosition();
         // if (!rotation.HasValue) rotation = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].rotation : GetRotation();
@@ -204,7 +230,7 @@ impl NetworkTransformUnreliable {
     }
 
     // RpcServerToClientSync
-    // [ClientRpc(channel = 1)]
+    // [ClientRpc(channel = Un)]
     fn rpc_server_to_client_sync(&mut self, mut sync_data: SyncData) {
         NetworkWriterPool::get_return(|writer| {
             sync_data.serialize(writer);

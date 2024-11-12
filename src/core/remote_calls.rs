@@ -56,7 +56,7 @@ lazy_static! {
 pub struct RemoteProcedureCalls;
 
 impl RemoteProcedureCalls {
-    pub const INVOKE_RPC_PREFIX: &'static str = "InvokeUserCode_";
+    pub const INVOKE_RPC_PREFIX: &'static str = "invoke_user_code_";
     pub fn check_if_delegate_exists(remote_call_type: &RemoteCallType, delegate: &RemoteCallDelegate, func_hash: u16) -> bool {
         if let Some(old_invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
             if old_invoker.are_equal(remote_call_type, delegate) {
@@ -90,7 +90,7 @@ impl RemoteProcedureCalls {
 
     pub fn get_function_method_name(func_hash: u16) -> Option<String> {
         if let Some(invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
-            return Some(invoker.remote_call_delegate.method_name.replace(Self::INVOKE_RPC_PREFIX, ""));
+            return Some(invoker.remote_call_delegate.method_name.to_string());
         }
         None
     }
