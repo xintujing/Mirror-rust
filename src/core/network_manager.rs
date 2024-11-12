@@ -74,16 +74,16 @@ pub enum NetworkManagerMode {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Transform {
-    pub positions: Vector3<f32>,
+    pub position: Vector3<f32>,
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
 }
 
 // GameObject 的 Transform 组件
 impl Transform {
-    pub fn new(positions: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self {
-            positions,
+            position,
             rotation,
             scale,
         }
@@ -132,7 +132,7 @@ impl GameObject {
     pub fn get_component(&mut self) -> Option<NetworkIdentity> {
         if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
             let mut identity = NetworkIdentity::new(asset_id);
-            identity.game_object = self.clone();
+            identity.set_game_object(self.clone());
             return Some(identity);
         };
         None

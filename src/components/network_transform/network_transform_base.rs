@@ -1,5 +1,9 @@
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
+use crate::core::network_manager::NetworkManagerStatic;
+use crate::core::network_time::NetworkTime;
+use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
+use nalgebra::{Quaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -68,5 +72,34 @@ impl NetworkTransformBase {
     pub fn reset_state(&mut self) {
         self.client_snapshots.clear();
         self.server_snapshots.clear();
+    }
+
+    // void AddSnapshot
+    pub fn add_snapshot(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, timestamp: f64, mut position: Option<Vector3<f32>>, mut rotation: Option<Quaternion<f32>>, mut scale: Option<Vector3<f32>>) {
+        let last_snapshot = snapshots.iter().last();
+        if position.is_none() {
+            if let Some((_, last_snapshot)) = last_snapshot {
+                position = Some(last_snapshot.position);
+            } else {
+                // TODO
+            }
+        }
+        if rotation.is_none() {
+            if let Some((_, last_snapshot)) = last_snapshot {
+                rotation = Some(last_snapshot.rotation);
+            } else {
+                // TODO
+            }
+        }
+        if scale.is_none() {
+            if let Some((_, last_snapshot)) = last_snapshot {
+                scale = Some(last_snapshot.scale);
+            } else {
+                // TODO
+            }
+        }
+        let new_snapshot = TransformSnapshot::new(timestamp, NetworkTime::local_time(), position.unwrap(), rotation.unwrap(), scale.unwrap());
+        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
+        SnapshotInterpolation::insert_if_not_exists(snapshots, snapshot_settings.buffer_limit, new_snapshot);
     }
 }

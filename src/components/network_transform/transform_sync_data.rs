@@ -21,7 +21,7 @@ impl SyncData {
     /// 常量定义
     const TEN_BITS_MAX: u32 = 0b11_1111_1111; // 10 bits max value: 1023
     const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
-    const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2; // sqrt(0.5)
+    const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
 
     #[allow(dead_code)]
     pub fn new(changed: Changed, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {

@@ -4,7 +4,8 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
 use crate::core::network_connection::NetworkConnectionTrait;
-use crate::core::network_manager::NetworkManagerStatic;
+use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_manager::{NetworkManagerStatic, Transform};
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
@@ -13,6 +14,8 @@ use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::transport::TransportChannel;
+use dashmap::mapref::one::Ref;
+use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
@@ -60,7 +63,7 @@ impl NetworkTransformUnreliable {
     }
 
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
-    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -77,7 +80,7 @@ impl NetworkTransformUnreliable {
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
-    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(identity: &mut NetworkIdentity, component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -100,6 +103,19 @@ impl NetworkTransformUnreliable {
 
     // void OnClientToServerSync
     fn on_client_to_server_sync(&mut self, mut sync_data: SyncData) {
+        match NetworkServerStatic::get_static_spawned_network_identities().try_get(&self.network_behaviour.net_id()) {
+            TryResult::Present(_) => {
+                println!("NetworkTransformUnreliable::OnClientToServerSync: object not spawned");
+            }
+            TryResult::Absent => {
+                println!("NetworkTransformUnreliable::OnClientToServerSync: object not found");
+            }
+            TryResult::Locked => {
+                println!("NetworkTransformUnreliable::OnClientToServerSync: object locked");
+            }
+        }
+
+
         // only apply if in client authority mode
         if *self.sync_direction() != SyncDirection::ClientToServer {
             return;
@@ -124,7 +140,7 @@ impl NetworkTransformUnreliable {
         }
 
         Self::update_sync_data(&mut sync_data, &mut self.network_transform_base.server_snapshots);
-        Self::add_snapshot(&mut self.network_transform_base.server_snapshots, timestamp, sync_data.position, sync_data.quat_rotation, sync_data.scale);
+        NetworkTransformBase::add_snapshot(&mut self.network_transform_base.server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
     }
 
     // void UpdateSyncData
@@ -217,16 +233,6 @@ impl NetworkTransformUnreliable {
         } else {
             // TODO
         }
-    }
-
-    // void AddSnapshot
-    fn add_snapshot(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, timestamp: f64, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
-        // if (!position.HasValue) position = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].position : GetPosition();
-        // if (!rotation.HasValue) rotation = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].rotation : GetRotation();
-        // if (!scale.HasValue) scale = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].scale : GetScale();
-        let new_snapshot = TransformSnapshot::new(timestamp, NetworkTime::local_time(), position, rotation, scale);
-        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
-        SnapshotInterpolation::insert_if_not_exists(snapshots, snapshot_settings.buffer_limit, new_snapshot);
     }
 
     // RpcServerToClientSync

@@ -6,7 +6,7 @@ pub mod network_time;
 pub mod network_writer;
 pub mod snapshot_interpolation;
 pub mod backend_data;
-mod network_identity;
+pub mod network_identity;
 mod network_messages;
 pub mod messages;
 

@@ -457,9 +457,9 @@ impl NetworkServer {
                                                   is_owner,
                                                   identity.scene_id,
                                                   identity.asset_id,
-                                                  identity.game_object.transform.positions,
-                                                  identity.game_object.transform.rotation,
-                                                  identity.game_object.transform.scale,
+                                                  identity.game_object().transform.position,
+                                                  identity.game_object().transform.rotation,
+                                                  identity.game_object().transform.scale,
                                                   payload);
         println!("spawn_message: {:?}", spawn_message);
         // 发送 SpawnMessage
@@ -641,7 +641,7 @@ impl NetworkServer {
             return;
         }
 
-        if identity.game_object.is_null() {
+        if identity.game_object().is_null() {
             warn!("Server.Destroy: game object is null.");
             return;
         }
@@ -725,7 +725,7 @@ impl NetworkServer {
 
         // TODO aoi
 
-        if identity.game_object.is_null() {
+        if identity.game_object().is_null() {
             warn!("UnSpawn: game object is null.".to_string());
             return;
         }
@@ -802,7 +802,7 @@ impl NetworkServer {
     // SpawnObject(
     fn spawn_object(mut identity: NetworkIdentity, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
-            error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object));
+            error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object()));
             return;
         }
 
@@ -811,7 +811,7 @@ impl NetworkServer {
         }
 
         if NetworkServerStatic::get_static_spawned_network_identities().contains_key(&identity.net_id()) {
-            warn!(format!("SpawnObject for {:?}, netId {} already exists. Use UnSpawnObject first.", identity.game_object, identity.net_id()));
+            warn!(format!("SpawnObject for {:?}, netId {} already exists. Use UnSpawnObject first.", identity.game_object(), identity.net_id()));
             return;
         }
 
@@ -986,13 +986,14 @@ impl NetworkServer {
             if !connection.is_ready() {
                 // 如果 channel 是 Reliable
                 if channel == TransportChannel::Reliable {
+                    let mut network_behaviours_len = u32::MAX;
                     // 如果 SPAWNED 中有 message.net_id
-                    if let Some(net_identity) = NetworkServerStatic::get_static_spawned_network_identities().get(&message.net_id) {
+                    if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get(&message.net_id) {
                         // 如果 message.component_index 小于 net_identity.network_behaviours.len()
-                        if net_identity.network_behaviours.len() > message.component_index as usize {
+                        if (message.component_index as usize) < identity.network_behaviours.len() {
                             // 如果 message.function_hash 在 RemoteProcedureCalls 中
                             if let Some(method_name) = RemoteProcedureCalls::get_function_method_name(message.function_hash) {
-                                warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, net_identity.net_id(), message.net_id, message.component_index));
+                                warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
                                 return;
                             }
                         }

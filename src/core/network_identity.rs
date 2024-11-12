@@ -7,7 +7,7 @@ use crate::components::SyncVar;
 use crate::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
-use crate::core::network_manager::GameObject;
+use crate::core::network_manager::{GameObject, Transform};
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_server::{NetworkServer, NetworkServerStatic};
@@ -64,9 +64,9 @@ pub struct NetworkIdentity {
     net_id: u32,
     had_authority: bool,
     observers: Vec<u64>,
+    game_object: GameObject,
     pub scene_id: u64,
     pub asset_id: u32,
-    pub game_object: GameObject,
     pub server_only: bool,
     pub owned_type: OwnedType,
     pub is_owned: bool,
@@ -141,6 +141,15 @@ impl NetworkIdentity {
             component.set_observers(self.observers.clone());
         }
     }
+    pub fn game_object(&self) -> &GameObject {
+        &self.game_object
+    }
+    pub fn set_game_object(&mut self, game_object: GameObject) {
+        self.game_object = game_object;
+    }
+    pub fn set_transform(&mut self, transform: Transform) {
+        self.game_object.transform = transform;
+    }
     pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, conn_id: u64) {
         if component_index as usize >= self.network_behaviours.len() {
             error!("Component index out of bounds: ", component_index);
@@ -149,7 +158,7 @@ impl NetworkIdentity {
         // 获取 component
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         // 调用 invoke
-        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, invoke_component, reader, conn_id) {
+        if !RemoteProcedureCalls::invoke(self, function_hash, remote_call_type, invoke_component, reader, conn_id) {
             error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
@@ -170,7 +179,7 @@ impl NetworkIdentity {
             // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.positions, self.game_object.transform.rotation, self.game_object.transform.scale);
+                let network_transform = NetworkTransformUnreliable::new(component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.position, self.game_object.transform.rotation, self.game_object.transform.scale);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
@@ -178,7 +187,7 @@ impl NetworkIdentity {
             // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.positions, self.game_object.transform.rotation, self.game_object.transform.scale);
+                let network_transform = NetworkTransformReliable::new(component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.position, self.game_object.transform.rotation, self.game_object.transform.scale);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
