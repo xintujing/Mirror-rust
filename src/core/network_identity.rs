@@ -158,7 +158,7 @@ impl NetworkIdentity {
         // 获取 component
         let invoke_component = &mut self.network_behaviours[component_index as usize];
         // 调用 invoke
-        if !RemoteProcedureCalls::invoke(self, function_hash, remote_call_type, invoke_component, reader, conn_id) {
+        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, invoke_component, reader, conn_id) {
             error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }

@@ -4,7 +4,6 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
 use crate::core::network_connection::NetworkConnectionTrait;
-use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::{NetworkManagerStatic, Transform};
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
@@ -63,7 +62,7 @@ impl NetworkTransformUnreliable {
     }
 
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
-    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -80,7 +79,7 @@ impl NetworkTransformUnreliable {
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
-    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(identity: &mut NetworkIdentity, component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(component: &mut Box<dyn NetworkBehaviourTrait>, reader: &mut NetworkReader, cmd_hash: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
