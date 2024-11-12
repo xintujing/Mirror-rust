@@ -1,5 +1,6 @@
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkTransformBaseSetting;
+use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 use std::hash::Hash;
 
@@ -23,8 +24,8 @@ impl CoordinateSpace {
 pub struct NetworkTransformBase {
     pub is_client_with_authority: bool,
 
-    pub client_snapshots: BTreeMap<String, TransformSnapshot>,
-    pub server_snapshots: BTreeMap<String, TransformSnapshot>,
+    pub client_snapshots: BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
+    pub server_snapshots: BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
     pub time_stamp_adjustment: f64,
     pub offset: f64,
     // pub network_behaviour_setting: NetworkBehaviourSetting,

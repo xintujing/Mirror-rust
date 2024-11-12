@@ -167,7 +167,7 @@ pub struct SnapshotInterpolationSetting {
     #[serde(rename = "bufferTimeMultiplier")]
     pub buffer_time_multiplier: f64,
     #[serde(rename = "bufferLimit")]
-    pub buffer_limit: i32,
+    pub buffer_limit: usize,
     #[serde(rename = "catchupNegativeThreshold")]
     pub catchup_negative_threshold: f32,
     #[serde(rename = "catchupPositiveThreshold")]
@@ -229,7 +229,7 @@ pub struct NetworkManagerSetting {
     #[serde(rename = "exceptionsDisconnect")]
     pub exceptions_disconnect: bool,
     #[serde(rename = "snapshotSettings")]
-    pub snapshot_settings: SnapshotInterpolationSetting,
+    pub snapshot_interpolation_setting: SnapshotInterpolationSetting,
     #[serde(rename = "evaluationMethod")]
     pub evaluation_method: String,
     #[serde(rename = "evaluationInterval")]

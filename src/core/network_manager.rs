@@ -1,4 +1,4 @@
-use crate::core::backend_data::BackendDataStatic;
+use crate::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::core::network_authenticator::NetworkAuthenticatorTrait;
@@ -151,6 +151,7 @@ impl PartialEq for GameObject {
 // NetworkManager
 pub struct NetworkManager {
     player_obj: GameObject,
+    pub snapshot_interpolation_settings: SnapshotInterpolationSetting,
     pub mode: NetworkManagerMode,
     pub dont_destroy_on_load: bool,
     pub editor_auto_start: bool,
@@ -333,6 +334,7 @@ pub trait NetworkManagerTrait {
     fn set_player_obj(&mut self, player_obj: GameObject);
     fn player_spawn_method(&self) -> &PlayerSpawnMethod;
     fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod);
+    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting;
     fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
         Self: Sized;
@@ -441,6 +443,10 @@ impl NetworkManagerTrait for NetworkManager {
         self.player_spawn_method = player_spawn_method;
     }
 
+    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
+        &self.snapshot_interpolation_settings
+    }
+
     // OnServerConnectInternal
     fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
@@ -502,6 +508,7 @@ impl NetworkManagerTrait for NetworkManager {
             evaluation_method: ConnectionQualityMethod::Simple,
             evaluation_interval: network_manager_setting.evaluation_interval,
             time_interpolation_gui: network_manager_setting.time_interpolation_gui,
+            snapshot_interpolation_settings: network_manager_setting.snapshot_interpolation_setting.clone(),
         };
 
         NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));

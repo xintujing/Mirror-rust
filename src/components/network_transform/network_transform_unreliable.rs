@@ -12,6 +12,7 @@ use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use ordered_float::OrderedFloat;
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use tklog::{debug, error};
@@ -102,7 +103,7 @@ impl NetworkTransformUnreliable {
         Self::add_snapshot(&mut self.network_transform_base.server_snapshots, timestamp, sync_data.position, sync_data.quat_rotation, sync_data.scale);
     }
 
-    fn update_sync_data(sync_data: &mut SyncData, snapshots: &mut BTreeMap<String, TransformSnapshot>) {
+    fn update_sync_data(sync_data: &mut SyncData, snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
         if sync_data.changed_data_byte == Changed::None ||
             sync_data.changed_data_byte == Changed::CompressRot {
             if let Some((_, last_snapshot)) = snapshots.iter().last() {
@@ -191,12 +192,14 @@ impl NetworkTransformUnreliable {
         }
     }
 
-    fn add_snapshot(snapshots: &mut BTreeMap<String, TransformSnapshot>, timestamp: f64, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
+    fn add_snapshot(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, timestamp: f64, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
         // if (!position.HasValue) position = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].position : GetPosition();
         // if (!rotation.HasValue) rotation = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].rotation : GetRotation();
         // if (!scale.HasValue) scale = snapshots.Count > 0 ? snapshots.Values[snapshots.Count - 1].scale : GetScale();
         let new_snapshot = TransformSnapshot::new(timestamp, NetworkTime::local_time(), position, rotation, scale);
-        SnapshotInterpolation::insert_if_not_exists(snapshots, 2, new_snapshot);
+        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
+
+        SnapshotInterpolation::insert_if_not_exists(snapshots, snapshot_settings.buffer_limit, new_snapshot);
     }
 }
 #[allow(dead_code)]

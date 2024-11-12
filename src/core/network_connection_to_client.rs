@@ -1,12 +1,13 @@
 use crate::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_manager::NetworkManagerStatic;
 use crate::core::network_server::{NetworkServer, NetworkServerStatic, RemovePlayerOptions};
 use crate::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::core::network_writer::NetworkWriter;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::transport::{Transport, TransportChannel};
-use crate::tools::logger::warn;
+use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
 
 pub struct NetworkConnectionToClient {
@@ -21,7 +22,7 @@ pub struct NetworkConnectionToClient {
     pub remote_timescale: f64,
     pub buffer_time_multiplier: f64,
     pub buffer_time: f64,
-    pub snapshots: BTreeMap<String,TimeSnapshot>,
+    pub snapshots: BTreeMap<OrderedFloat<f64>, TimeSnapshot>,
     pub snapshot_buffer_size_limit: i32,
     pub _rtt: ExponentialMovingAverage,
 }
@@ -44,6 +45,7 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             snapshot_buffer_size_limit: 64,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         };
+        network_connection_to_client.buffer_time = NetworkServerStatic::get_static_send_interval() as f64 * network_connection_to_client.buffer_time_multiplier;
         if let Some(mut transport) = Transport::get_active_transport() {
             network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
@@ -135,36 +137,32 @@ impl NetworkConnectionToClient {
             return;
         }
 
+        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
 
-        if let Ok(snapshot_settings) = NetworkServerStatic::get_static_snapshot_settings().read() {
-
-            // dynamic adjustment
-            if snapshot_settings.dynamic_adjustment {
-                self.buffer_time_multiplier = SnapshotInterpolation::dynamic_adjustment(
-                    NetworkServerStatic::get_static_send_interval() as f64,
-                    self.delivery_time_ema.standard_deviation,
-                    snapshot_settings.dynamic_adjustment_tolerance as f64,
-                )
-            }
-
-            SnapshotInterpolation::insert_and_adjust(
-                &mut self.snapshots,
-                self.snapshot_buffer_size_limit as usize,
-                snapshot,
-                &mut self.remote_timeline,
-                &mut self.remote_timescale,
+        // dynamic adjustment
+        if snapshot_settings.dynamic_adjustment {
+            self.buffer_time_multiplier = SnapshotInterpolation::dynamic_adjustment(
                 NetworkServerStatic::get_static_send_interval() as f64,
-                self.buffer_time,
-                snapshot_settings.catchup_speed,
-                snapshot_settings.slowdown_speed,
-                &mut self.drift_ema,
-                snapshot_settings.catchup_negative_threshold as f64,
-                snapshot_settings.catchup_positive_threshold as f64,
-                &mut self.delivery_time_ema,
-            );
-        } else {
-            warn("on_time_snapshot failed to get snapshot_settings");
+                self.delivery_time_ema.standard_deviation,
+                snapshot_settings.dynamic_adjustment_tolerance as f64,
+            )
         }
+
+        SnapshotInterpolation::insert_and_adjust(
+            &mut self.snapshots,
+            self.snapshot_buffer_size_limit as usize,
+            snapshot,
+            &mut self.remote_timeline,
+            &mut self.remote_timescale,
+            NetworkServerStatic::get_static_send_interval() as f64,
+            self.buffer_time,
+            snapshot_settings.catchup_speed,
+            snapshot_settings.slowdown_speed,
+            &mut self.drift_ema,
+            snapshot_settings.catchup_negative_threshold as f64,
+            snapshot_settings.catchup_positive_threshold as f64,
+            &mut self.delivery_time_ema,
+        );
     }
     pub fn update_time_interpolation(&mut self) {
         if self.snapshots.len() > 0 {

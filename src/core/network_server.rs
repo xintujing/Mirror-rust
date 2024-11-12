@@ -11,7 +11,6 @@ use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
-use crate::core::snapshot_interpolation::snapshot_interpolation_settings::SnapshotInterpolationSettings;
 use crate::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::core::tools::time_sample::TimeSample;
 use crate::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError};
@@ -66,7 +65,6 @@ lazy_static! {
     static ref EARLY_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref LATE_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref FULL_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
-    static ref SNAPSHOT_SETTINGS: RwLock<SnapshotInterpolationSettings> = RwLock::new(SnapshotInterpolationSettings::default());
 
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
@@ -204,14 +202,6 @@ impl NetworkServerStatic {
     pub fn set_static_late_update_duration(value: TimeSample) {
         if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
             *late_update_duration = value;
-        }
-    }
-    pub fn get_static_snapshot_settings() -> &'static RwLock<SnapshotInterpolationSettings> {
-        &SNAPSHOT_SETTINGS
-    }
-    pub fn set_static_snapshot_settings(value: SnapshotInterpolationSettings) {
-        if let Ok(mut snapshot_settings) = SNAPSHOT_SETTINGS.write() {
-            *snapshot_settings = value;
         }
     }
     // 获取 NetworkConnections
