@@ -13,6 +13,7 @@ use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWr
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
+use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::transport::TransportChannel;
 use dashmap::mapref::one::Ref;
 use dashmap::try_result::TryResult;
@@ -21,6 +22,7 @@ use ordered_float::OrderedFloat;
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::mem::take;
+use std::ops::BitOrAssign;
 use tklog::{debug, error};
 
 #[derive(Debug)]
@@ -31,19 +33,40 @@ pub struct NetworkTransformUnreliable {
     pub position_sensitivity: f32,
     pub rotation_sensitivity: f32,
     pub scale_sensitivity: f32,
+    send_interval_counter: u32,
+    last_send_interval_time: f64,
+
+    position_changed: bool,
+    rotation_changed: bool,
+    scale_changed: bool,
+
+    last_snapshot: TransformSnapshot,
+    cached_snapshot_comparison: bool,
+    cached_changed_comparison: u8,
+    has_sent_unchanged_position: bool,
+
 }
 
 impl NetworkTransformUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformUnreliable";
-    pub fn new(game_object: GameObject,network_transform_base_setting: NetworkTransformBaseSetting, network_transform_unreliable_setting: NetworkTransformUnreliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_transform_unreliable_setting: NetworkTransformUnreliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self::call_register_delegate(Self::register_delegate);
         NetworkTransformUnreliable {
-            network_transform_base: NetworkTransformBase::new(game_object,network_transform_base_setting, network_behaviour_setting, component_index),
+            network_transform_base: NetworkTransformBase::new(game_object, network_transform_base_setting, network_behaviour_setting, component_index),
             buffer_reset_multiplier: network_transform_unreliable_setting.buffer_reset_multiplier,
             changed_detection: network_transform_unreliable_setting.changed_detection,
             position_sensitivity: network_transform_unreliable_setting.position_sensitivity,
             rotation_sensitivity: network_transform_unreliable_setting.rotation_sensitivity,
             scale_sensitivity: network_transform_unreliable_setting.scale_sensitivity,
+            send_interval_counter: 0,
+            last_send_interval_time: f64::MAX,
+            position_changed: false,
+            rotation_changed: false,
+            scale_changed: false,
+            last_snapshot: TransformSnapshot::default(),
+            cached_snapshot_comparison: false,
+            cached_changed_comparison: Changed::None.to_u8(),
+            has_sent_unchanged_position: false,
         }
     }
 
@@ -64,7 +87,132 @@ impl NetworkTransformUnreliable {
     }
     // UpdateServerBroadcast
     fn update_server_broadcast(&mut self) {
-        // TODO
+        self.check_last_send_time();
+
+        if self.send_interval_counter == self.network_transform_base.send_interval_multiplier &&
+            (*self.sync_direction() == SyncDirection::ServerToClient) {
+            let snapshot = self.construct();
+
+            if self.changed_detection {
+                self.cached_changed_comparison = self.compare_changed_snapshots(&snapshot);
+
+                if (self.cached_changed_comparison == Changed::None.to_u8() || self.cached_changed_comparison == Changed::CompressRot.to_u8()) && self.has_sent_unchanged_position && self.network_transform_base.only_sync_on_change {
+                    let sync_data = SyncData::new(self.cached_changed_comparison, snapshot.position, snapshot.rotation, snapshot.scale);
+                    self.rpc_server_to_client_sync(sync_data);
+
+                    if self.cached_changed_comparison == Changed::None.to_u8() || self.cached_changed_comparison == Changed::CompressRot.to_u8() {
+                        self.has_sent_unchanged_position = true;
+                    } else {
+                        self.has_sent_unchanged_position = false;
+                        self.update_last_sent_snapshot(self.cached_changed_comparison, snapshot);
+                    }
+                }
+            }
+        }
+    }
+    // CheckLastSendTime
+    fn check_last_send_time(&mut self) {
+        if self.send_interval_counter >= self.network_transform_base.send_interval_multiplier {
+            self.send_interval_counter = 0;
+        }
+
+        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
+            self.send_interval_counter += 1;
+        }
+    }
+    fn construct(&self) -> TransformSnapshot {
+        TransformSnapshot {
+            position: self.get_position(),
+            rotation: self.get_rotation(),
+            scale: self.get_scale(),
+            remote_time: NetworkTime::local_time(),
+            local_time: 0.0,
+        }
+    }
+    fn compare_changed_snapshots(&self, snapshot: &TransformSnapshot) -> u8 {
+        let mut changed = Changed::None.to_u8();
+
+        if self.sync_position() {
+            let position_changed = (snapshot.position - self.last_snapshot.position).magnitude_squared() > self.position_sensitivity * self.position_sensitivity;
+            if position_changed {
+                if (self.last_snapshot.position.x - snapshot.position.x).abs() > self.position_sensitivity {
+                    changed |= Changed::PosX.to_u8();
+                }
+                if (self.last_snapshot.position.y - snapshot.position.y).abs() > self.position_sensitivity {
+                    changed |= Changed::PosY.to_u8();
+                }
+                if (self.last_snapshot.position.z - snapshot.position.z).abs() > self.position_sensitivity {
+                    changed |= Changed::PosZ.to_u8();
+                }
+            }
+        }
+
+        if self.sync_rotation() {
+            if self.network_transform_base.compress_rotation {
+                let rotation_changed = UnitQuaternion::from_quaternion(self.last_snapshot.rotation).angle_to(&UnitQuaternion::from_quaternion(snapshot.rotation)).to_degrees() > self.rotation_sensitivity;
+                if rotation_changed {
+                    changed |= Changed::CompressRot.to_u8();
+                    changed |= Changed::Rot.to_u8();
+                } else {
+                    changed |= Changed::CompressRot.to_u8();
+                }
+            } else {
+                if (self.last_snapshot.rotation.coords.x - snapshot.rotation.coords.x).abs() > self.rotation_sensitivity {
+                    changed |= Changed::RotX.to_u8();
+                }
+                if (self.last_snapshot.rotation.coords.y - snapshot.rotation.coords.y).abs() > self.rotation_sensitivity {
+                    changed |= Changed::RotY.to_u8();
+                }
+                if (self.last_snapshot.rotation.coords.z - snapshot.rotation.coords.z).abs() > self.rotation_sensitivity {
+                    changed |= Changed::RotZ.to_u8();
+                }
+            }
+        }
+
+        if self.sync_scale() {
+            if (self.last_snapshot.scale - snapshot.scale).magnitude_squared() > self.scale_sensitivity * self.scale_sensitivity {
+                changed |= Changed::Scale.to_u8();
+            }
+        }
+        changed
+    }
+    fn update_last_sent_snapshot(&mut self, changed: u8, current_snapshot: TransformSnapshot) {
+        if changed == Changed::None.to_u8() || changed == Changed::CompressRot.to_u8() {
+            return;
+        }
+
+        if changed & Changed::PosX.to_u8() > 0 {
+            self.last_snapshot.position.x = current_snapshot.position.x;
+        }
+        if changed & Changed::PosY.to_u8() > 0 {
+            self.last_snapshot.position.y = current_snapshot.position.y;
+        }
+        if changed & Changed::PosZ.to_u8() > 0 {
+            self.last_snapshot.position.z = current_snapshot.position.z;
+        }
+
+        if self.network_transform_base.compress_rotation {
+            if changed & Changed::Rot.to_u8() > 0 {
+                self.last_snapshot.rotation = current_snapshot.rotation;
+            }
+        } else {
+            let euler_angles = UnitQuaternion::from_quaternion(self.last_snapshot.rotation).euler_angles();
+            let mut new_rotation = Vector3::new(euler_angles.0, euler_angles.1, euler_angles.2);
+            if changed & Changed::RotX.to_u8() > 0 {
+                new_rotation.x = UnitQuaternion::from_quaternion(current_snapshot.rotation).euler_angles().0;
+            }
+            if changed & Changed::RotY.to_u8() > 0 {
+                new_rotation.y = UnitQuaternion::from_quaternion(current_snapshot.rotation).euler_angles().1;
+            }
+            if changed & Changed::RotZ.to_u8() > 0 {
+                new_rotation.z = UnitQuaternion::from_quaternion(current_snapshot.rotation).euler_angles().2;
+            }
+            self.last_snapshot.rotation = *UnitQuaternion::from_euler_angles(new_rotation.x, new_rotation.y, new_rotation.z).quaternion();
+        }
+
+        if changed & Changed::Scale.to_u8() > 0 {
+            self.last_snapshot.scale = current_snapshot.scale;
+        }
     }
     fn register_delegate() {
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
@@ -352,6 +500,7 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         todo!()
     }
 
+
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
             if self.network_transform_base.sync_position {
@@ -426,6 +575,5 @@ impl NetworkTransformBaseTrait for NetworkTransformUnreliable {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_network_behaviour_trait() {
-    }
+    fn test_network_behaviour_trait() {}
 }

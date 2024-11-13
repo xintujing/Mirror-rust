@@ -2,6 +2,7 @@ use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkRe
 use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use std::fmt::Debug;
+use std::ops::BitOrAssign;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct SyncData {
@@ -24,10 +25,10 @@ impl SyncData {
     const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
 
     #[allow(dead_code)]
-    pub fn new(changed: Changed, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(changed: u8, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         let rotation = UnitQuaternion::from_quaternion(quat_rotation);
         Self {
-            changed_data_byte: changed.to_u8(),
+            changed_data_byte: changed,
             position,
             quat_rotation,
             vec_rotation: Vector3::new(rotation.euler_angles().0, rotation.euler_angles().1, rotation.euler_angles().2),
@@ -304,5 +305,31 @@ pub enum Changed {
 impl Changed {
     pub fn to_u8(&self) -> u8 {
         *self as u8
+    }
+}
+
+// 为 Changed 实现 BitOrAssign
+impl BitOrAssign for Changed {
+    fn bitor_assign(&mut self, rhs: Self) {
+        *self = Changed::from(*self as u8 | rhs as u8);
+    }
+}
+
+// 将 u8 转换回 Changed 枚举
+impl From<u8> for Changed {
+    fn from(value: u8) -> Self {
+        match value {
+            1 => Changed::PosX,
+            2 => Changed::PosY,
+            4 => Changed::PosZ,
+            8 => Changed::CompressRot,
+            16 => Changed::RotX,
+            32 => Changed::RotY,
+            64 => Changed::RotZ,
+            128 => Changed::Scale,
+            0x07 => Changed::Pos,
+            0x70 => Changed::Rot,
+            _ => Changed::None, // 默认值
+        }
     }
 }

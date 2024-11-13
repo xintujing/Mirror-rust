@@ -23,6 +23,16 @@ impl TransformSnapshot {
         }
     }
 
+    pub fn default() -> Self {
+        Self {
+            remote_time: 0.0,
+            local_time: 0.0,
+            position: Vector3::new(0.0, 0.0, 0.0),
+            rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
+            scale: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
+
     pub fn transform_snapshot(from: TransformSnapshot, to: TransformSnapshot, t: f64) -> TransformSnapshot {
         let position = Vector3::lerp(&from.position, &to.position, t as f32);
         let rotation = Quaternion::lerp(&from.rotation, &to.rotation, t as f32);
