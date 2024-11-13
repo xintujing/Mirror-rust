@@ -1,7 +1,8 @@
 use crate::core::backend_data::NetworkBehaviourSetting;
 use crate::core::messages::RpcMessage;
 use crate::core::network_connection::NetworkConnectionTrait;
-use crate::core::network_manager::Transform;
+use crate::core::network_identity::NetworkIdentity;
+use crate::core::network_manager::{GameObject, Transform};
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
@@ -49,6 +50,7 @@ pub struct NetworkBehaviour {
     net_id: u32,
     connection_to_client: u64,
     observers: Vec<u64>,
+    game_object: GameObject,
 }
 
 impl NetworkBehaviour {
@@ -64,11 +66,29 @@ impl NetworkBehaviour {
             net_id: 0,
             connection_to_client: 0,
             observers: Default::default(),
+            game_object: GameObject::default(),
         }
     }
     pub fn is_dirty(&self) -> bool {
         self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64 &&
             NetworkTime::local_time() - self.last_sync_time > self.sync_interval
+    }
+    pub fn early_invoke(identity: &mut NetworkIdentity, component_index: u8) -> &mut Box<dyn NetworkBehaviourTrait> {
+        // 需要传递给 component 的参数
+        let observers = identity.observers().clone();
+        let game_object = identity.game_object().clone();
+        // 获取 component
+        let component = &mut identity.network_behaviours[component_index as usize];
+        // 设置 component 的参数
+        component.set_observers(observers);
+        component.set_game_object(game_object);
+        // 返回 component
+        component
+    }
+    pub fn late_invoke(identity: &mut NetworkIdentity, component_index: u8) {
+        // 获取 component
+        let component = &identity.network_behaviours[component_index as usize];
+        identity.set_game_object(component.game_object().clone());
     }
 }
 
@@ -95,6 +115,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_connection_to_client(&mut self, value: u64);
     fn observers(&self) -> &Vec<u64>;
     fn set_observers(&mut self, value: Vec<u64>);
+    fn game_object(&self) -> &GameObject;
+    fn set_game_object(&mut self, value: GameObject);
     // 字段 get  set end
     fn call_register_delegate<F>(reg_fn: F)
     where
@@ -238,6 +260,14 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
 
     fn set_observers(&mut self, value: Vec<u64>) {
         self.observers = value;
+    }
+
+    fn game_object(&self) -> &GameObject {
+        &self.game_object
+    }
+
+    fn set_game_object(&mut self, value: GameObject) {
+        self.game_object = value;
     }
 
     fn is_dirty(&self) -> bool {

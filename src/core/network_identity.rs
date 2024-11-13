@@ -137,9 +137,6 @@ impl NetworkIdentity {
     }
     pub fn set_observers(&mut self, observers: Vec<u64>) {
         self.observers = observers;
-        for component in self.network_behaviours.iter_mut() {
-            component.set_observers(self.observers.clone());
-        }
     }
     pub fn game_object(&self) -> &GameObject {
         &self.game_object
@@ -155,10 +152,9 @@ impl NetworkIdentity {
             error!("Component index out of bounds: ", component_index);
             return;
         }
-        // 获取 component
-        let invoke_component = &mut self.network_behaviours[component_index as usize];
+
         // 调用 invoke
-        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, invoke_component, reader, conn_id) {
+        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, self, component_index, reader, conn_id) {
             error!("Failed to invoke remote call for function hash: ", function_hash);
         }
     }
@@ -354,7 +350,6 @@ impl NetworkIdentity {
             }
         }
         self.observers.clear();
-        self.update_network_behaviour_trait_observers();
     }
 
     pub fn reset_state(&mut self) {
@@ -388,9 +383,6 @@ impl NetworkIdentity {
         // 添加观察者
         self.observers.push(conn_id);
 
-        // 更新观察者
-        self.update_network_behaviour_trait_observers();
-
         if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
             // 添加到观察者
             conn.add_to_observing(self);
@@ -403,8 +395,6 @@ impl NetworkIdentity {
     }
     pub fn remove_observer(&mut self, conn_id: u64) {
         self.observers.retain(|id| *id != conn_id);
-        // 更新观察者
-        self.update_network_behaviour_trait_observers();
     }
     pub fn set_client_owner(&mut self, conn_id: u64) {
         // do nothing if it already has an owner
@@ -428,13 +418,6 @@ impl NetworkIdentity {
     pub fn set_static_client_authority_callback(callback: ClientAuthorityCallback) {
         unsafe {
             CLIENT_AUTHORITY_CALLBACK = Some(callback);
-        }
-    }
-
-    // 自定义方法
-    fn update_network_behaviour_trait_observers(&mut self) {
-        for component in self.network_behaviours.iter_mut() {
-            component.set_observers(self.observers.to_vec());
         }
     }
 }

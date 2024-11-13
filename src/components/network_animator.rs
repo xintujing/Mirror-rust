@@ -1,4 +1,5 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::core::network_manager::GameObject;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use std::any::Any;
@@ -87,6 +88,14 @@ impl NetworkBehaviourTrait for NetworkAnimator {
 
     fn set_observers(&mut self, value: Vec<u64>) {
         self.network_behaviour.set_observers(value)
+    }
+
+    fn game_object(&self) -> &GameObject {
+        self.network_behaviour.game_object()
+    }
+
+    fn set_game_object(&mut self, value: GameObject) {
+        self.network_behaviour.set_game_object(value)
     }
 
     fn is_dirty(&self) -> bool {

@@ -77,6 +77,10 @@ pub struct Transform {
     pub position: Vector3<f32>,
     pub rotation: Quaternion<f32>,
     pub scale: Vector3<f32>,
+
+    pub local_position: Vector3<f32>,
+    pub local_rotation: Quaternion<f32>,
+    pub local_scale: Vector3<f32>,
 }
 
 // GameObject 的 Transform 组件
@@ -86,6 +90,9 @@ impl Transform {
             position,
             rotation,
             scale,
+            local_position: Default::default(),
+            local_rotation: Default::default(),
+            local_scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
 
