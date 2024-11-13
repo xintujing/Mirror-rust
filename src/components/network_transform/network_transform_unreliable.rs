@@ -476,22 +476,6 @@ impl NetworkTransformUnreliable {
         });
     }
 
-    // RpcServerToClientSync(Vector3? position, Quaternion? rotation, Vector3? scale)
-    fn rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
-        NetworkWriterPool::get_return(|writer| {
-            writer.write_vector3_nullable(position);
-            writer.write_quaternion_nullable(rotation);
-            writer.write_vector3_nullable(scale);
-            self.send_rpc_internal(
-                "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
-                1202296400,
-                writer,
-                TransportChannel::Unreliable,
-                true,
-            );
-        });
-    }
-
     // RpcServerToClientSyncCompressRotation
     fn rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<u32>, scale: Option<Vector3<f32>>) {
         NetworkWriterPool::get_return(|writer| {
@@ -501,6 +485,22 @@ impl NetworkTransformUnreliable {
             self.send_rpc_internal(
                 "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
                 580355775,
+                writer,
+                TransportChannel::Unreliable,
+                true,
+            );
+        });
+    }
+
+    // RpcServerToClientSync(Vector3? position, Quaternion? rotation, Vector3? scale)
+    fn rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_vector3_nullable(position);
+            writer.write_quaternion_nullable(rotation);
+            writer.write_vector3_nullable(scale);
+            self.send_rpc_internal(
+                "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
+                1202296400,
                 writer,
                 TransportChannel::Unreliable,
                 true,
