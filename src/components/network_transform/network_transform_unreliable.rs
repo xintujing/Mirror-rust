@@ -230,6 +230,21 @@ impl NetworkTransformUnreliable {
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
                                                 RemoteCallType::Command,
                                                 RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                RemoteCallType::ClientRpc,
+                                                RemoteCallDelegate::new("invoke_user_code_rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                RemoteCallType::ClientRpc,
+                                                RemoteCallDelegate::new("invoke_user_code_rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)",
+                                                RemoteCallType::ClientRpc,
+                                                RemoteCallDelegate::new("invoke_user_code_rpc_server_to_client_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_rpc_server_to_client_sync__sync_data)), true);
     }
 
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
@@ -269,7 +284,6 @@ impl NetworkTransformUnreliable {
     }
 
     fn user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<u32>, scale: Option<Vector3<f32>>) {
-        // TODO
         let mut quaternion = None;
         if rotation.is_none() {
             if self.network_transform_base.server_snapshots.len() > 0 {
@@ -309,35 +323,55 @@ impl NetworkTransformUnreliable {
         self.rpc_server_to_client_sync(sync_data);
     }
 
+    pub fn invoke_user_code_rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(reader.read_vector3_nullable(), reader.read_quaternion_nullable(), reader.read_vector3_nullable());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
 
-    // void OnClientToServerSync
-    fn on_client_to_server_sync(&mut self, mut sync_data: SyncData) {
-        // only apply if in client authority mode
-        if *self.sync_direction() != SyncDirection::ClientToServer {
-            return;
-        }
+    fn user_code_rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+        // TODO
+    }
 
-        let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.network_behaviour.connection_to_client()) {
-            if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
-                return;
+    pub fn invoke_user_code_rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1(reader.read_vector3_nullable(), reader.read_uint_nullable(), reader.read_vector3_nullable());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    fn user_code_rpc_server_to_client_sync_compress_rotation_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<u32>, scale: Option<Vector3<f32>>) {
+        let mut quaternion = None;
+        if rotation.is_none() {
+            if self.network_transform_base.server_snapshots.len() > 0 {
+                let (_, last_snapshot) = self.network_transform_base.server_snapshots.iter().last().unwrap();
+                quaternion = Some(last_snapshot.rotation);
+            } else {
+                quaternion = Some(self.get_rotation());
             }
-            timestamp = conn.remote_time_stamp();
+        } else {
+            quaternion = Some(Quaternion::decompress(rotation.unwrap()));
         }
+        // TODO this.OnServerToClientSync__Nullable\u00601__Nullable\u00601__Nullable\u00601(position, quaternion, scale);
+    }
 
-        if self.network_transform_base.only_sync_on_change {
-            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::get_static_send_interval() as f64;
+    pub fn invoke_user_code_rpc_server_to_client_sync__sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        let sync_data = SyncData::deserialize(reader);
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_rpc_server_to_client_sync__sync_data(sync_data);
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
 
-            if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
-                if last_snapshot.remote_time + time_interval_check < timestamp {
-                    self.network_transform_base.reset_state();
-                }
-            }
-        }
-        self.update_sync_data(&mut sync_data, &self.network_transform_base.server_snapshots);
-        let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
-        self.add_snapshot(&mut server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
-        self.network_transform_base.server_snapshots = server_snapshots;
+    fn user_code_rpc_server_to_client_sync__sync_data(&mut self, sync_data: SyncData) {
+        self.on_client_to_server_sync(sync_data);
     }
 
     // OnClientToServerSync(
@@ -372,6 +406,45 @@ impl NetworkTransformUnreliable {
         self.network_transform_base.server_snapshots = server_snapshots;
     }
 
+    fn on_server_to_client_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {}
+    // void OnClientToServerSync
+    fn on_client_to_server_sync(&mut self, mut sync_data: SyncData) {
+        // only apply if in client authority mode
+        if *self.sync_direction() != SyncDirection::ClientToServer {
+            return;
+        }
+
+        let mut timestamp = 0f64;
+        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.network_behaviour.connection_to_client()) {
+            if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
+                return;
+            }
+            timestamp = conn.remote_time_stamp();
+        }
+
+        if self.network_transform_base.only_sync_on_change {
+            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::get_static_send_interval() as f64;
+
+            if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
+                if last_snapshot.remote_time + time_interval_check < timestamp {
+                    self.network_transform_base.reset_state();
+                }
+            }
+        }
+        self.update_sync_data(&mut sync_data, &self.network_transform_base.server_snapshots);
+        let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
+        self.add_snapshot(&mut server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
+        self.network_transform_base.server_snapshots = server_snapshots;
+    }
+
+    // void OnServerToClientSync(SyncData syncData)
+    fn on_server_to_client_sync(&mut self, mut sync_data: SyncData) {
+        // only apply if in server authority mode
+        if *self.sync_direction() != SyncDirection::ServerToClient {
+            return;
+        }
+        // TODO
+    }
 
     // void UpdateSyncData
     fn update_sync_data(&self, sync_data: &mut SyncData, snapshots: &BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
