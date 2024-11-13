@@ -132,11 +132,11 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         todo!()
     }
 
-    fn on_start_server(&mut self) {}
-
-    fn on_stop_server(&mut self) {}
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn on_start_server(&mut self) {}
+
+    fn on_stop_server(&mut self) {}
 }

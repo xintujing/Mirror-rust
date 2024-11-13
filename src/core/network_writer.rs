@@ -84,7 +84,7 @@ impl NetworkWriter {
             ptr::write(ptr, value);
         }
 
-        // Update the position
+        // update the position
         self.position += size;
     }
     pub fn write_blittable_nullable<T: Copy>(&mut self, value: Option<T>) {

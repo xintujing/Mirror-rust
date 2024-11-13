@@ -20,6 +20,7 @@ use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::mem::take;
 use tklog::{debug, error};
 
 #[derive(Debug)]
@@ -46,6 +47,25 @@ impl NetworkTransformUnreliable {
         }
     }
 
+    // UpdateServerInterpolation
+    fn update_server_interpolation(&mut self) {
+        if *self.sync_direction() == SyncDirection::ClientToServer &&
+            self.connection_to_client() != 0 {
+            if self.network_transform_base.server_snapshots.len() == 0 {
+                return;
+            }
+
+            if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+                let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
+                let computed = TransformSnapshot::transform_snapshot(from, to, t);
+                self.apply(computed, to);
+            }
+        }
+    }
+    // UpdateServerBroadcast
+    fn update_server_broadcast(&mut self) {
+        // TODO
+    }
     fn register_delegate() {
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
@@ -109,7 +129,7 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.network_behaviour.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
@@ -117,7 +137,7 @@ impl NetworkTransformUnreliable {
         }
 
         if self.network_transform_base.only_sync_on_change {
-            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * self.network_transform_base.sync_interval();
+            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::get_static_send_interval() as f64;
 
             if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
                 if last_snapshot.remote_time + time_interval_check < timestamp {
@@ -125,100 +145,97 @@ impl NetworkTransformUnreliable {
                 }
             }
         }
-
-        Self::update_sync_data(&mut sync_data, &mut self.network_transform_base.server_snapshots);
-        NetworkTransformBase::add_snapshot(&mut self.network_transform_base.server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
+        self.update_sync_data(&mut sync_data, &self.network_transform_base.server_snapshots);
+        let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
+        self.add_snapshot(&mut server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
+        self.network_transform_base.server_snapshots = server_snapshots;
     }
 
     // void UpdateSyncData
-    fn update_sync_data(sync_data: &mut SyncData, snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
-        if sync_data.changed_data_byte == Changed::None.to_u8() ||
-            sync_data.changed_data_byte == Changed::CompressRot.to_u8() {
+    fn update_sync_data(&self, sync_data: &mut SyncData, snapshots: &BTreeMap<OrderedFloat<f64>, TransformSnapshot>) {
+        if sync_data.changed_data_byte == Changed::None.to_u8() || sync_data.changed_data_byte == Changed::CompressRot.to_u8() {
             if let Some((_, last_snapshot)) = snapshots.iter().last() {
                 sync_data.position = last_snapshot.position;
                 sync_data.quat_rotation = last_snapshot.rotation;
                 sync_data.scale = last_snapshot.scale;
             } else {
-                // TODO
-            }
-            return;
-        }
-
-        // Just going to update these without checking if syncposition or not,
-        // because if not syncing position, NT will not apply any position data
-        // to the target during Apply().
-
-        if let Some((_, last_snapshot)) = snapshots.iter().last() {
-            // x
-            if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
-                sync_data.position.x = last_snapshot.position.x;
-            }
-            // y
-            if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
-                sync_data.position.y = last_snapshot.position.y;
-            }
-            // z
-            if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
-                sync_data.position.z = last_snapshot.position.z;
+                sync_data.position = self.get_position();
+                sync_data.quat_rotation = self.get_rotation();
+                sync_data.scale = self.get_scale();
             }
         } else {
             // x
-            if sync_data.changed_data_byte & Changed::PosX.to_u8() > 0 {
-                //  TODO
+            if sync_data.changed_data_byte & Changed::PosX.to_u8() <= 0 {
+                if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                    sync_data.position.x = last_snapshot.position.x;
+                } else {
+                    sync_data.position.x = self.get_position().x;
+                }
             }
             // y
-            if sync_data.changed_data_byte & Changed::PosY.to_u8() > 0 {
-                //  TODO
+            if sync_data.changed_data_byte & Changed::PosY.to_u8() <= 0 {
+                if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                    sync_data.position.y = last_snapshot.position.y;
+                } else {
+                    sync_data.position.y = self.get_position().y;
+                }
             }
             // z
-            if sync_data.changed_data_byte & Changed::PosZ.to_u8() > 0 {
-                //  TODO
+            if sync_data.changed_data_byte & Changed::PosZ.to_u8() <= 0 {
+                if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                    sync_data.position.z = last_snapshot.position.z;
+                } else {
+                    sync_data.position.z = self.get_position().z;
+                }
             }
-        }
 
-        if sync_data.changed_data_byte & Changed::CompressRot.to_u8() == 0 {
-            if let Some((_, last_snapshot)) = snapshots.iter().last() {
-                let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
-                // x
-                if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
-                    sync_data.vec_rotation.x = euler_angles.0;
+            if sync_data.changed_data_byte & Changed::CompressRot.to_u8() == 0 {
+                // Rot x
+                if sync_data.changed_data_byte & Changed::RotX.to_u8() <= 0 {
+                    if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                        let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
+                        sync_data.vec_rotation.x = euler_angles.0;
+                    } else {
+                        let euler_angles = UnitQuaternion::from_quaternion(self.get_rotation()).euler_angles();
+                        sync_data.vec_rotation.x = euler_angles.0;
+                    }
                 }
-                // y
-                if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
-                    sync_data.vec_rotation.y = euler_angles.1;
+                // Rot y
+                if sync_data.changed_data_byte & Changed::RotY.to_u8() <= 0 {
+                    if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                        let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
+                        sync_data.vec_rotation.y = euler_angles.1;
+                    } else {
+                        let euler_angles = UnitQuaternion::from_quaternion(self.get_rotation()).euler_angles();
+                        sync_data.vec_rotation.y = euler_angles.1;
+                    }
                 }
-                // z
-                if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
-                    sync_data.vec_rotation.z = euler_angles.2;
+                // Rot z
+                if sync_data.changed_data_byte & Changed::RotZ.to_u8() <= 0 {
+                    if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                        let euler_angles = UnitQuaternion::from_quaternion(last_snapshot.rotation).euler_angles();
+                        sync_data.vec_rotation.z = euler_angles.2;
+                    } else {
+                        let euler_angles = UnitQuaternion::from_quaternion(self.get_rotation()).euler_angles();
+                        sync_data.vec_rotation.z = euler_angles.2;
+                    }
                 }
-                sync_data.quat_rotation = *UnitQuaternion::from_euler_angles(sync_data.vec_rotation.x, sync_data.vec_rotation.y, sync_data.vec_rotation.z).quaternion();
             } else {
-                // x
-                if sync_data.changed_data_byte & Changed::RotX.to_u8() > 0 {
-                    //  TODO
-                }
-                // y
-                if sync_data.changed_data_byte & Changed::RotY.to_u8() > 0 {
-                    //  TODO
-                }
-                // z
-                if sync_data.changed_data_byte & Changed::RotZ.to_u8() > 0 {
-                    //  TODO
+                if sync_data.changed_data_byte & Changed::CompressRot.to_u8() <= 0 {
+                    if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                        sync_data.quat_rotation = last_snapshot.rotation;
+                    } else {
+                        sync_data.quat_rotation = self.get_rotation();
+                    }
                 }
             }
-        } else {
-            if let Some((_, last_snapshot)) = snapshots.iter().last() {
-                sync_data.quat_rotation = last_snapshot.rotation;
-            } else {
-                // TODO
+            if sync_data.changed_data_byte & Changed::Scale.to_u8() <= 0 {
+                if let Some((_, last_snapshot)) = snapshots.iter().last() {
+                    sync_data.scale = last_snapshot.scale;
+                } else {
+                    sync_data.scale = self.get_scale();
+                }
             }
-        }
-
-
-        if let Some((_, last_snapshot)) = snapshots.iter().last() {
-            sync_data.scale = last_snapshot.scale;
-        } else {
-            // TODO
         }
     }
 
@@ -240,95 +257,95 @@ impl NetworkTransformUnreliable {
 #[allow(dead_code)]
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn sync_interval(&self) -> f64 {
-        self.network_transform_base.sync_interval()
+        self.sync_interval()
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_transform_base.set_sync_interval(value)
+        self.network_transform_base.network_behaviour.set_sync_interval(value)
     }
 
     fn last_sync_time(&self) -> f64 {
-        self.network_transform_base.last_sync_time()
+        self.network_transform_base.network_behaviour.last_sync_time()
     }
 
     fn set_last_sync_time(&mut self, value: f64) {
-        self.network_transform_base.set_last_sync_time(value)
+        self.network_transform_base.network_behaviour.set_last_sync_time(value)
     }
 
     fn sync_direction(&mut self) -> &SyncDirection {
-        self.network_transform_base.sync_direction()
+        self.network_transform_base.network_behaviour.sync_direction()
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
-        self.network_transform_base.set_sync_direction(value)
+        self.network_transform_base.network_behaviour.set_sync_direction(value)
     }
 
     fn sync_mode(&mut self) -> &SyncMode {
-        self.network_transform_base.sync_mode()
+        self.network_transform_base.network_behaviour.sync_mode()
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
-        self.network_transform_base.set_sync_mode(value)
+        self.network_transform_base.network_behaviour.set_sync_mode(value)
     }
 
     fn component_index(&self) -> u8 {
-        self.network_transform_base.component_index()
+        self.network_transform_base.network_behaviour.component_index()
     }
 
     fn set_component_index(&mut self, value: u8) {
-        self.network_transform_base.set_component_index(value)
+        self.network_transform_base.network_behaviour.set_component_index(value)
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {
-        self.network_transform_base.sync_var_dirty_bits()
+        self.network_transform_base.network_behaviour.sync_var_dirty_bits()
     }
 
     fn set_sync_var_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.set_sync_var_dirty_bits(value)
+        self.network_transform_base.network_behaviour.set_sync_var_dirty_bits(value)
     }
 
     fn sync_object_dirty_bits(&self) -> u64 {
-        self.network_transform_base.sync_object_dirty_bits()
+        self.network_transform_base.network_behaviour.sync_object_dirty_bits()
     }
 
     fn set_sync_object_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.set_sync_object_dirty_bits(value)
+        self.network_transform_base.network_behaviour.set_sync_object_dirty_bits(value)
     }
 
     fn net_id(&self) -> u32 {
-        self.network_transform_base.net_id()
+        self.network_transform_base.network_behaviour.net_id()
     }
 
     fn set_net_id(&mut self, value: u32) {
-        self.network_transform_base.set_net_id(value)
+        self.network_transform_base.network_behaviour.set_net_id(value)
     }
 
     fn connection_to_client(&self) -> u64 {
-        self.network_transform_base.connection_to_client()
+        self.network_transform_base.network_behaviour.connection_to_client()
     }
 
     fn set_connection_to_client(&mut self, value: u64) {
-        self.network_transform_base.set_connection_to_client(value)
+        self.network_transform_base.network_behaviour.set_connection_to_client(value)
     }
 
     fn observers(&self) -> &Vec<u64> {
-        self.network_transform_base.observers()
+        self.network_transform_base.network_behaviour.observers()
     }
 
     fn set_observers(&mut self, value: Vec<u64>) {
-        self.network_transform_base.set_observers(value)
+        self.network_transform_base.network_behaviour.set_observers(value)
     }
 
     fn game_object(&self) -> &GameObject {
-        self.network_transform_base.game_object()
+        self.network_transform_base.network_behaviour.game_object()
     }
 
     fn set_game_object(&mut self, value: GameObject) {
-        NetworkBehaviourTrait::set_game_object(&mut self.network_transform_base, value)
+        self.network_transform_base.network_behaviour.set_game_object(value)
     }
 
     fn is_dirty(&self) -> bool {
-        self.network_transform_base.is_dirty()
+        self.network_transform_base.network_behaviour.is_dirty()
     }
 
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
@@ -353,17 +370,14 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         todo!()
     }
 
-    fn on_start_server(&mut self) {
-        todo!()
-    }
-
-    fn on_stop_server(&mut self) {
-        todo!()
-    }
-
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+    fn update(&mut self) {
+        self.update_server_interpolation();
+    }
+    fn late_update(&mut self) {
+        self.update_server_broadcast();
     }
 }
 
@@ -373,15 +387,39 @@ impl NetworkTransformBaseTrait for NetworkTransformUnreliable {
     }
 
     fn set_coordinate_space(&mut self, value: CoordinateSpace) {
-        self.network_transform_base.coordinate_space=value;
+        self.network_transform_base.coordinate_space = value;
     }
 
     fn get_game_object(&self) -> &GameObject {
-        self.network_transform_base.game_object()
+        self.network_transform_base.network_behaviour.game_object()
     }
 
     fn set_game_object(&mut self, value: GameObject) {
-        NetworkBehaviourTrait::set_game_object(&mut self.network_transform_base, value)
+        self.network_transform_base.network_behaviour.set_game_object(value)
+    }
+
+    fn sync_position(&self) -> bool {
+        self.network_transform_base.sync_position
+    }
+
+    fn sync_rotation(&self) -> bool {
+        self.network_transform_base.sync_rotation
+    }
+
+    fn interpolate_position(&self) -> bool {
+        self.network_transform_base.interpolate_position
+    }
+
+    fn interpolate_rotation(&self) -> bool {
+        self.network_transform_base.interpolate_rotation
+    }
+
+    fn interpolate_scale(&self) -> bool {
+        self.network_transform_base.interpolate_scale
+    }
+
+    fn sync_scale(&self) -> bool {
+        self.network_transform_base.sync_scale
     }
 }
 

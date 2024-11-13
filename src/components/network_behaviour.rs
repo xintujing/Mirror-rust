@@ -76,12 +76,10 @@ impl NetworkBehaviour {
     pub fn early_invoke(identity: &mut NetworkIdentity, component_index: u8) -> &mut Box<dyn NetworkBehaviourTrait> {
         // 需要传递给 component 的参数
         let observers = identity.observers().clone();
-        let game_object = identity.game_object().clone();
         // 获取 component
         let component = &mut identity.network_behaviours[component_index as usize];
         // 设置 component 的参数
         component.set_observers(observers);
-        component.set_game_object(game_object);
         // 返回 component
         component
     }
@@ -154,8 +152,6 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_sync_var_dirty_bit(&mut self, dirty_bit: u64) {
         self.set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
     }
-    fn on_start_server(&mut self);
-    fn on_stop_server(&mut self);
     fn clear_all_dirty_bits(&mut self) {
         self.set_sync_var_dirty_bits(0);
         self.set_sync_object_dirty_bits(0);
@@ -179,6 +175,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             }
         }
     }
+    fn on_start_server(&mut self) {}
+    fn on_stop_server(&mut self) {}
+    fn update(&mut self) {}
+    fn late_update(&mut self) {}
 }
 
 impl NetworkBehaviourTrait for NetworkBehaviour {
@@ -285,14 +285,6 @@ impl NetworkBehaviourTrait for NetworkBehaviour {
     }
 
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
-    }
-
-    fn on_start_server(&mut self) {
-        todo!()
-    }
-
-    fn on_stop_server(&mut self) {
         todo!()
     }
 
