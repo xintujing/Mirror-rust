@@ -85,19 +85,27 @@ pub struct Transform {
 
 // GameObject 的 Transform 组件
 impl Transform {
-    pub fn new(position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(position: Vector3<f32>,
+               rotation: Quaternion<f32>,
+               scale: Vector3<f32>,
+               local_position: Vector3<f32>,
+               local_rotation: Quaternion<f32>,
+               local_scale: Vector3<f32>) -> Self {
         Self {
             position,
             rotation,
             scale,
-            local_position: Default::default(),
-            local_rotation: Default::default(),
-            local_scale: Vector3::new(1.0, 1.0, 1.0),
+            local_position,
+            local_rotation,
+            local_scale,
         }
     }
 
     pub fn default() -> Self {
         Self::new(Vector3::new(0.0, 1.0, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0),
+                  Vector3::new(0.0, 1.0, 0.0),
                   Quaternion::new(1.0, 0.0, 0.0, 0.0),
                   Vector3::new(1.0, 1.0, 1.0))
     }

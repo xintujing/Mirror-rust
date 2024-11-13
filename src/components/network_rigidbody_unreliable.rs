@@ -12,9 +12,9 @@ pub struct NetworkRigidbodyUnreliable {
 
 impl NetworkRigidbodyUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRigidbodyUnreliable";
-    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(game_object: GameObject,network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkRigidbodyUnreliable {
-            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
         }
     }
 }
@@ -124,15 +124,15 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         todo!()
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn on_start_server(&mut self) {
         todo!()
     }
 
     fn on_stop_server(&mut self) {
         todo!()
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }

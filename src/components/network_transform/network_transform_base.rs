@@ -48,9 +48,9 @@ pub struct NetworkTransformBase {
 }
 
 impl NetworkTransformBase {
-    pub fn new(network_transform_base_setting: NetworkTransformBaseSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(game_object: GameObject,network_transform_base_setting: NetworkTransformBaseSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkTransformBase {
-            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
             is_client_with_authority: false,
             client_snapshots: Default::default(),
             server_snapshots: Default::default(),

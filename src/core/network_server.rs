@@ -448,6 +448,7 @@ impl NetworkServer {
 
     pub fn hide_for_connection(identity: &mut NetworkIdentity, conn: &mut NetworkConnectionToClient) {
         if conn.is_ready() {
+            println!("hide_for_connection: {:?}", identity);
             let mut message = ObjectHideMessage::new(identity.net_id());
             conn.send_network_message(&mut message, TransportChannel::Reliable);
         }
@@ -471,11 +472,10 @@ impl NetworkServer {
                                                   is_owner,
                                                   identity.scene_id,
                                                   identity.asset_id,
-                                                  identity.game_object().transform.position,
-                                                  identity.game_object().transform.rotation,
-                                                  identity.game_object().transform.scale,
+                                                  identity.game_object().transform.local_position,
+                                                  identity.game_object().transform.local_rotation,
+                                                  identity.game_object().transform.local_scale,
                                                   payload);
-        println!("spawn_message: {:?}", spawn_message);
         // 发送 SpawnMessage
         conn.send_network_message(&mut spawn_message, TransportChannel::Reliable);
     }

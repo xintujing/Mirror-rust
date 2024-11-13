@@ -17,9 +17,9 @@ pub struct NetworkCommonBehaviour {
 impl NetworkCommonBehaviour {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
-    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
+    pub fn new(game_object: GameObject,network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sync_vars: DashMap<u8, SyncVar>) -> Self {
         NetworkCommonBehaviour {
-            network_behaviour: NetworkBehaviour::new(network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
             sync_vars,
         }
     }

@@ -54,7 +54,7 @@ pub struct NetworkBehaviour {
 }
 
 impl NetworkBehaviour {
-    pub fn new(network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(game_object: GameObject,network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkBehaviour {
             sync_interval: 0.0,
             last_sync_time: 0.0,
@@ -66,7 +66,7 @@ impl NetworkBehaviour {
             net_id: 0,
             connection_to_client: 0,
             observers: Default::default(),
-            game_object: GameObject::default(),
+            game_object,
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -76,6 +76,7 @@ impl NetworkBehaviour {
     pub fn early_invoke(identity: &mut NetworkIdentity, component_index: u8) -> &mut Box<dyn NetworkBehaviourTrait> {
         // 需要传递给 component 的参数
         let observers = identity.observers().clone();
+        let game_object = identity.game_object().clone();
         // 获取 component
         let component = &mut identity.network_behaviours[component_index as usize];
         // 设置 component 的参数

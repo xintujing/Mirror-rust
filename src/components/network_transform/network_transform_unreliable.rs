@@ -35,10 +35,10 @@ pub struct NetworkTransformUnreliable {
 
 impl NetworkTransformUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformUnreliable";
-    pub fn new(network_transform_base_setting: NetworkTransformBaseSetting, network_transform_unreliable_setting: NetworkTransformUnreliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(game_object: GameObject,network_transform_base_setting: NetworkTransformBaseSetting, network_transform_unreliable_setting: NetworkTransformUnreliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         Self::call_register_delegate(Self::register_delegate);
         NetworkTransformUnreliable {
-            network_transform_base: NetworkTransformBase::new(network_transform_base_setting, network_behaviour_setting, component_index),
+            network_transform_base: NetworkTransformBase::new(game_object,network_transform_base_setting, network_behaviour_setting, component_index),
             buffer_reset_multiplier: network_transform_unreliable_setting.buffer_reset_multiplier,
             changed_detection: network_transform_unreliable_setting.changed_detection,
             position_sensitivity: network_transform_unreliable_setting.position_sensitivity,
@@ -425,14 +425,7 @@ impl NetworkTransformBaseTrait for NetworkTransformUnreliable {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::core::backend_data::NetworkBehaviourSetting;
-
     #[test]
     fn test_network_behaviour_trait() {
-        let a = NetworkTransformUnreliable::new(NetworkTransformBaseSetting::default(), NetworkTransformUnreliableSetting::default(), NetworkBehaviourSetting::default(), 0, Vector3::new(0.0, 0.0, 0.0), Quaternion::new(0.0, 0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0));
-        let b = NetworkTransformUnreliable::new(NetworkTransformBaseSetting::default(), NetworkTransformUnreliableSetting::default(), NetworkBehaviourSetting::default(), 0, Vector3::new(0.0, 0.0, 0.0), Quaternion::new(0.0, 0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0));
-        let c = NetworkTransformUnreliable::new(NetworkTransformBaseSetting::default(), NetworkTransformUnreliableSetting::default(), NetworkBehaviourSetting::default(), 0, Vector3::new(0.0, 0.0, 0.0), Quaternion::new(0.0, 0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0));
-        let d = NetworkTransformUnreliable::new(NetworkTransformBaseSetting::default(), NetworkTransformUnreliableSetting::default(), NetworkBehaviourSetting::default(), 0, Vector3::new(0.0, 0.0, 0.0), Quaternion::new(0.0, 0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0));
     }
 }
