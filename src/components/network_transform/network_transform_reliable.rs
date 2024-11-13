@@ -4,7 +4,7 @@ use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSet
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
-use nalgebra::{Quaternion, Vector3};
+use nalgebra::Vector3;
 use std::any::Any;
 use std::fmt::Debug;
 
@@ -30,7 +30,7 @@ impl NetworkTransformReliable {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformReliable";
     #[allow(dead_code)]
-    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_transform_reliable_setting: NetworkTransformReliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, position: Vector3<f32>, quaternion: Quaternion<f32>, scale: Vector3<f32>) -> Self {
+    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_transform_reliable_setting: NetworkTransformReliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkTransformReliable {
             network_transform_base: NetworkTransformBase::new(game_object,network_transform_base_setting, network_behaviour_setting, component_index),
             only_sync_on_change_correction_multiplier: network_transform_reliable_setting.only_sync_on_change_correction_multiplier,

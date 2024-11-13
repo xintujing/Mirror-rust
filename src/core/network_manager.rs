@@ -288,7 +288,6 @@ impl NetworkManager {
     }
 
     fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
-        debug!("on_server_add_player_internal");
         // 获取 NetworkManagerTrait 的单例
         let network_manager = NetworkManagerStatic::get_network_manager_singleton();
 

@@ -181,7 +181,7 @@ impl NetworkIdentity {
             // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformUnreliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.position, self.game_object.transform.rotation, self.game_object.transform.scale);
+                let network_transform = NetworkTransformUnreliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
@@ -189,7 +189,7 @@ impl NetworkIdentity {
             // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
             if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
                 // 创建 NetworkTransform
-                let network_transform = NetworkTransformReliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index, self.game_object.transform.position, self.game_object.transform.rotation, self.game_object.transform.scale);
+                let network_transform = NetworkTransformReliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
                 continue;
