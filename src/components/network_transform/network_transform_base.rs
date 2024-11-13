@@ -20,7 +20,7 @@ impl CoordinateSpace {
         match value {
             0 => CoordinateSpace::Local,
             1 => CoordinateSpace::World,
-            _ => CoordinateSpace::World,
+            _ => CoordinateSpace::Local,
         }
     }
 }
@@ -30,7 +30,6 @@ pub struct NetworkTransformBase {
     pub network_behaviour: NetworkBehaviour,
     pub coordinate_space: CoordinateSpace,
     pub is_client_with_authority: bool,
-    pub client_snapshots: BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
     pub server_snapshots: BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
     pub time_stamp_adjustment: f64,
     pub offset: f64,
@@ -52,7 +51,6 @@ impl NetworkTransformBase {
         NetworkTransformBase {
             network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
             is_client_with_authority: false,
-            client_snapshots: Default::default(),
             server_snapshots: Default::default(),
             time_stamp_adjustment: 0.0,
             offset: 0.0,
@@ -72,7 +70,6 @@ impl NetworkTransformBase {
     }
 
     pub fn reset_state(&mut self) {
-        self.client_snapshots.clear();
         self.server_snapshots.clear();
     }
 }
