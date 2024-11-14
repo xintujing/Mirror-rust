@@ -222,9 +222,6 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             self.serialize_sync_object_delta(writer);
         }
     }
-    // SerializeSyncVars
-    // TODO USED BY WEAVER
-    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {}
     fn serialize_objects_all(&mut self, writer: &mut NetworkWriter) {
         for sync_object in self.sync_objects().iter_mut() {
             sync_object.on_serialize_all(writer);
@@ -273,11 +270,6 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             self.deserialize_sync_object_delta(reader)
         }
     }
-    // DeserializeSyncVars
-    // TODO USED BY WEAVER
-    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        true
-    }
     // deserializeObjectsAll
     fn deserialize_objects_all(&mut self, reader: &mut NetworkReader) -> bool {
         let mut result = true;
@@ -313,10 +305,12 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         self.set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
     }
     fn clear_all_dirty_bits(&mut self) {
+        self.set_last_sync_time(NetworkTime::local_time());
         self.set_sync_var_dirty_bits(0);
         self.set_sync_object_dirty_bits(0);
-
-        // TODO sync_objects
+        for sync_object in self.sync_objects().iter_mut() {
+            sync_object.clear_changes();
+        }
     }
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn send_rpc_internal(&self, function_full_name: &'static str, function_hash_code: i32, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
@@ -339,4 +333,12 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn on_stop_server(&mut self) {}
     fn update(&mut self) {}
     fn late_update(&mut self) {}
+    // SerializeSyncVars
+    // TODO serialize_sync_vars USED BY WEAVER
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {}
+    // DeserializeSyncVars
+    // TODO deserialize_sync_vars USED BY WEAVER
+    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        true
+    }
 }
