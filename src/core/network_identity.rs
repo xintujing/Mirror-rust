@@ -175,13 +175,6 @@ impl NetworkIdentity {
             if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(component.sub_class.as_str(), self.game_object.clone(), component) {
                 self.network_behaviours.push(network_behaviour);
             }
-            if component.sub_class == "QuickStart.PlayerScript" {
-                // 创建 NetworkCommonComponent
-                let network_common = NetworkCommonBehaviour::new(self.game_object.clone(), component);
-                // 添加到 components
-                self.network_behaviours.insert(component.index as usize, Box::new(network_common));
-                continue;
-            }
         }
         self.validate_components();
     }

@@ -7,6 +7,7 @@ use crate::core::network_writer::NetworkWriter;
 use nalgebra::Vector3;
 use std::any::Any;
 use std::fmt::Debug;
+use std::sync::Once;
 
 #[derive(Debug)]
 pub struct NetworkTransformReliable {
@@ -53,6 +54,21 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         Self: Sized
     {
         todo!()
+    }
+
+    fn register_delegate()
+    where
+        Self: Sized
+    {
+        todo!()
+    }
+
+    fn get_once() -> &'static Once
+    where
+        Self: Sized
+    {
+        static ONCE: Once = Once::new();
+        &ONCE
     }
 
     fn sync_interval(&self) -> f64 {

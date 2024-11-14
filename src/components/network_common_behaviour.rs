@@ -7,6 +7,8 @@ use crate::core::network_writer::NetworkWriter;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
+use std::sync::Once;
+use tklog::debug;
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
@@ -22,8 +24,9 @@ impl NetworkCommonBehaviour {
 impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
+        Self::call_register_delegate();
         let sync_vars = DashMap::new();
         for (index, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
             sync_vars.insert(index as u8, SyncVar::new(
@@ -32,10 +35,25 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
                 sync_var.dirty_bit,
             ));
         }
-        NetworkCommonBehaviour {
+        Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
             sync_vars,
         }
+    }
+
+    fn register_delegate()
+    where
+        Self: Sized,
+    {
+        debug!("Registering delegate for NetworkCommonBehaviour");
+    }
+
+    fn get_once() -> &'static Once
+    where
+        Self: Sized,
+    {
+        static ONCE: Once = Once::new();
+        &ONCE
     }
 
     fn sync_interval(&self) -> f64 {
@@ -43,7 +61,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_behaviour.sync_interval= value
+        self.network_behaviour.sync_interval = value
     }
 
     fn last_sync_time(&self) -> f64 {

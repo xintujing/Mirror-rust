@@ -1,3 +1,4 @@
+use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
@@ -15,7 +16,7 @@ use lazy_static::lazy_static;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::error;
+use tklog::{debug, error};
 
 type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
 
@@ -40,6 +41,8 @@ impl NetworkBehaviourFactory {
         Self::add_network_behaviour_factory(NetworkTransformUnreliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformUnreliable::new(game_object, component))));
         // NetworkTransformReliable
         Self::add_network_behaviour_factory(NetworkTransformReliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformReliable::new(game_object, component))));
+        // QuickStart.PlayerScript
+        Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkCommonBehaviour::new(game_object, component))));
     }
 }
 
@@ -126,7 +129,18 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
         Self: Sized;
-    // fn register_delegate();
+    fn register_delegate()
+    where
+        Self: Sized;
+    fn call_register_delegate()
+    where
+        Self: Sized,
+    {
+        Self::get_once().call_once(Self::register_delegate);
+    }
+    fn get_once() -> &'static Once
+    where
+        Self: Sized;
     // 字段 get  set start
     fn sync_interval(&self) -> f64;
     fn set_sync_interval(&mut self, value: f64);
@@ -151,14 +165,6 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn game_object(&self) -> &GameObject;
     fn set_game_object(&mut self, value: GameObject);
     // 字段 get  set end
-    fn call_register_delegate<F>(reg_fn: F)
-    where
-        F: FnOnce(),
-        Self: Sized,
-    {
-        static ONCE: Once = Once::new();
-        ONCE.call_once(reg_fn);
-    }
     fn is_dirty(&self) -> bool;
     // DeserializeObjectsAll
     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);

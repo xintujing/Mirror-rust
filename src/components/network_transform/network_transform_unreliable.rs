@@ -24,6 +24,7 @@ use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::mem::take;
 use std::ops::BitOrAssign;
+use std::sync::Once;
 use tklog::{debug, error};
 
 #[derive(Debug)]
@@ -194,23 +195,6 @@ impl NetworkTransformUnreliable {
             self.last_snapshot.scale = current_snapshot.scale;
         }
     }
-    fn register_delegate() {
-        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1)), true);
-
-        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1)), true);
-
-        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
-    }
-
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
     pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
@@ -468,10 +452,10 @@ impl NetworkTransformUnreliable {
         });
     }
 }
-#[allow(dead_code)]
+
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self {
-        Self::call_register_delegate(Self::register_delegate);
+        Self::call_register_delegate();
         NetworkTransformUnreliable {
             network_transform_base: NetworkTransformBase::new(game_object, network_behaviour_component.network_transform_base_setting, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
             buffer_reset_multiplier: network_behaviour_component.network_transform_unreliable_setting.buffer_reset_multiplier,
@@ -489,6 +473,35 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
             cached_changed_comparison: Changed::None.to_u8(),
             has_sent_unchanged_position: false,
         }
+    }
+
+    fn register_delegate()
+    where
+        Self: Sized,
+    {
+        debug!("Registering delegate for NetworkTransformUnreliable");
+        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                RemoteCallType::Command,
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                RemoteCallType::Command,
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1)), true);
+
+        // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
+        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
+                                                RemoteCallType::Command,
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
+    }
+
+    fn get_once() -> &'static Once
+    where
+        Self: Sized,
+    {
+        static ONCE: Once = Once::new();
+        &ONCE
     }
 
     fn sync_interval(&self) -> f64 {
