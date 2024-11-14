@@ -627,9 +627,15 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
             }
         }
     }
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+    fn update(&mut self) {
+        self.update_server_interpolation();
+    }
+
+    fn late_update(&mut self) {
+        self.update_server_broadcast();
     }
 }
 

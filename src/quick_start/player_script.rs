@@ -1,17 +1,22 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::NetworkBehaviourComponent;
+use crate::core::messages::EntityStateMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
-use crate::core::network_writer::NetworkWriter;
+use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::sync_object::SyncObject;
+use crate::core::transport::TransportChannel;
+use crate::tools::utils::to_hex_string;
 use nalgebra::Vector4;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::error;
+use tklog::{debug, error};
 
 #[derive(Debug)]
 pub struct PlayerScript {
@@ -38,6 +43,14 @@ impl PlayerScript {
     fn user_code_cmd_setup_player_string_color(&mut self, player_name: String, player_color: Vector4<f32>) {
         self.player_name = player_name;
         self.player_color = player_color;
+
+        println!("PlayerScript::CmdSetupPlayer: player_name: {}, player_color: {:?}", self.player_name, self.player_color);
+
+        NetworkWriterPool::get_return(|writer| {
+            self.serialize(writer, false);
+            println!("{}", to_hex_string(writer.to_array_segment()));
+            self.send_entity_state_message_internal(writer, TransportChannel::Reliable, true);
+        });
     }
 }
 
@@ -51,8 +64,8 @@ impl NetworkBehaviourTrait for PlayerScript {
         Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
             active_weapon_synced: 1,
-            player_name: "".to_string(),
-            player_color: Vector4::new(255.0, 0.0, 0.0, 255.0),
+            player_name: NetworkTime::local_time().to_string(),
+            player_color: Vector4::new(0.0, 0.0, 1.0, 1.0),
         }
     }
 
@@ -181,11 +194,35 @@ impl NetworkBehaviourTrait for PlayerScript {
     }
 
     fn is_dirty(&self) -> bool {
-        todo!()
+        self.network_behaviour.is_dirty()
     }
 
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
-        todo!()
+        self
+    }
+
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        if initial_state {
+            writer.write_int(self.active_weapon_synced);
+            writer.write_string(self.player_name.to_string());
+            writer.write_vector4(self.player_color);
+        } else {
+            writer.write_ulong(self.sync_var_dirty_bits());
+            debug!("PlayerScript::serialize_sync_vars: sync_var_dirty_bits: ", self.sync_var_dirty_bits());
+            if self.sync_var_dirty_bits() & 1 != 0 {
+                writer.write_int(self.active_weapon_synced);
+            }
+            if self.sync_var_dirty_bits() & 2 != 0 {
+                writer.write_string(self.player_name.to_string());
+            }
+            if self.sync_var_dirty_bits() & 4 != 0 {
+                writer.write_vector4(self.player_color);
+            }
+        }
+    }
+
+    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        true
     }
 }
