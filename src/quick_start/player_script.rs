@@ -172,10 +172,17 @@ impl NetworkBehaviourTrait for PlayerScript {
         self.network_behaviour.sync_objects = value
     }
 
+    fn sync_var_hook_guard(&self) -> u64 {
+        self.network_behaviour.sync_var_hook_guard
+    }
+
+    fn set_sync_var_hook_guard(&mut self, value: u64) {
+        self.network_behaviour.sync_var_hook_guard = value
+    }
+
     fn is_dirty(&self) -> bool {
         todo!()
     }
-
 
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

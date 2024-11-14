@@ -138,6 +138,14 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         self.network_behaviour.sync_objects = value
     }
 
+    fn sync_var_hook_guard(&self) -> u64 {
+        self.network_behaviour.sync_var_hook_guard
+    }
+
+    fn set_sync_var_hook_guard(&mut self, value: u64) {
+        self.network_behaviour.sync_var_hook_guard = value
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }

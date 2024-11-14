@@ -166,6 +166,14 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_transform_base.network_behaviour.sync_objects = value
     }
 
+    fn sync_var_hook_guard(&self) -> u64 {
+        self.network_transform_base.network_behaviour.sync_var_hook_guard
+    }
+
+    fn set_sync_var_hook_guard(&mut self, value: u64) {
+        self.network_transform_base.network_behaviour.sync_var_hook_guard = value
+    }
+
 
     fn is_dirty(&self) -> bool {
         self.network_transform_base.network_behaviour.is_dirty()

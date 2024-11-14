@@ -88,6 +88,7 @@ pub struct NetworkBehaviour {
     pub observers: Vec<u64>,
     pub game_object: GameObject,
     pub sync_objects: Vec<Box<dyn SyncObject>>,
+    pub sync_var_hook_guard: u64,
 }
 
 impl NetworkBehaviour {
@@ -105,6 +106,7 @@ impl NetworkBehaviour {
             observers: Default::default(),
             game_object,
             sync_objects: Default::default(),
+            sync_var_hook_guard: 0,
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -176,6 +178,19 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>);
     fn has_sync_objects(&mut self) -> bool {
         self.sync_objects().len() > 0
+    }
+    fn sync_var_hook_guard(&self) -> u64;
+    fn set_sync_var_hook_guard(&mut self, value: u64);
+    fn get_sync_var_hook_guard(&self, dirty_bit: u64) -> bool {
+        (dirty_bit & self.sync_var_hook_guard()) != 0
+    }
+    // SetSyncVarHookGuard(ulong dirtyBit, bool value)
+    fn update_sync_var_hook_guard(&mut self, dirty_bit: u64, value: bool) {
+        if value {
+            self.set_sync_var_hook_guard(self.sync_var_hook_guard() | dirty_bit);
+        } else {
+            self.set_sync_var_hook_guard(self.sync_var_hook_guard() & !dirty_bit);
+        }
     }
     // 字段 get  set end
     fn is_dirty(&self) -> bool;
