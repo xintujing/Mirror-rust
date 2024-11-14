@@ -4,6 +4,7 @@ use crate::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
+use crate::core::sync_object::SyncObject;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -144,11 +145,17 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         self.network_behaviour.game_object = value
     }
 
+    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
+        &mut self.network_behaviour.sync_objects
+    }
+
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+        self.network_behaviour.sync_objects = value
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
-
-    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
 
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         for i in 0..self.sync_vars.len() as u8 {
@@ -158,15 +165,8 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         }
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
-    }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-
-    fn on_start_server(&mut self) {}
-
-    fn on_stop_server(&mut self) {}
 }

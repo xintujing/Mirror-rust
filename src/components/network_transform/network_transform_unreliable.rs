@@ -13,6 +13,7 @@ use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWr
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
+use crate::core::sync_object::SyncObject;
 use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::tools::compress::DecompressTrait;
 use crate::core::transport::TransportChannel;
@@ -592,12 +593,16 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         self.network_transform_base.network_behaviour.game_object = value
     }
 
-    fn is_dirty(&self) -> bool {
-        self.network_transform_base.network_behaviour.is_dirty()
+    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
+        &mut self.network_transform_base.network_behaviour.sync_objects
     }
 
-    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
-        todo!()
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+        self.network_transform_base.network_behaviour.sync_objects = value
+    }
+
+    fn is_dirty(&self) -> bool {
+        self.network_transform_base.network_behaviour.is_dirty()
     }
 
 
@@ -615,18 +620,8 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         }
     }
 
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-    fn update(&mut self) {
-        self.update_server_interpolation();
-    }
-    fn late_update(&mut self) {
-        self.update_server_broadcast();
     }
 }
 

@@ -1,8 +1,7 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::network_manager::GameObject;
-use crate::core::network_reader::NetworkReader;
-use crate::core::network_writer::NetworkWriter;
+use crate::core::sync_object::SyncObject;
 use std::any::Any;
 use std::sync::Once;
 
@@ -122,32 +121,21 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.game_object = value
     }
 
+    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
+        &mut self.network_behaviour.sync_objects
+    }
+
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+        self.network_behaviour.sync_objects = value
+    }
+
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
 
-    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
-        todo!()
-    }
-
-    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        todo!()
-    }
-
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
-    }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn on_start_server(&mut self) {
-        todo!()
-    }
-
-    fn on_stop_server(&mut self) {
-        todo!()
     }
 }
 

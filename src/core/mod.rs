@@ -21,3 +21,4 @@ pub mod remote_calls;
 mod network_reader_pool;
 pub mod network_connection_to_client;
 pub mod network_connection;
+pub mod sync_object;

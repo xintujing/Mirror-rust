@@ -178,7 +178,8 @@ impl NetworkIdentity {
         }
         self.validate_components();
     }
-    pub fn awake(&mut self) {
+    pub fn awake(&mut self)
+    {
         self.initialize_network_behaviours();
         if self.has_spawned {
             error!("NetworkIdentity has already spawned.");

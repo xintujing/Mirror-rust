@@ -6,17 +6,19 @@ use crate::core::messages::RpcMessage;
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
-use crate::core::network_reader::NetworkReader;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::sync_object::SyncObject;
 use crate::core::transport::TransportChannel;
+use byteorder::ReadBytesExt;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::{debug, error};
+use tklog::{debug, error, warn};
 
 type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
 
@@ -85,6 +87,7 @@ pub struct NetworkBehaviour {
     pub connection_to_client: u64,
     pub observers: Vec<u64>,
     pub game_object: GameObject,
+    pub sync_objects: Vec<Box<dyn SyncObject>>,
 }
 
 impl NetworkBehaviour {
@@ -101,6 +104,7 @@ impl NetworkBehaviour {
             connection_to_client: 0,
             observers: Default::default(),
             game_object,
+            sync_objects: Default::default(),
         }
     }
     pub fn is_dirty(&self) -> bool {
@@ -121,6 +125,10 @@ impl NetworkBehaviour {
         // 获取 component
         let component = &identity.network_behaviours[component_index as usize];
         identity.set_game_object(component.game_object().clone());
+    }
+    pub fn error_correction(size: usize, safety: u8) -> usize {
+        let cleared = size & 0xFFFFFF00;
+        cleared | safety as usize
     }
 }
 
@@ -164,10 +172,14 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_observers(&mut self, value: Vec<u64>);
     fn game_object(&self) -> &GameObject;
     fn set_game_object(&mut self, value: GameObject);
+    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>>;
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>);
+    fn has_sync_objects(&mut self) -> bool {
+        self.sync_objects().len() > 0
+    }
     // 字段 get  set end
     fn is_dirty(&self) -> bool;
     // DeserializeObjectsAll
-    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool);
     // Serialize
     fn serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         let header_position = writer.get_position();
@@ -182,9 +194,100 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         writer.set_position(end_position);
     }
     // void OnSerialize(NetworkWriter writer, bool initialState)
-    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool);
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        self.serialize_sync_objects(writer, initial_state);
+        self.serialize_sync_vars(writer, initial_state);
+    }
+    // SerializeSyncObjects
+    fn serialize_sync_objects(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        if initial_state {
+            self.serialize_objects_all(writer);
+        } else {
+            self.serialize_sync_object_delta(writer);
+        }
+    }
+    // SerializeSyncVars
+    // TODO USED BY WEAVER
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {}
+    fn serialize_objects_all(&mut self, writer: &mut NetworkWriter) {
+        for sync_object in self.sync_objects().iter_mut() {
+            sync_object.on_serialize_all(writer);
+        }
+    }
+    fn serialize_sync_object_delta(&mut self, writer: &mut NetworkWriter) {
+        writer.write_ulong(self.sync_object_dirty_bits());
+        for i in 0..self.sync_objects().len() {
+            if self.sync_object_dirty_bits() & (1 << i) != 0 {
+                let sync_object = &mut self.sync_objects()[i];
+                sync_object.on_serialize_delta(writer);
+            }
+        }
+    }
+    // OnDeserialize
+    fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        let mut result = false;
+        result = self.deserialize_sync_objects(reader, initial_state);
+        result = self.deserialize_sync_vars(reader, initial_state);
+        result
+    }
     // Deserialize
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool;
+    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        let mut result = true;
+
+        let safety = reader.read_byte();
+        let chunk_start = reader.get_position();
+
+        result = self.on_deserialize(reader, initial_state);
+
+        let size = reader.get_position() - chunk_start;
+        let size_hash = size as u8 & 0xFF;
+        if size_hash != safety {
+            warn!(format!("Deserialize failed. Size mismatch. Expected: {}, Received: {}", size_hash, safety));
+            let corrected_size = NetworkBehaviour::error_correction(size, safety);
+            reader.set_position(chunk_start + corrected_size);
+            result = false;
+        }
+        result
+    }
+    // DeserializeSyncObjects
+    fn deserialize_sync_objects(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        if initial_state {
+            self.deserialize_objects_all(reader)
+        } else {
+            self.deserialize_sync_object_delta(reader)
+        }
+    }
+    // DeserializeSyncVars
+    // TODO USED BY WEAVER
+    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        true
+    }
+    // deserializeObjectsAll
+    fn deserialize_objects_all(&mut self, reader: &mut NetworkReader) -> bool {
+        let mut result = true;
+        for sync_object in self.sync_objects().iter_mut() {
+            let succ = sync_object.on_deserialize_all(reader);
+            if !succ {
+                result = false;
+            }
+        }
+        result
+    }
+    // DeserializeSyncObjectDelta
+    fn deserialize_sync_object_delta(&mut self, reader: &mut NetworkReader) -> bool {
+        let mut result = true;
+        let dirty = reader.read_ulong();
+        for i in 0..self.sync_objects().len() {
+            if dirty & (1 << i) != 0 {
+                let sync_object = &mut self.sync_objects()[i];
+                let succ = sync_object.on_deserialize_delta(reader);
+                if !succ {
+                    result = false;
+                }
+            }
+        }
+        result
+    }
     // SetDirty
     fn set_dirty(&mut self) {
         self.set_sync_var_dirty_bit(u64::MAX);
@@ -197,7 +300,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         self.set_sync_var_dirty_bits(0);
         self.set_sync_object_dirty_bits(0);
 
-        // TODO syncObjects
+        // TODO sync_objects
     }
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn send_rpc_internal(&self, function_full_name: &'static str, function_hash_code: i32, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
@@ -221,115 +324,3 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn update(&mut self) {}
     fn late_update(&mut self) {}
 }
-
-// impl NetworkBehaviourTrait for NetworkBehaviour {
-//     fn sync_interval(&self) -> f64 {
-//         self.sync_interval
-//     }
-//
-//     fn set_sync_interval(&mut self, value: f64) {
-//         self.sync_interval = value;
-//     }
-//
-//     fn last_sync_time(&self) -> f64 {
-//         self.last_sync_time
-//     }
-//
-//     fn set_last_sync_time(&mut self, value: f64) {
-//         self.last_sync_time = value;
-//     }
-//
-//     fn sync_direction(&mut self) -> &SyncDirection {
-//         &self.sync_direction
-//     }
-//
-//     fn set_sync_direction(&mut self, value: SyncDirection) {
-//         self.sync_direction = value;
-//     }
-//
-//     fn sync_mode(&mut self) -> &SyncMode {
-//         &self.sync_mode
-//     }
-//
-//     fn set_sync_mode(&mut self, value: SyncMode) {
-//         self.sync_mode = value;
-//     }
-//
-//     fn component_index(&self) -> u8 {
-//         self.component_index
-//     }
-//
-//     fn set_component_index(&mut self, value: u8) {
-//         self.component_index = value;
-//     }
-//
-//     fn sync_var_dirty_bits(&self) -> u64 {
-//         self.sync_var_dirty_bits
-//     }
-//
-//     fn set_sync_var_dirty_bits(&mut self, value: u64) {
-//         self.sync_var_dirty_bits = value;
-//     }
-//
-//     fn sync_object_dirty_bits(&self) -> u64 {
-//         self.sync_object_dirty_bits
-//     }
-//
-//     fn set_sync_object_dirty_bits(&mut self, value: u64) {
-//         self.sync_object_dirty_bits = value;
-//     }
-//
-//     fn net_id(&self) -> u32 {
-//         self.net_id
-//     }
-//
-//     fn set_net_id(&mut self, value: u32) {
-//         self.net_id = value;
-//     }
-//
-//     fn connection_to_client(&self) -> u64 {
-//         self.connection_to_client
-//     }
-//
-//     fn set_connection_to_client(&mut self, value: u64) {
-//         self.connection_to_client = value;
-//     }
-//
-//     fn observers(&self) -> &Vec<u64> {
-//         &self.observers
-//     }
-//
-//     fn set_observers(&mut self, value: Vec<u64>) {
-//         self.observers = value;
-//     }
-//
-//     fn game_object(&self) -> &GameObject {
-//         &self.game_object
-//     }
-//
-//     fn set_game_object(&mut self, value: GameObject) {
-//         self.game_object = value;
-//     }
-//
-//     fn is_dirty(&self) -> bool {
-//         self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64 &&
-//             NetworkTime::local_time() - self.last_sync_time > self.sync_interval
-//     }
-//
-//     fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {
-//         todo!()
-//     }
-//
-//     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-//         // SerializeSyncObjects(writer, initialState);
-//         // SerializeSyncVars(writer, initialState);
-//     }
-//
-//     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-//         todo!()
-//     }
-//
-//     fn as_any_mut(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }

@@ -2,8 +2,7 @@ use crate::components::network_behaviour::{NetworkBehaviourTrait, SyncDirection,
 use crate::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
 use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::network_manager::GameObject;
-use crate::core::network_reader::NetworkReader;
-use crate::core::network_writer::NetworkWriter;
+use crate::core::sync_object::SyncObject;
 use nalgebra::Vector3;
 use std::any::Any;
 use std::fmt::Debug;
@@ -159,19 +158,17 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_transform_base.network_behaviour.game_object = value
     }
 
+    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
+        &mut self.network_transform_base.network_behaviour.sync_objects
+    }
+
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+        self.network_transform_base.network_behaviour.sync_objects = value
+    }
+
 
     fn is_dirty(&self) -> bool {
         self.network_transform_base.network_behaviour.is_dirty()
-    }
-
-    fn deserialize_objects_all(&self, un_batch: NetworkReader, initial_state: bool) {}
-
-    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        todo!()
-    }
-
-    fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

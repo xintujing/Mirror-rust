@@ -6,6 +6,7 @@ mod transports;
 mod tools;
 mod components;
 mod core;
+mod quick_start;
 
 fn main() {
     Kcp2kTransport::awake();

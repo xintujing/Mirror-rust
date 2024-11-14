@@ -1,42 +1,76 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
-use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
+use crate::core::backend_data::NetworkBehaviourComponent;
+use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_server::NetworkServerStatic;
+use crate::core::network_writer::NetworkWriter;
+use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::sync_object::SyncObject;
+use nalgebra::Vector4;
 use std::any::Any;
+use std::fmt::Debug;
 use std::sync::Once;
+use tklog::error;
 
 #[derive(Debug)]
-pub struct NetworkRigidbodyUnreliable {
+pub struct PlayerScript {
     network_behaviour: NetworkBehaviour,
+    pub active_weapon_synced: i32,
+    pub player_name: String,
+    pub player_color: Vector4<f32>,
 }
 
-impl NetworkRigidbodyUnreliable {
-    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRigidbodyUnreliable";
-    pub fn new(game_object: GameObject,network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
-        NetworkRigidbodyUnreliable {
-            network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
+impl PlayerScript {
+    pub fn invoke_user_code_cmd_setup_player_string_color(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
         }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    fn user_code_cmd_setup_player_string_color(&mut self, player_name: String, player_color: Vector4<f32>) {
+        self.player_name = player_name;
+        self.player_color = player_color;
     }
 }
 
-impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
+
+impl NetworkBehaviourTrait for PlayerScript {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
-        todo!()
+        Self::call_register_delegate();
+        Self {
+            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
+            active_weapon_synced: 1,
+            player_name: "".to_string(),
+            player_color: Vector4::new(255.0, 0.0, 0.0, 255.0),
+        }
     }
 
     fn register_delegate()
     where
-        Self: Sized
+        Self: Sized,
     {
-        todo!()
+        RemoteProcedureCalls::register_delegate(
+            "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)",
+            RemoteCallType::Command,
+            RemoteCallDelegate::new("invoke_user_code_cmd_setup_player_string_color", Box::new(Self::invoke_user_code_cmd_setup_player_string_color)),
+            true,
+        );
     }
 
     fn get_once() -> &'static Once
     where
-        Self: Sized
+        Self: Sized,
     {
         static ONCE: Once = Once::new();
         &ONCE
@@ -47,7 +81,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_behaviour.sync_interval= value
+        self.network_behaviour.sync_interval = value
     }
 
     fn last_sync_time(&self) -> f64 {
@@ -139,11 +173,12 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
     }
 
     fn is_dirty(&self) -> bool {
-        self.network_behaviour.is_dirty()
+        todo!()
     }
 
 
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+        todo!()
     }
 }
