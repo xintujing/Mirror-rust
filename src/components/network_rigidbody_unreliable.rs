@@ -86,7 +86,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         self.network_behaviour.sync_var_dirty_bits
     }
 
-    fn set_sync_var_dirty_bits(&mut self, value: u64) {
+    fn __set_sync_var_dirty_bits(&mut self, value: u64) {
         self.network_behaviour.sync_var_dirty_bits = value
     }
 
@@ -94,7 +94,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         self.network_behaviour.sync_object_dirty_bits
     }
 
-    fn set_sync_object_dirty_bits(&mut self, value: u64) {
+    fn __set_sync_object_dirty_bits(&mut self, value: u64) {
         self.network_behaviour.sync_object_dirty_bits = value
     }
 
@@ -142,7 +142,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
         self.network_behaviour.sync_var_hook_guard
     }
 
-    fn set_sync_var_hook_guard(&mut self, value: u64) {
+    fn __set_sync_var_hook_guard(&mut self, value: u64) {
         self.network_behaviour.sync_var_hook_guard = value
     }
 

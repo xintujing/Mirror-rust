@@ -133,6 +133,12 @@ impl NetworkBehaviour {
         let cleared = size & 0xFFFFFF00;
         cleared | safety as usize
     }
+    fn sync_var_equal<T>(a: &T, b: &T) -> bool
+    where
+        T: PartialEq,
+    {
+        a == b
+    }
 }
 
 
@@ -164,9 +170,16 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn index(&self) -> u8;
     fn set_index(&mut self, value: u8);
     fn sync_var_dirty_bits(&self) -> u64;
-    fn set_sync_var_dirty_bits(&mut self, value: u64);
+    // SetSyncVarDirtyBit
+    fn set_sync_var_dirty_bits(&mut self, dirty_bit: u64) {
+        self.__set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
+    }
+    fn __set_sync_var_dirty_bits(&mut self, value: u64);
     fn sync_object_dirty_bits(&self) -> u64;
-    fn set_sync_object_dirty_bits(&mut self, value: u64);
+    fn set_sync_object_dirty_bits(&mut self, value: u64) {
+        self.__set_sync_object_dirty_bits(self.sync_object_dirty_bits() | value);
+    }
+    fn __set_sync_object_dirty_bits(&mut self, value: u64);
     fn net_id(&self) -> u32;
     fn set_net_id(&mut self, value: u32);
     fn connection_to_client(&self) -> u64;
@@ -181,17 +194,25 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         self.sync_objects().len() > 0
     }
     fn sync_var_hook_guard(&self) -> u64;
-    fn set_sync_var_hook_guard(&mut self, value: u64);
     fn get_sync_var_hook_guard(&self, dirty_bit: u64) -> bool {
         (dirty_bit & self.sync_var_hook_guard()) != 0
     }
     // SetSyncVarHookGuard(ulong dirtyBit, bool value)
-    fn update_sync_var_hook_guard(&mut self, dirty_bit: u64, value: bool) {
+    fn set_sync_var_hook_guard(&mut self, dirty_bit: u64, value: bool) {
         if value {
-            self.set_sync_var_hook_guard(self.sync_var_hook_guard() | dirty_bit);
+            self.__set_sync_var_hook_guard(self.sync_var_hook_guard() | dirty_bit);
         } else {
-            self.set_sync_var_hook_guard(self.sync_var_hook_guard() & !dirty_bit);
+            self.__set_sync_var_hook_guard(self.sync_var_hook_guard() & !dirty_bit);
         }
+    }
+    fn __set_sync_var_hook_guard(&mut self, value: u64);
+    fn generated_sync_var_setter(&mut self, dirty_bit: u64) {
+        self.set_sync_var_dirty_bits(dirty_bit);
+        if self.get_sync_var_hook_guard(dirty_bit) {
+            return;
+        }
+        self.set_sync_var_hook_guard(dirty_bit, true);
+        self.set_sync_var_hook_guard(dirty_bit, false);
     }
     // 字段 get  set end
     fn is_dirty(&self) -> bool;
@@ -298,16 +319,12 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     // SetDirty
     fn set_dirty(&mut self) {
-        self.set_sync_var_dirty_bit(u64::MAX);
-    }
-    // SetSyncVarDirtyBit
-    fn set_sync_var_dirty_bit(&mut self, dirty_bit: u64) {
-        self.set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
+        self.set_sync_var_dirty_bits(u64::MAX);
     }
     fn clear_all_dirty_bits(&mut self) {
         self.set_last_sync_time(NetworkTime::local_time());
-        self.set_sync_var_dirty_bits(0);
-        self.set_sync_object_dirty_bits(0);
+        self.__set_sync_var_dirty_bits(0);
+        self.__set_sync_object_dirty_bits(0);
         for sync_object in self.sync_objects().iter_mut() {
             sync_object.clear_changes();
         }

@@ -402,7 +402,7 @@ impl NetworkServer {
             let net_id = conn.observing[i];
             if net_id != 0 {
                 if let Some(mut message) = Self::serialize_for_connection(net_id, conn.connection_id()) {
-                    debug!(format!("Server.broadcast_to_connection: connectionId: {}, netId: {}", conn.connection_id(), net_id));
+                    // debug!(format!("Server.broadcast_to_connection: connectionId: {}, netId: {}", conn.connection_id(), net_id));
                     conn.send_network_message(&mut message, TransportChannel::Reliable);
                 }
             } else {
@@ -415,7 +415,7 @@ impl NetworkServer {
         if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
             let owned = identity.connection_to_client() == conn_id;
             let net_id = identity.net_id();
-            let serialization = identity.get_server_serialization_at_tick(NetworkServerStatic::get_static_tick_rate());
+            let serialization = identity.get_server_serialization_at_tick(NetworkTime::local_time());
             if owned {
                 if serialization.owner_writer.get_position() > 0 {
                     return Some(EntityStateMessage::new(net_id, serialization.owner_writer.to_bytes()));
