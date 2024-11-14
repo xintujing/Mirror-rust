@@ -1,5 +1,5 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
-use crate::core::backend_data::NetworkBehaviourSetting;
+use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
@@ -20,93 +20,101 @@ impl NetworkRigidbodyUnreliable {
 }
 
 impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
+    fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
+    where
+        Self: Sized
+    {
+        todo!()
+    }
+
     fn sync_interval(&self) -> f64 {
-        self.network_behaviour.sync_interval()
+        self.network_behaviour.sync_interval
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_behaviour.set_sync_interval(value)
+        self.network_behaviour.sync_interval= value
     }
 
     fn last_sync_time(&self) -> f64 {
-        self.network_behaviour.last_sync_time()
+        self.network_behaviour.last_sync_time
     }
 
     fn set_last_sync_time(&mut self, value: f64) {
-        self.network_behaviour.set_last_sync_time(value)
+        self.network_behaviour.last_sync_time = value
     }
 
     fn sync_direction(&mut self) -> &SyncDirection {
-        self.network_behaviour.sync_direction()
+        &self.network_behaviour.sync_direction
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
-        self.network_behaviour.set_sync_direction(value)
+        self.network_behaviour.sync_direction = value
     }
 
     fn sync_mode(&mut self) -> &SyncMode {
-        self.network_behaviour.sync_mode()
+        &self.network_behaviour.sync_mode
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
-        self.network_behaviour.set_sync_mode(value)
+        self.network_behaviour.sync_mode = value
     }
 
-    fn component_index(&self) -> u8 {
-        self.network_behaviour.component_index()
+    fn index(&self) -> u8 {
+        self.network_behaviour.index
     }
 
-    fn set_component_index(&mut self, value: u8) {
-        self.network_behaviour.set_component_index(value)
+    fn set_index(&mut self, value: u8) {
+        self.network_behaviour.index = value
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {
-        self.network_behaviour.sync_var_dirty_bits()
+        self.network_behaviour.sync_var_dirty_bits
     }
 
     fn set_sync_var_dirty_bits(&mut self, value: u64) {
-        self.network_behaviour.set_sync_var_dirty_bits(value)
+        self.network_behaviour.sync_var_dirty_bits = value
     }
 
     fn sync_object_dirty_bits(&self) -> u64 {
-        self.network_behaviour.sync_object_dirty_bits()
+        self.network_behaviour.sync_object_dirty_bits
     }
 
     fn set_sync_object_dirty_bits(&mut self, value: u64) {
-        self.network_behaviour.set_sync_object_dirty_bits(value)
+        self.network_behaviour.sync_object_dirty_bits = value
     }
 
     fn net_id(&self) -> u32 {
-        self.network_behaviour.net_id()
+        self.network_behaviour.net_id
     }
 
     fn set_net_id(&mut self, value: u32) {
-        self.network_behaviour.set_net_id(value)
+        self.network_behaviour.net_id = value
     }
 
     fn connection_to_client(&self) -> u64 {
-        self.network_behaviour.connection_to_client()
+        self.network_behaviour.connection_to_client
     }
 
     fn set_connection_to_client(&mut self, value: u64) {
-        self.network_behaviour.set_connection_to_client(value)
+        self.network_behaviour.connection_to_client = value
     }
 
     fn observers(&self) -> &Vec<u64> {
-        self.network_behaviour.observers()
+        &self.network_behaviour.observers
     }
 
     fn set_observers(&mut self, value: Vec<u64>) {
-        self.network_behaviour.set_observers(value)
+        self.network_behaviour.observers = value
     }
 
     fn game_object(&self) -> &GameObject {
-        self.network_behaviour.game_object()
+        &self.network_behaviour.game_object
     }
 
     fn set_game_object(&mut self, value: GameObject) {
-        todo!()
+        self.network_behaviour.game_object = value
     }
+
 
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()

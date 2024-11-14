@@ -1,4 +1,4 @@
-use crate::components::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::components::network_behaviour::{NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
@@ -63,8 +63,8 @@ pub struct NetworkIdentity {
     conn_to_client: u64,
     net_id: u32,
     had_authority: bool,
-    observers: Vec<u64>,
     game_object: GameObject,
+    pub observers: Vec<u64>,
     pub scene_id: u64,
     pub asset_id: u32,
     pub server_only: bool,
@@ -132,12 +132,6 @@ impl NetworkIdentity {
             conn.owned().push(self.net_id);
         }
     }
-    pub fn observers(&self) -> &Vec<u64> {
-        &self.observers
-    }
-    pub fn set_observers(&mut self, observers: Vec<u64>) {
-        self.observers = observers;
-    }
     pub fn game_object(&self) -> &GameObject {
         &self.game_object
     }
@@ -178,25 +172,12 @@ impl NetworkIdentity {
     }
     pub fn initialize_network_behaviours(&mut self) {
         for component in BackendDataStatic::get_backend_data().get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
-            // 如果 component.component_type 包含 NetworkTransformUnreliable::COMPONENT_TAG
-            if component.sub_class.contains(NetworkTransformUnreliable::COMPONENT_TAG) {
-                // 创建 NetworkTransform
-                let network_transform = NetworkTransformUnreliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_unreliable_setting, component.network_behaviour_setting, component.index);
-                // 添加到 components
-                self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
-                continue;
-            }
-            // 如果 component.component_type 包含 NetworkTransformReliable::COMPONENT_TAG
-            if component.sub_class.contains(NetworkTransformReliable::COMPONENT_TAG) {
-                // 创建 NetworkTransform
-                let network_transform = NetworkTransformReliable::new(self.game_object.clone(), component.network_transform_base_setting, component.network_transform_reliable_setting, component.network_behaviour_setting, component.index);
-                // 添加到 components
-                self.network_behaviours.insert(component.index as usize, Box::new(network_transform));
-                continue;
+            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(component.sub_class.as_str(), self.game_object.clone(), component) {
+                self.network_behaviours.push(network_behaviour);
             }
             if component.sub_class == "QuickStart.PlayerScript" {
                 // 创建 NetworkCommonComponent
-                let network_common = Self::new_network_common_component(self.game_object.clone(), component);
+                let network_common = NetworkCommonBehaviour::new(self.game_object.clone(), component);
                 // 添加到 components
                 self.network_behaviours.insert(component.index as usize, Box::new(network_common));
                 continue;
@@ -336,17 +317,6 @@ impl NetworkIdentity {
             self.last_serialization.tick = tick;
         }
         &mut self.last_serialization
-    }
-    pub fn new_network_common_component(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> NetworkCommonBehaviour {
-        let sync_vars = DashMap::new();
-        for (index, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
-            sync_vars.insert(index as u8, SyncVar::new(
-                sync_var.full_name.clone(),
-                sync_var.value.to_vec(),
-                sync_var.dirty_bit,
-            ));
-        }
-        NetworkCommonBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index, sync_vars)
     }
     pub fn clear_observers(&mut self) {
         for i in 0..self.observers.len() {

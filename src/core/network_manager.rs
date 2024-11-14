@@ -1,3 +1,4 @@
+use crate::components::network_behaviour::NetworkBehaviourFactory;
 use crate::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
@@ -494,6 +495,9 @@ impl NetworkManagerTrait for NetworkManager {
         if backend_data.network_manager_settings.len() == 0 {
             panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
         }
+
+        NetworkBehaviourFactory::register_network_behaviour_factory();
+
         let network_manager_setting = &backend_data.network_manager_settings[0];
 
         let mut spawn_prefabs = Vec::new();

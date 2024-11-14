@@ -744,7 +744,6 @@ impl NetworkServer {
             return;
         }
 
-        // TODO 可能会死锁 待确认
         if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.connection_to_client()) {
             connection.remove_owned_object(identity.net_id());
         }
@@ -761,7 +760,7 @@ impl NetworkServer {
     }
 
     fn send_to_observers(identity: &mut NetworkIdentity, mut message: ObjectDestroyMessage, channel: TransportChannel) {
-        if identity.is_null() || identity.observers().len() == 0 {
+        if identity.is_null() || identity.observers.len() == 0 {
             return;
         }
 
@@ -775,8 +774,8 @@ impl NetworkServer {
                 return;
             }
 
-            for i in 0..identity.observers().len() {
-                let conn_id = identity.observers()[i];
+            for i in 0..identity.observers.len() {
+                let conn_id = identity.observers[i];
                 if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
                     connection.send(segment, channel);
                 }

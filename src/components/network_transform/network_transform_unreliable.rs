@@ -2,7 +2,7 @@ use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTra
 use crate::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
-use crate::core::backend_data::{NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
+use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::{GameObject, NetworkManagerStatic, Transform};
@@ -50,27 +50,6 @@ pub struct NetworkTransformUnreliable {
 
 impl NetworkTransformUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformUnreliable";
-    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_transform_unreliable_setting: NetworkTransformUnreliableSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
-        Self::call_register_delegate(Self::register_delegate);
-        NetworkTransformUnreliable {
-            network_transform_base: NetworkTransformBase::new(game_object, network_transform_base_setting, network_behaviour_setting, component_index),
-            buffer_reset_multiplier: network_transform_unreliable_setting.buffer_reset_multiplier,
-            changed_detection: network_transform_unreliable_setting.changed_detection,
-            position_sensitivity: network_transform_unreliable_setting.position_sensitivity,
-            rotation_sensitivity: network_transform_unreliable_setting.rotation_sensitivity,
-            scale_sensitivity: network_transform_unreliable_setting.scale_sensitivity,
-            send_interval_counter: 0,
-            last_send_interval_time: f64::MAX,
-            position_changed: false,
-            rotation_changed: false,
-            scale_changed: false,
-            last_snapshot: TransformSnapshot::default(),
-            cached_snapshot_comparison: false,
-            cached_changed_comparison: Changed::None.to_u8(),
-            has_sent_unchanged_position: false,
-        }
-    }
-
     // UpdateServerInterpolation
     fn update_server_interpolation(&mut self) {
         if *self.sync_direction() == SyncDirection::ClientToServer &&
@@ -319,7 +298,7 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.network_behaviour.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
@@ -348,7 +327,7 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.network_transform_base.network_behaviour.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
@@ -491,92 +470,113 @@ impl NetworkTransformUnreliable {
 }
 #[allow(dead_code)]
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
+    fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self {
+        Self::call_register_delegate(Self::register_delegate);
+        NetworkTransformUnreliable {
+            network_transform_base: NetworkTransformBase::new(game_object, network_behaviour_component.network_transform_base_setting, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
+            buffer_reset_multiplier: network_behaviour_component.network_transform_unreliable_setting.buffer_reset_multiplier,
+            changed_detection: network_behaviour_component.network_transform_unreliable_setting.changed_detection,
+            position_sensitivity: network_behaviour_component.network_transform_unreliable_setting.position_sensitivity,
+            rotation_sensitivity: network_behaviour_component.network_transform_unreliable_setting.rotation_sensitivity,
+            scale_sensitivity: network_behaviour_component.network_transform_unreliable_setting.scale_sensitivity,
+            send_interval_counter: 0,
+            last_send_interval_time: f64::MAX,
+            position_changed: false,
+            rotation_changed: false,
+            scale_changed: false,
+            last_snapshot: TransformSnapshot::default(),
+            cached_snapshot_comparison: false,
+            cached_changed_comparison: Changed::None.to_u8(),
+            has_sent_unchanged_position: false,
+        }
+    }
+
     fn sync_interval(&self) -> f64 {
-        self.sync_interval()
+        self.network_transform_base.network_behaviour.sync_interval
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_transform_base.network_behaviour.set_sync_interval(value)
+        self.network_transform_base.network_behaviour.sync_interval = value
     }
 
     fn last_sync_time(&self) -> f64 {
-        self.network_transform_base.network_behaviour.last_sync_time()
+        self.network_transform_base.network_behaviour.last_sync_time
     }
 
     fn set_last_sync_time(&mut self, value: f64) {
-        self.network_transform_base.network_behaviour.set_last_sync_time(value)
+        self.network_transform_base.network_behaviour.last_sync_time = value
     }
 
     fn sync_direction(&mut self) -> &SyncDirection {
-        self.network_transform_base.network_behaviour.sync_direction()
+        &self.network_transform_base.network_behaviour.sync_direction
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
-        self.network_transform_base.network_behaviour.set_sync_direction(value)
+        self.network_transform_base.network_behaviour.sync_direction = value
     }
 
     fn sync_mode(&mut self) -> &SyncMode {
-        self.network_transform_base.network_behaviour.sync_mode()
+        &self.network_transform_base.network_behaviour.sync_mode
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
-        self.network_transform_base.network_behaviour.set_sync_mode(value)
+        self.network_transform_base.network_behaviour.sync_mode = value
     }
 
-    fn component_index(&self) -> u8 {
-        self.network_transform_base.network_behaviour.component_index()
+    fn index(&self) -> u8 {
+        self.network_transform_base.network_behaviour.index
     }
 
-    fn set_component_index(&mut self, value: u8) {
-        self.network_transform_base.network_behaviour.set_component_index(value)
+    fn set_index(&mut self, value: u8) {
+        self.network_transform_base.network_behaviour.index = value
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {
-        self.network_transform_base.network_behaviour.sync_var_dirty_bits()
+        self.network_transform_base.network_behaviour.sync_var_dirty_bits
     }
 
     fn set_sync_var_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.set_sync_var_dirty_bits(value)
+        self.network_transform_base.network_behaviour.sync_var_dirty_bits = value
     }
 
     fn sync_object_dirty_bits(&self) -> u64 {
-        self.network_transform_base.network_behaviour.sync_object_dirty_bits()
+        self.network_transform_base.network_behaviour.sync_object_dirty_bits
     }
 
     fn set_sync_object_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.set_sync_object_dirty_bits(value)
+        self.network_transform_base.network_behaviour.sync_object_dirty_bits = value
     }
 
     fn net_id(&self) -> u32 {
-        self.network_transform_base.network_behaviour.net_id()
+        self.network_transform_base.network_behaviour.net_id
     }
 
     fn set_net_id(&mut self, value: u32) {
-        self.network_transform_base.network_behaviour.set_net_id(value)
+        self.network_transform_base.network_behaviour.net_id = value
     }
 
     fn connection_to_client(&self) -> u64 {
-        self.network_transform_base.network_behaviour.connection_to_client()
+        self.network_transform_base.network_behaviour.connection_to_client
     }
 
     fn set_connection_to_client(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.set_connection_to_client(value)
+        self.network_transform_base.network_behaviour.connection_to_client = value
     }
 
     fn observers(&self) -> &Vec<u64> {
-        self.network_transform_base.network_behaviour.observers()
+        &self.network_transform_base.network_behaviour.observers
     }
 
     fn set_observers(&mut self, value: Vec<u64>) {
-        self.network_transform_base.network_behaviour.set_observers(value)
+        self.network_transform_base.network_behaviour.observers = value
     }
 
     fn game_object(&self) -> &GameObject {
-        self.network_transform_base.network_behaviour.game_object()
+        &self.network_transform_base.network_behaviour.game_object
     }
 
     fn set_game_object(&mut self, value: GameObject) {
-        self.network_transform_base.network_behaviour.set_game_object(value)
+        self.network_transform_base.network_behaviour.game_object = value
     }
 
     fn is_dirty(&self) -> bool {
@@ -627,11 +627,11 @@ impl NetworkTransformBaseTrait for NetworkTransformUnreliable {
     }
 
     fn get_game_object(&self) -> &GameObject {
-        self.network_transform_base.network_behaviour.game_object()
+        &self.network_transform_base.network_behaviour.game_object
     }
 
     fn set_game_object(&mut self, value: GameObject) {
-        self.network_transform_base.network_behaviour.set_game_object(value)
+        self.network_transform_base.network_behaviour.game_object = value;
     }
 
     fn sync_position(&self) -> bool {
