@@ -12,6 +12,7 @@ use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::sync_object::SyncObject;
 use crate::core::transport::TransportChannel;
+use crate::quick_start::player_script::PlayerScript;
 use byteorder::ReadBytesExt;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
@@ -44,7 +45,7 @@ impl NetworkBehaviourFactory {
         // NetworkTransformReliable
         Self::add_network_behaviour_factory(NetworkTransformReliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformReliable::new(game_object, component))));
         // QuickStart.PlayerScript
-        Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkCommonBehaviour::new(game_object, component))));
+        Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
     }
 }
 
