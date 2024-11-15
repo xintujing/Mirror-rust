@@ -13,6 +13,8 @@ pub struct BasicAuthenticator {
 }
 
 impl BasicAuthenticator {
+    const USERNAME: &'static str = "1231";
+    const PASSWORD: &'static str = "456";
     pub fn new(username: String, password: String) -> Self {
         Self {
             username,
@@ -25,11 +27,25 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
     fn on_auth_request_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = AuthRequestMessage::deserialize(reader);
         println!("on_auth_request_message: {:?}", message);
-        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
-            let mut response = AuthResponseMessage::new(100, "Success".to_string());
-            conn.send_network_message(&mut response, channel);
 
-            Self::server_accept(&mut conn);
+        if message.username == Self::USERNAME && message.password == Self::PASSWORD {
+            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                let mut response = AuthResponseMessage::new(100, "Success".to_string());
+
+                conn.send_network_message(&mut response, channel);
+
+                Self::server_accept(&mut conn);
+            }
+        } else {
+            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
+
+                conn.send_network_message(&mut response, channel);
+
+                conn.set_authenticated(false);
+
+                conn.disconnect();
+            }
         }
     }
     fn on_start_server(&mut self) {
@@ -94,12 +110,13 @@ impl NetworkMessageTrait for AuthResponseMessage {
     }
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
+        writer.write_ushort(Self::get_hash_code());
         writer.write_byte(self.code);
         writer.write_string(self.message.to_string());
     }
 
     fn get_hash_code() -> u16 {
-        4296
+        26160
     }
 }
 
