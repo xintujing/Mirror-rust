@@ -13,7 +13,7 @@ pub struct BasicAuthenticator {
 }
 
 impl BasicAuthenticator {
-    const USERNAME: &'static str = "1231";
+    const USERNAME: &'static str = "123";
     const PASSWORD: &'static str = "456";
     pub fn new(username: String, password: String) -> Self {
         Self {
