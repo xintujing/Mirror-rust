@@ -194,7 +194,7 @@ impl NetworkTransformUnreliable {
         }
     }
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
-    pub fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -216,7 +216,7 @@ impl NetworkTransformUnreliable {
         self.rpc_server_to_client_sync_nullable_1_nullable_1_nullable_1(position, rotation, scale);
     }
 
-    pub fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -246,12 +246,13 @@ impl NetworkTransformUnreliable {
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
-    pub fn invoke_user_code_cmd_client_to_server_sync_sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_client_to_server_sync_sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         let sync_data = SyncData::deserialize(reader);
+        // println!("1 {}", to_hex_string(reader.to_array_segment()));
         NetworkBehaviour::early_invoke(identity, component_index).
             as_any_mut().
             downcast_mut::<Self>().
@@ -424,6 +425,7 @@ impl NetworkTransformUnreliable {
     fn rpc_server_to_client_sync(&mut self, mut sync_data: SyncData) {
         NetworkWriterPool::get_return(|writer| {
             sync_data.serialize(writer);
+            // println!("2 {}", to_hex_string(writer.to_array_segment()));
             self.send_rpc_internal(
                 "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)",
                 -1891602648,
@@ -479,19 +481,22 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     {
         debug!("Registering delegate for NetworkTransformUnreliable");
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1)), true);
+        RemoteProcedureCalls::register_command_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                        RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1",
+                                                                                Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1)),
+                                                        true);
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1)), true);
+        RemoteProcedureCalls::register_command_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
+                                                        RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1",
+                                                                                Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1)),
+                                                        true);
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
-        RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
-                                                RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_sync_data)), true);
+        RemoteProcedureCalls::register_command_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
+                                                        RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_sync_data",
+                                                                                Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_sync_data)),
+                                                        true);
     }
 
     fn get_once() -> &'static Once

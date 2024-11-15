@@ -21,8 +21,8 @@ pub struct SyncData {
 impl SyncData {
     /// 常量定义
     const TEN_BITS_MAX: u32 = 0b11_1111_1111; // 10 bits max value: 1023
-    const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
-    const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
+    const QUATERNION_MIN_RANGE: f32 = -0.707107f32;
+    const QUATERNION_MAX_RANGE: f32 = 0.707107f32;
 
     #[allow(dead_code)]
     pub fn new(changed: u8, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
@@ -56,9 +56,9 @@ impl SyncData {
         max_target: f32,
     ) -> f32 {
         let target_range: f32 = max_target - min_target;
-        let value_range: u16 = (max_value - min_value) as u16;
-        let value_relative: u16 = value - min_value as u16;
-        min_target + (value_relative as f32 / value_range as f32 * target_range)
+        let value_range = (max_value - min_value) as f32;
+        let value_relative = (value as u32 - min_value) as f32;
+        min_target + value_relative / value_range * target_range
     }
 
     fn scale_float_to_ushort(
@@ -68,10 +68,10 @@ impl SyncData {
         min_target: u16,
         max_target: u16,
     ) -> u16 {
-        let target_range = max_target - min_target;
+        let target_range = (max_target - min_target) as f32;
         let value_range = max_value - min_value;
         let value_relative = value - min_value;
-        min_target + ((value_relative / value_range) as u16 * target_range)
+        min_target + (value_relative / value_range * target_range) as u16
     }
 
     /// 解压缩四元数
@@ -135,6 +135,7 @@ impl SyncData {
     pub fn compress_quaternion(q: Quaternion<f32>) -> u32 {
         let v4 = Vector4::new(q.i, q.j, q.k, q.w);
         let (largest_index, _, mut without_largest) = Self::largest_absolute_component_index(v4);
+
 
         if q[largest_index] < 0f32 {
             without_largest = -without_largest;
@@ -331,5 +332,20 @@ impl From<u8> for Changed {
             0x70 => Changed::Rot,
             _ => Changed::None, // 默认值
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sync_data() {
+        let quat = Quaternion::new(4.0, 1.0, 2.0, 3.0);
+        let compress_quaternion = SyncData::compress_quaternion(quat);
+        println!("compress_quaternion: {}", compress_quaternion);
+        let decompress_quaternion = SyncData::decompress_quaternion(compress_quaternion);
+        println!("decompress_quaternion: {:?}", decompress_quaternion);
     }
 }

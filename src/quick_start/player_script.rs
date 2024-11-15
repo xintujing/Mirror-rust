@@ -25,12 +25,16 @@ pub struct PlayerScript {
 }
 
 impl PlayerScript {
-    pub fn invoke_user_code_cmd_setup_player_string_color(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_setup_player_string_color(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index).as_any_mut().downcast_mut::<Self>().unwrap().user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
+        NetworkBehaviour::early_invoke(identity, component_index).
+            as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -47,7 +51,11 @@ impl PlayerScript {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index).as_any_mut().downcast_mut::<Self>().unwrap().user_code_cmd_shoot_ray();
+        NetworkBehaviour::early_invoke(identity, component_index).
+            as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_shoot_ray();
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -56,6 +64,24 @@ impl PlayerScript {
             self.serialize(writer, false);
             self.send_rpc_internal("System.Void QuickStart.PlayerScript::RpcFireWeapon()", 546187665, writer, TransportChannel::Reliable, true);
         });
+    }
+
+    fn invoke_user_code_cmd_change_active_weapon_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index).
+            as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_change_active_weapon_int32(reader.read_int());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    fn user_code_cmd_change_active_weapon_int32(&mut self, active_weapon: i32) {
+        self.active_weapon_synced = active_weapon;
+        self.set_sync_var_dirty_bits(1);
     }
 }
 
@@ -68,9 +94,9 @@ impl NetworkBehaviourTrait for PlayerScript {
         Self::call_register_delegate();
         Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
-            active_weapon_synced: 1,
-            player_name: NetworkTime::local_time().to_string(),
-            player_color: Vector4::new(0.0, 0.0, 1.0, 1.0),
+            active_weapon_synced: 0,
+            player_name: "".to_string(),
+            player_color: Vector4::new(255.0, 255.0, 255.0, 255.0),
         }
     }
 
@@ -79,25 +105,22 @@ impl NetworkBehaviourTrait for PlayerScript {
         Self: Sized,
     {
         // System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)
-        RemoteProcedureCalls::register_delegate(
+        RemoteProcedureCalls::register_command_delegate(
             "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)",
-            RemoteCallType::Command,
             RemoteCallDelegate::new("invoke_user_code_cmd_setup_player_string_color", Box::new(Self::invoke_user_code_cmd_setup_player_string_color)),
             true,
         );
         // System.Void QuickStart.PlayerScript::CmdShootRay()
-        RemoteProcedureCalls::register_delegate(
+        RemoteProcedureCalls::register_command_delegate(
             "System.Void QuickStart.PlayerScript::CmdShootRay()",
-            RemoteCallType::Command,
             RemoteCallDelegate::new("invoke_user_code_cmd_shoot_ray", Box::new(Self::invoke_user_code_cmd_shoot_ray)),
             true,
         );
 
         // System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)
-        RemoteProcedureCalls::register_delegate(
+        RemoteProcedureCalls::register_command_delegate(
             "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)",
-            RemoteCallType::Command,
-            RemoteCallDelegate::new("invoke_user_code_cmd_shoot_ray", Box::new(Self::invoke_user_code_cmd_shoot_ray)),
+            RemoteCallDelegate::new("invoke_user_code_cmd_change_active_weapon_int32", Box::new(Self::invoke_user_code_cmd_change_active_weapon_int32)),
             true,
         );
     }
@@ -217,7 +240,6 @@ impl NetworkBehaviourTrait for PlayerScript {
     fn is_dirty(&self) -> bool {
         self.network_behaviour.is_dirty()
     }
-
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self

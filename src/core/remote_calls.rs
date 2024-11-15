@@ -92,7 +92,7 @@ impl RemoteProcedureCalls {
         None
     }
 
-    pub fn get_invoker_for_hash(func_hash: u16, remote_call_type: RemoteCallType) -> (bool, Option<RefMut<'static, u16, Invoker>>) {
+    fn get_invoker_for_hash(func_hash: u16, remote_call_type: RemoteCallType) -> (bool, Option<RefMut<'static, u16, Invoker>>) {
         if let Some(invoker) = NETWORK_MESSAGE_HANDLERS.get_mut(&func_hash) {
             if invoker.call_type == remote_call_type {
                 return (true, Some(invoker));
