@@ -192,8 +192,3 @@ impl fmt::Display for NetworkReader {
         write!(f, "[{} @ {}/{}]", hex_string, self.position, self.capacity())
     }
 }
-
-pub trait NetworkMessageReader: Sized + Any {
-    fn deserialize(reader: &mut NetworkReader) -> Self;
-    fn get_hash_code() -> u16;
-}

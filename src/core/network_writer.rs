@@ -204,10 +204,6 @@ impl fmt::Display for NetworkWriter {
     }
 }
 
-pub trait NetworkMessageWriter: Sized + Any {
-    fn serialize(&mut self, write: &mut NetworkWriter);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

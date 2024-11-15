@@ -1,3 +1,4 @@
+use crate::authenticators::basic_authenticator::BasicAuthenticator;
 use crate::core::network_manager::{NetworkManager, NetworkManagerStatic, NetworkManagerTrait};
 use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_time::NetworkTime;
@@ -14,7 +15,11 @@ impl NetworkLoop {
     }
 
     // 2
-    fn on_enable() {}
+    fn on_enable() {
+        let authenticator = BasicAuthenticator::new("123".to_string(), "456".to_string());
+        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        network_manager_singleton.set_authenticator(Box::new(authenticator));
+    }
 
     // 3
     fn start() {
@@ -70,6 +75,8 @@ impl NetworkLoop {
     pub fn run() {
         // 1
         Self::awake();
+        // 2
+        Self::on_enable();
         // 3
         Self::start();
 

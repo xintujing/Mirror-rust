@@ -1,10 +1,11 @@
-use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
-use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter, NetworkWriterTrait};
+use crate::core::messages::NetworkMessageTrait;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use std::fmt::Debug;
 use std::ops::BitOrAssign;
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub struct SyncData {
     // 改变的数据
     pub changed_data_byte: u8,
@@ -175,7 +176,9 @@ impl SyncData {
     }
 }
 
-impl NetworkMessageReader for SyncData {
+impl NetworkMessageTrait for SyncData {
+    const FULL_NAME: &'static str = "";
+
     fn deserialize(reader: &mut NetworkReader) -> Self {
         // 改变的数据
         let changed = reader.read_byte();
@@ -236,12 +239,6 @@ impl NetworkMessageReader for SyncData {
         }
     }
 
-    fn get_hash_code() -> u16 {
-        0x0001
-    }
-}
-
-impl NetworkMessageWriter for SyncData {
     fn serialize(&mut self, write: &mut NetworkWriter) {
         write.write_byte(self.changed_data_byte);
 

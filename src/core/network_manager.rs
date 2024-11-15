@@ -1,8 +1,8 @@
+use crate::authenticators::network_authenticator::{NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic};
 use crate::components::network_behaviour::NetworkBehaviourFactory;
 use crate::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
-use crate::core::network_authenticator::NetworkAuthenticatorTrait;
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;
@@ -13,15 +13,15 @@ use atomic::Atomic;
 use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
-use tklog::{error, info, warn};
+use std::sync::RwLock;
+use tklog::{debug, error, info, warn};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
-static mut NETWORK_SCENE_NAME: &'static str = "";
-
 
 lazy_static! {
     static ref START_POSITIONS: Vec<Transform> = Vec::new();
-    static ref START_POSITIONS_INDEX: Atomic<u32> = Atomic::new(0);
+    static ref START_POSITIONS_INDEX: Atomic<usize> = Atomic::new(0);
+    static ref NETWORK_SCENE_NAME: RwLock<&'static str> = RwLock::new("");
 }
 
 // NetworkManagerStatic
@@ -49,15 +49,29 @@ impl NetworkManagerStatic {
             NETWORK_MANAGER_SINGLETON.replace(network_manager);
         }
     }
+
     pub fn get_network_scene_name() -> &'static str {
-        unsafe {
-            NETWORK_SCENE_NAME
+        if let Ok(name) = NETWORK_SCENE_NAME.try_read() {
+            return *name;
+        }
+        error!("Network scene name is not set or locked.");
+        ""
+    }
+
+    pub fn set_network_scene_name(name: &'static str) {
+        if let Ok(mut scene_name) = NETWORK_SCENE_NAME.try_write() {
+            *scene_name = name;
+        } else {
+            error!("Network scene name is locked and cannot be set.");
         }
     }
-    pub fn set_network_scene_name(name: &'static str) {
-        unsafe {
-            NETWORK_SCENE_NAME = name;
-        }
+
+    pub fn get_start_positions_index() -> usize {
+        START_POSITIONS_INDEX.load(Ordering::Relaxed)
+    }
+
+    pub fn set_start_positions_index(index: usize) {
+        START_POSITIONS_INDEX.store(index, Ordering::Relaxed);
     }
 }
 
@@ -234,9 +248,9 @@ impl NetworkManager {
         NetworkServerStatic::set_static_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
         NetworkServerStatic::set_exceptions_disconnect(self.exceptions_disconnect);
 
-        if let Some(ref mut authenticator) = self.authenticator {
+        if let Some(ref mut authenticator) = self.authenticator() {
             authenticator.on_start_server();
-            // TODO authenticator.on_server_authenticated.AddListener(on_server_authenticated);
+            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(Box::new(Self::on_server_authenticated));
         }
 
         NetworkServer::listen(self.max_connections);
@@ -263,14 +277,19 @@ impl NetworkManager {
 
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError) {}
 
-    fn on_server_authenticated(conn: &mut NetworkConnectionToClient, network_manager: &Box<dyn NetworkManagerTrait>) {
+    fn on_server_authenticated(conn: &mut NetworkConnectionToClient) {
         // 获取 NetworkManagerTrait 的单例
         conn.set_authenticated(true);
+
+        // 获取 NetworkManagerTrait 的单例
+        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
+        // offline_scene
+        let offline_scene = network_manager.offline_scene();
 
         // 获取 场景名称
         let network_scene_name = NetworkManagerStatic::get_network_scene_name();
         // 如果 场景名称不为空 且 场景名称不等于 NetworkManager 的 offline_scene
-        if network_scene_name != "" && network_scene_name != network_manager.offline_scene() {
+        if network_scene_name != "" && network_scene_name != offline_scene {
             // 创建 SceneMessage 消息
             let mut scene_message = SceneMessage::new(network_scene_name.to_string(), SceneOperation::Normal, false);
             // 发送 SceneMessage 消息
@@ -331,15 +350,33 @@ impl NetworkManager {
 
     fn apply_configuration(&mut self) {
         NetworkServerStatic::set_static_tick_rate(self.send_rate);
-        // NetworkClient.snapshot_settings = snapshot_settings;
-        // NetworkClient.connectionQualityInterval = evaluationInterval;
-        // NetworkClient.connectionQualityMethod = evaluationMethod;
+    }
+
+    fn stop_server(&mut self) {
+        if !NetworkServerStatic::get_static_active() {
+            warn!("Server already stopped.");
+            return;
+        }
+
+        if let Some(ref mut authenticator) = NetworkManagerStatic::get_network_manager_singleton().authenticator() {
+            authenticator.on_stop_server();
+        }
+
+        self.on_stop_server();
+
+        NetworkServer::shutdown();
+
+        self.mode = NetworkManagerMode::Offline;
+
+        NetworkManagerStatic::set_start_positions_index(0);
+
+        NetworkManagerStatic::set_network_scene_name("");
     }
 }
 
 pub trait NetworkManagerTrait {
     // 字段 get  set
-    fn authenticator(&self) -> &Option<Box<dyn NetworkAuthenticatorTrait>>;
+    fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
     fn offline_scene(&self) -> &'static str;
     fn set_offline_scene(&mut self, scene_name: &'static str);
@@ -381,9 +418,9 @@ pub trait NetworkManagerTrait {
             let index = rand::random::<u32>() % START_POSITIONS.len() as u32;
             return Some(START_POSITIONS[index as usize].clone());
         }
-        let index = START_POSITIONS_INDEX.load(Ordering::Relaxed);
-        START_POSITIONS_INDEX.store(index + 1 % START_POSITIONS.len() as u32, Ordering::Relaxed);
-        Some(START_POSITIONS[index as usize].clone())
+        let index = NetworkManagerStatic::get_start_positions_index();
+        NetworkManagerStatic::set_start_positions_index(index + 1 % START_POSITIONS.len());
+        Some(START_POSITIONS[index].clone())
     }
     fn on_server_add_player(&mut self, conn_id: u64) {
         let mut player_obj = self.player_obj().clone();
@@ -413,13 +450,14 @@ pub trait NetworkManagerTrait {
     fn start(&mut self);
     fn update(&mut self);
     fn late_update(&mut self);
-    fn on_start_server(&mut self);
+    fn on_start_server(&mut self) {}
+    fn on_stop_server(&mut self) {}
     fn server_change_scene(&mut self, new_scene_name: &str);
 }
 
 impl NetworkManagerTrait for NetworkManager {
-    fn authenticator(&self) -> &Option<Box<dyn NetworkAuthenticatorTrait>> {
-        &self.authenticator
+    fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>> {
+        &mut self.authenticator
     }
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
@@ -473,11 +511,10 @@ impl NetworkManagerTrait for NetworkManager {
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
             // 调用 NetworkAuthenticatorTrait 的 on_server_connect 方法
-            // TODO authenticator.OnServerAuthenticate(conn);
-            // authenticator.on_server_connect(conn);
+            authenticator.on_server_authenticate(conn);
         } else {
             // 如果 NetworkManager 的 authenticator 为空
-            Self::on_server_authenticated(conn, network_manager);
+            Self::on_server_authenticated(conn);
         }
     }
 

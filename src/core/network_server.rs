@@ -1,12 +1,12 @@
 use crate::core::batching::un_batcher::UnBatcher;
-use crate::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::Visibility::ForceShown;
 use crate::core::network_identity::{NetworkIdentity, Visibility};
 use crate::core::network_manager::GameObject;
 use crate::core::network_messages::NetworkMessages;
-use crate::core::network_reader::{NetworkMessageReader, NetworkReader};
+use crate::core::network_reader::NetworkReader;
 use crate::core::network_reader_pool::NetworkReaderPool;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer_pool::NetworkWriterPool;
@@ -305,6 +305,24 @@ impl NetworkServer {
         Self::register_message_handlers();
     }
 
+    pub fn shutdown() {
+        if NetworkServerStatic::get_static_initialized(){
+            Self::disconnect_all();
+
+            if let Some(transport) = Transport::get_active_transport(){
+                transport.shutdown();
+            }
+
+            NetworkServerStatic::set_static_active(false);
+        }
+    }
+
+    fn disconnect_all() {
+        NetworkServerStatic::for_each_network_connection(|mut connection| {
+            connection.disconnect();
+        });
+    }
+
     // 网络早期更新
     pub fn network_early_update() {
         if NetworkServerStatic::get_static_active() {
@@ -375,7 +393,7 @@ impl NetworkServer {
             }
 
             if connection.is_ready() {
-                connection.send_network_message(&mut TimeSnapshotMessage::new(), TransportChannel::Unreliable);
+                connection.send_network_message(&mut TimeSnapshotMessage::default(), TransportChannel::Unreliable);
                 Self::broadcast_to_connection(&mut connection);
             }
             connection.update();
@@ -397,6 +415,8 @@ impl NetworkServer {
             }
         }
     }
+
+    // SerializeForConnection
     fn serialize_for_connection(net_id: u32, conn_id: u64) -> Option<EntityStateMessage> {
         if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
             let owned = identity.connection_to_client() == conn_id;
@@ -434,7 +454,6 @@ impl NetworkServer {
 
     pub fn hide_for_connection(identity: &mut NetworkIdentity, conn: &mut NetworkConnectionToClient) {
         if conn.is_ready() {
-            println!("hide_for_connection: {:?}", identity);
             let mut message = ObjectHideMessage::new(identity.net_id());
             conn.send_network_message(&mut message, TransportChannel::Reliable);
         }
@@ -501,7 +520,6 @@ impl NetworkServer {
                 Self::on_transport_disconnected(tbc.connection_id)
             }
             TransportCallbackType::OnServerError => {
-                error!(format!("Server.HandleError: connectionId: {}, error: {:?}", tbc.connection_id, tbc.error));
                 Self::on_transport_error(tbc.connection_id, tbc.error)
             }
             TransportCallbackType::OnServerTransportException => {
@@ -902,7 +920,6 @@ impl NetworkServer {
         }
     }
 
-
     // 处理 Connected 消息
     fn on_connected(mut conn: NetworkConnectionToClient) {
         // 如果有 OnConnectedEvent
@@ -915,7 +932,7 @@ impl NetworkServer {
         NetworkServerStatic::static_network_connections_add_connection(conn);
     }
 
-    // 注册消息处理程序
+    // 注册消息处理程序 zhuce
     fn register_message_handlers() {
         // 注册 ReadyMessage 处理程序
         Self::register_handler::<ReadyMessage>(Box::new(Self::on_client_ready_message), true);
@@ -954,7 +971,7 @@ impl NetworkServer {
             if !connection.is_ready() {
                 return;
             }
-            connection.send_network_message(&mut ObjectSpawnStartedMessage::new(), TransportChannel::Reliable);
+            connection.send_network_message(&mut ObjectSpawnStartedMessage::default(), TransportChannel::Reliable);
         }
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
@@ -971,7 +988,7 @@ impl NetworkServer {
 
         // 发送 ObjectSpawnFinishedMessage 消息
         if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
-            connection.send_network_message(&mut ObjectSpawnFinishedMessage::new(), TransportChannel::Reliable);
+            connection.send_network_message(&mut ObjectSpawnFinishedMessage::default(), TransportChannel::Reliable);
         }
     }
 
@@ -1066,7 +1083,7 @@ impl NetworkServer {
     // 定义一个函数来注册处理程序
     pub fn register_handler<T>(network_message_handler: NetworkMessageHandlerFunc, require_authentication: bool)
     where
-        T: NetworkMessageReader + Send + Sync + 'static,
+        T: NetworkMessageTrait + Send + Sync + 'static,
     {
         let hash_code = T::get_hash_code();
 
@@ -1079,9 +1096,16 @@ impl NetworkServer {
     // 定义一个函数来替换处理程序
     pub fn replace_handler<T>(network_message_handler: NetworkMessageHandlerFunc, require_authentication: bool)
     where
-        T: NetworkMessageReader + Send + Sync + 'static,
+        T: NetworkMessageTrait + Send + Sync + 'static,
     {
         let hash_code = T::get_hash_code();
         NETWORK_MESSAGE_HANDLERS.insert(hash_code, NetworkMessageHandler::wrap_handler(network_message_handler, require_authentication));
+    }
+    pub fn unregister_handler<T>()
+    where
+        T: NetworkMessageTrait + Send + Sync + 'static,
+    {
+        let hash_code = T::get_hash_code();
+        NETWORK_MESSAGE_HANDLERS.remove(&hash_code);
     }
 }

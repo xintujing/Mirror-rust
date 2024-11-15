@@ -1,9 +1,7 @@
 use crate::core::batching::batcher::Batcher;
-use crate::core::messages::NetworkPingMessage;
+use crate::core::messages::{NetworkMessageTrait, NetworkPingMessage};
 use crate::core::network_messages::NetworkMessages;
-use crate::core::network_reader::NetworkMessageReader;
 use crate::core::network_time::NetworkTime;
-use crate::core::network_writer::NetworkMessageWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
@@ -42,7 +40,7 @@ pub trait NetworkConnectionTrait {
     fn set_owned(&mut self, owned: Vec<u32>);
     fn send_network_message<T>(&mut self, message: &mut T, channel: TransportChannel)
     where
-        T: NetworkMessageWriter + NetworkMessageReader + Send,
+        T: NetworkMessageTrait  + Send,
     {
         NetworkWriterPool::get_return(|writer| {
             message.serialize(writer);

@@ -1,6 +1,7 @@
 use crate::core::batching::batcher::Batcher;
-use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
-use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter};
+use crate::core::messages::NetworkMessageTrait;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::core::network_writer::NetworkWriter;
 use crate::core::transport::{Transport, TransportChannel};
 use tklog::warn;
 
@@ -29,7 +30,7 @@ impl NetworkMessages {
 
     pub fn pack<T>(message: &mut T, writer: &mut NetworkWriter)
     where
-        T: NetworkMessageWriter + NetworkMessageReader + Send,
+        T: NetworkMessageTrait + Send,
     {
         message.serialize(writer);
     }
