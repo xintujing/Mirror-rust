@@ -6,6 +6,7 @@ use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::tools::stable_hash::StableHash;
 use crate::core::transport::TransportChannel;
+use std::any::Any;
 
 pub struct BasicAuthenticator {
     username: String,
@@ -13,8 +14,6 @@ pub struct BasicAuthenticator {
 }
 
 impl BasicAuthenticator {
-    const USERNAME: &'static str = "123";
-    const PASSWORD: &'static str = "456";
     pub fn new(username: String, password: String) -> Self {
         Self {
             username,
@@ -27,24 +26,28 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
     fn on_auth_request_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = AuthRequestMessage::deserialize(reader);
         println!("on_auth_request_message: {:?}", message);
+        if let Some(authenticator) = Self::get_mut_dyn_any() {
+            // 转为BasicAuthenticator
+            let basic_authenticator = authenticator.downcast_mut::<Self>().unwrap();
+            // 检查用户名和密码
+            if message.username == basic_authenticator.username && message.password == basic_authenticator.password {
+                if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                    let mut response = AuthResponseMessage::new(100, "Success".to_string());
 
-        if message.username == Self::USERNAME && message.password == Self::PASSWORD {
-            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
-                let mut response = AuthResponseMessage::new(100, "Success".to_string());
+                    conn.send_network_message(&mut response, channel);
 
-                conn.send_network_message(&mut response, channel);
+                    Self::server_accept(&mut conn);
+                }
+            } else {
+                if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                    let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
 
-                Self::server_accept(&mut conn);
-            }
-        } else {
-            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
-                let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
+                    conn.send_network_message(&mut response, channel);
 
-                conn.send_network_message(&mut response, channel);
+                    conn.set_authenticated(false);
 
-                conn.set_authenticated(false);
-
-                conn.disconnect();
+                    Self::server_reject(&mut conn);
+                }
             }
         }
     }
@@ -53,6 +56,9 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
     }
     fn on_stop_server(&mut self) {
         NetworkServer::unregister_handler::<AuthRequestMessage>();
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

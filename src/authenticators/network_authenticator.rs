@@ -1,8 +1,10 @@
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
+use crate::core::network_manager::NetworkManagerStatic;
 use crate::core::network_reader::NetworkReader;
 use crate::core::transport::TransportChannel;
 use lazy_static::lazy_static;
+use std::any::Any;
 use std::sync::RwLock;
 
 lazy_static! {
@@ -41,8 +43,23 @@ pub trait NetworkAuthenticatorTrait: Send + Sync {
     {
         NetworkAuthenticatorTraitStatic::call_on_server_authenticated(conn);
     }
-    fn server_reject(&mut self, conn: &mut NetworkConnectionToClient) {
+    fn server_reject(conn: &mut NetworkConnectionToClient)
+    where
+        Self: Sized,
+    {
         conn.disconnect();
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn get_mut_dyn_any() -> Option<&'static mut dyn Any>
+    where
+        Self: Sized,
+    {
+        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+
+        if let Some(authenticator) = network_manager_singleton.authenticator() {
+            return Some(authenticator.as_any_mut());
+        }
+        None
     }
     fn reset(&mut self) {}
 }
