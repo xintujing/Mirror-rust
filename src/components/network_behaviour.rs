@@ -1,4 +1,3 @@
-use crate::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
@@ -13,13 +12,12 @@ use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::sync_object::SyncObject;
 use crate::core::transport::TransportChannel;
 use crate::quick_start::player_script::PlayerScript;
-use byteorder::ReadBytesExt;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::{debug, error, warn};
+use tklog::{error, warn};
 
 type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
 

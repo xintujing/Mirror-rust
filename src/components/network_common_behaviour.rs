@@ -2,7 +2,6 @@ use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTra
 use crate::components::SyncVar;
 use crate::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
 use crate::core::network_manager::GameObject;
-use crate::core::network_reader::NetworkReader;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::sync_object::SyncObject;
 use dashmap::DashMap;

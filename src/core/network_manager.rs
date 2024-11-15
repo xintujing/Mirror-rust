@@ -13,7 +13,7 @@ use atomic::Atomic;
 use lazy_static::lazy_static;
 use nalgebra::{Quaternion, Vector3};
 use std::sync::atomic::Ordering;
-use tklog::{debug, error, info, warn};
+use tklog::{error, info, warn};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 static mut NETWORK_SCENE_NAME: &'static str = "";

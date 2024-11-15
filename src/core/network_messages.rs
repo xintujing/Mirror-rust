@@ -1,9 +1,8 @@
 use crate::core::batching::batcher::Batcher;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_writer::{NetworkMessageWriter, NetworkWriter};
-use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::transport::{Transport, TransportChannel};
-use tklog::{error, warn};
+use tklog::warn;
 
 pub struct NetworkMessages;
 

@@ -1,6 +1,5 @@
 use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::NetworkBehaviourComponent;
-use crate::core::messages::EntityStateMessage;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
@@ -11,12 +10,11 @@ use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::remote_calls::{RemoteCallDelegate, RemoteCallType, RemoteProcedureCalls};
 use crate::core::sync_object::SyncObject;
 use crate::core::transport::TransportChannel;
-use crate::tools::utils::to_hex_string;
 use nalgebra::Vector4;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::{debug, error};
+use tklog::error;
 
 #[derive(Debug)]
 pub struct PlayerScript {
@@ -32,11 +30,7 @@ impl PlayerScript {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
+        NetworkBehaviour::early_invoke(identity, component_index).as_any_mut().downcast_mut::<Self>().unwrap().user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -53,11 +47,7 @@ impl PlayerScript {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_shoot_ray();
+        NetworkBehaviour::early_invoke(identity, component_index).as_any_mut().downcast_mut::<Self>().unwrap().user_code_cmd_shoot_ray();
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 

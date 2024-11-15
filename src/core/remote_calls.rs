@@ -1,12 +1,9 @@
-use crate::components::network_behaviour::NetworkBehaviourTrait;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_reader::NetworkReader;
-use crate::core::network_writer::NetworkWriter;
 use crate::core::tools::stable_hash::StableHash;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use std::sync::{Arc, RwLock, RwLockWriteGuard};
 use tklog::error;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -15,7 +12,7 @@ pub enum RemoteCallType {
     ClientRpc,
 }
 
-pub type RemoteCallDelegateType = Box<dyn Fn(&mut NetworkIdentity,u8, &mut NetworkReader, u64) + Send + Sync>;
+pub type RemoteCallDelegateType = Box<dyn Fn(&mut NetworkIdentity, u8, &mut NetworkReader, u64) + Send + Sync>;
 
 pub struct RemoteCallDelegate {
     pub method_name: &'static str,
@@ -57,7 +54,6 @@ lazy_static! {
 pub struct RemoteProcedureCalls;
 
 impl RemoteProcedureCalls {
-    pub const INVOKE_RPC_PREFIX: &'static str = "invoke_user_code_";
     pub fn check_if_delegate_exists(remote_call_type: &RemoteCallType, delegate: &RemoteCallDelegate, func_hash: u16) -> bool {
         if let Some(old_invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
             if old_invoker.are_equal(remote_call_type, delegate) {

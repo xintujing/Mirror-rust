@@ -21,11 +21,11 @@ impl NetworkLoop {
         let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
         network_manager_singleton.start();
 
-        NetworkServerStatic::for_each_network_message_handler(|mut item| {
+        NetworkServerStatic::for_each_network_message_handler(|item| {
             println!("message hash: {} require_authentication: {}", item.key(), item.require_authentication);
         });
 
-        NetworkServerStatic::for_each_network_connection(|mut item| {
+        NetworkServerStatic::for_each_network_connection(|item| {
             println!("connection hash: {} address: {}", item.key(), item.address);
         });
     }

@@ -20,7 +20,7 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{debug, error, warn};
+use tklog::{error, warn};
 
 pub enum RemovePlayerOptions {
     /// <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
@@ -340,7 +340,7 @@ impl NetworkServer {
             }
             Self::broadcast();
         }
-        if let Some(mut active_transport) = Transport::get_active_transport() {
+        if let Some(active_transport) = Transport::get_active_transport() {
             active_transport.server_late_update();
         }
 
@@ -515,7 +515,7 @@ impl NetworkServer {
     fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
             error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
-            if let Some(mut transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;
@@ -523,7 +523,7 @@ impl NetworkServer {
 
         if NETWORK_CONNECTIONS.contains_key(&connection_id) {
             error!(format!("Server.HandleConnect: connectionId {} already exists.", connection_id));
-            if let Some(mut transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;
@@ -531,7 +531,7 @@ impl NetworkServer {
 
         if NetworkServerStatic::get_static_network_connections_size() >= NetworkServerStatic::get_static_max_connections() {
             error!(format!("Server.HandleConnect: max_connections reached: {}. Disconnecting connectionId: {}", NetworkServerStatic::get_static_max_connections(), connection_id));
-            if let Some(mut transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;
@@ -816,8 +816,7 @@ impl NetworkServer {
 
         // 如果 identity 的 net_id 为 0
         if identity.net_id() == 0 {
-            /// 必须先分配 NetworkIdentity 的 net_id 再设置连接的 NetworkIdentity
-
+            // 必须先分配 NetworkIdentity 的 net_id 再设置连接的 NetworkIdentity
             // 分配 NetworkIdentity 的 net_id
             identity.set_net_id(NetworkIdentity::get_static_next_network_id());
 
@@ -862,7 +861,7 @@ impl NetworkServer {
 
     fn add_all_ready_server_connections_to_observers(identity: &mut NetworkIdentity) {
         let mut conn_ids = Vec::new();
-        NetworkServerStatic::get_static_network_connections().iter_mut().for_each(|mut connection| {
+        NetworkServerStatic::get_static_network_connections().iter_mut().for_each(|connection| {
             if connection.is_ready() {
                 conn_ids.push(connection.connection_id());
             }
@@ -985,7 +984,6 @@ impl NetworkServer {
             if !connection.is_ready() {
                 // 如果 channel 是 Reliable
                 if channel == TransportChannel::Reliable {
-                    let mut network_behaviours_len = u32::MAX;
                     // 如果 SPAWNED 中有 message.net_id
                     if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get(&message.net_id) {
                         // 如果 message.component_index 小于 net_identity.network_behaviours.len()

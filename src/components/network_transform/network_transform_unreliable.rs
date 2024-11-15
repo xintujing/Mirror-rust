@@ -2,10 +2,10 @@ use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTra
 use crate::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
-use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting, NetworkManagerSetting, NetworkTransformBaseSetting, NetworkTransformUnreliableSetting};
+use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_identity::NetworkIdentity;
-use crate::core::network_manager::{GameObject, NetworkManagerStatic, Transform};
+use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkMessageReader, NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
@@ -17,14 +17,11 @@ use crate::core::sync_object::SyncObject;
 use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::tools::compress::DecompressTrait;
 use crate::core::transport::TransportChannel;
-use dashmap::mapref::one::Ref;
-use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::BTreeMap;
 use std::mem::take;
-use std::ops::BitOrAssign;
 use std::sync::Once;
 use tklog::{debug, error};
 
@@ -197,7 +194,7 @@ impl NetworkTransformUnreliable {
         }
     }
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
-    pub fn invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -206,20 +203,20 @@ impl NetworkTransformUnreliable {
             .as_any_mut().
             downcast_mut::<Self>().
             unwrap().
-            user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(reader.read_vector3_nullable(), reader.read_quaternion_nullable(), reader.read_vector3_nullable());
+            user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(reader.read_vector3_nullable(), reader.read_quaternion_nullable(), reader.read_vector3_nullable());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     // UserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
-    fn user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
-        self.on_client_to_server_sync__nullable_1__nullable_1__nullable_1(position, rotation, scale);
+    fn user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+        self.on_client_to_server_sync_nullable_1_nullable_1_nullable_1(position, rotation, scale);
         if *self.sync_direction() != SyncDirection::ClientToServer {
             return;
         }
-        self.rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(position, rotation, scale);
+        self.rpc_server_to_client_sync_nullable_1_nullable_1_nullable_1(position, rotation, scale);
     }
 
-    pub fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -228,11 +225,11 @@ impl NetworkTransformUnreliable {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1(reader.read_vector3_nullable(), reader.read_uint_nullable(), reader.read_vector3_nullable());
+            .user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(reader.read_vector3_nullable(), reader.read_uint_nullable(), reader.read_vector3_nullable());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
-    fn user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<u32>, scale: Option<Vector3<f32>>) {
+    fn user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<u32>, scale: Option<Vector3<f32>>) {
         let mut quaternion = None;
         if rotation.is_none() {
             if self.network_transform_base.server_snapshots.len() > 0 {
@@ -244,12 +241,12 @@ impl NetworkTransformUnreliable {
         } else {
             quaternion = Some(Quaternion::decompress(rotation.unwrap()));
         }
-        self.on_client_to_server_sync__nullable_1__nullable_1__nullable_1(position, quaternion, scale);
+        self.on_client_to_server_sync_nullable_1_nullable_1_nullable_1(position, quaternion, scale);
         // TODO this.RpcServerToClientSyncCompressRotation(position, rotation, scale);
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
-    pub fn invoke_user_code_cmd_client_to_server_sync__sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    pub fn invoke_user_code_cmd_client_to_server_sync_sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
         if !NetworkServerStatic::get_static_active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
@@ -259,12 +256,12 @@ impl NetworkTransformUnreliable {
             as_any_mut().
             downcast_mut::<Self>().
             unwrap().
-            user_code_cmd_client_to_server_sync__sync_data(sync_data);
+            user_code_cmd_client_to_server_sync_sync_data(sync_data);
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     // UserCode_CmdClientToServerSync__SyncData
-    fn user_code_cmd_client_to_server_sync__sync_data(&mut self, sync_data: SyncData) {
+    fn user_code_cmd_client_to_server_sync_sync_data(&mut self, sync_data: SyncData) {
         self.on_client_to_server_sync(sync_data);
         if *self.sync_direction() != SyncDirection::ClientToServer {
             return;
@@ -276,7 +273,7 @@ impl NetworkTransformUnreliable {
     // Vector3? position,
     // Quaternion? rotation,
     // Vector3? scale)
-    fn on_client_to_server_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+    fn on_client_to_server_sync_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
         // only apply if in client authority mode
         if *self.sync_direction() != SyncDirection::ClientToServer {
             return;
@@ -438,7 +435,7 @@ impl NetworkTransformUnreliable {
     }
 
     // RpcServerToClientSync(Vector3? position, Quaternion? rotation, Vector3? scale)
-    fn rpc_server_to_client_sync__nullable_1__nullable_1__nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
+    fn rpc_server_to_client_sync_nullable_1_nullable_1_nullable_1(&mut self, position: Option<Vector3<f32>>, rotation: Option<Quaternion<f32>>, scale: Option<Vector3<f32>>) {
         NetworkWriterPool::get_return(|writer| {
             writer.write_vector3_nullable(position);
             writer.write_quaternion_nullable(rotation);
@@ -484,17 +481,17 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
                                                 RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1)), true);
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1)), true);
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
                                                 RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__nullable_1__nullable_1__nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1__nullable_1__nullable_1)), true);
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1)), true);
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
         RemoteProcedureCalls::register_delegate("System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
                                                 RemoteCallType::Command,
-                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync__sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync__sync_data)), true);
+                                                RemoteCallDelegate::new("invoke_user_code_cmd_client_to_server_sync_sync_data", Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_sync_data)), true);
     }
 
     fn get_once() -> &'static Once

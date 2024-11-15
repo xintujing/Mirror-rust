@@ -1,6 +1,5 @@
 use crate::core::batching::batcher::Batcher;
 use crate::core::messages::NetworkPingMessage;
-use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_messages::NetworkMessages;
 use crate::core::network_reader::NetworkMessageReader;
 use crate::core::network_time::NetworkTime;
@@ -8,9 +7,7 @@ use crate::core::network_writer::NetworkMessageWriter;
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::transport::{Transport, TransportChannel};
 use crate::tools::logger::warn;
-use crate::tools::utils::to_hex_string;
-use std::fmt::format;
-use tklog::{debug, error};
+use tklog::error;
 
 pub struct NetworkConnection {
     id: u64,

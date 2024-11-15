@@ -1,5 +1,5 @@
 use crate::core::snapshot_interpolation::snapshot::Snapshot;
-use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use nalgebra::{Quaternion, Vector3};
 use tklog::warn;
 
 #[derive(Clone, Debug, PartialEq, Copy)]

@@ -5,7 +5,7 @@ impl AccurateInterval {
         if time < (*last_time + interval) {
             return false;
         }
-        let multiplier = (time / interval);
+        let multiplier = time / interval;
         *last_time = multiplier * interval;
         true
     }

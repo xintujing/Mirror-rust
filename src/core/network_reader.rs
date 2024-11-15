@@ -2,7 +2,7 @@ use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
 use std::any::Any;
-use std::{fmt, io};
+use std::fmt;
 use tklog::warn;
 
 pub struct NetworkReader {

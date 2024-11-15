@@ -7,7 +7,6 @@ use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpo
 use nalgebra::{Quaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
-use std::hash::Hash;
 
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum CoordinateSpace {
