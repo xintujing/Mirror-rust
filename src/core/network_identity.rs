@@ -35,7 +35,7 @@ pub enum OwnedType { Client, Server }
 
 #[derive(Debug)]
 pub struct NetworkIdentitySerialization {
-    pub tick: f64,
+    pub tick: u32,
     pub owner_writer: NetworkWriter,
     pub observers_writer: NetworkWriter,
 }
@@ -45,7 +45,7 @@ pub type ClientAuthorityCallback = Box<dyn Fn(u64, NetworkIdentity, bool) + Send
 pub static mut CLIENT_AUTHORITY_CALLBACK: Option<ClientAuthorityCallback> = None;
 
 impl NetworkIdentitySerialization {
-    pub fn new(tick: f64) -> Self {
+    pub fn new(tick: u32) -> Self {
         NetworkIdentitySerialization {
             tick,
             owner_writer: NetworkWriter::new(),
@@ -96,7 +96,7 @@ impl NetworkIdentity {
             is_init: false,
             destroy_called: false,
             visibility: Visibility::Default,
-            last_serialization: NetworkIdentitySerialization::new(0.0),
+            last_serialization: NetworkIdentitySerialization::new(0),
             scene_ids: Default::default(),
             has_spawned: false,
             spawned_from_instantiate: false,
@@ -298,7 +298,7 @@ impl NetworkIdentity {
         }
         true
     }
-    pub fn get_server_serialization_at_tick(&mut self, tick: f64) -> &mut NetworkIdentitySerialization {
+    pub fn get_server_serialization_at_tick(&mut self, tick: u32) -> &mut NetworkIdentitySerialization {
         if self.last_serialization.tick != tick {
             self.last_serialization.reset_writers();
             NetworkWriterPool::get_return(|owner_writer| {

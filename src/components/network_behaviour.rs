@@ -206,7 +206,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         }
     }
     fn __set_sync_var_hook_guard(&mut self, value: u64);
-    fn generated_sync_var_setter(&mut self, dirty_bit: u64) {
+    fn set_sync_var_with_guard(&mut self, dirty_bit: u64) {
         self.set_sync_var_dirty_bits(dirty_bit);
         if self.get_sync_var_hook_guard(dirty_bit) {
             return;

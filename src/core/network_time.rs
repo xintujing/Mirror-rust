@@ -16,6 +16,7 @@ lazy_static! {
     static ref START_INSTANT: RwLock<Instant> = RwLock::new(Instant::now());
     static ref LAST_PING_TIME: Atomic<f64> = Atomic::new(0.0);
     static ref PING_INTERVAL: Atomic<f64> = Atomic::new(NetworkTime::DEFAULT_PING_INTERVAL);
+    static ref FRAME_COUNT: Atomic<u32> = Atomic::new(0);
     static ref _RTT: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE));
     static ref _PREDICTION_ERROR_UNADJUSTED: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PREDICTION_ERROR_WINDOW_SIZE));
 }
@@ -28,6 +29,14 @@ impl NetworkTime {
     pub const DEFAULT_PING_INTERVAL: f64 = 0.1;
     pub const PING_WINDOW_SIZE: u32 = 50;
     pub const PREDICTION_ERROR_WINDOW_SIZE: u32 = 20;
+
+    pub fn frame_count() -> u32 {
+        FRAME_COUNT.load(Ordering::Relaxed)
+    }
+
+    pub fn increment_frame_count() {
+        FRAME_COUNT.fetch_add(1, Ordering::Relaxed);
+    }
 
     #[allow(dead_code)]
     pub fn local_time() -> f64 {

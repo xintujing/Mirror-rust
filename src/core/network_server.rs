@@ -415,7 +415,7 @@ impl NetworkServer {
         if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
             let owned = identity.connection_to_client() == conn_id;
             let net_id = identity.net_id();
-            let serialization = identity.get_server_serialization_at_tick(NetworkTime::local_time());
+            let serialization = identity.get_server_serialization_at_tick(NetworkTime::frame_count());
             if owned {
                 if serialization.owner_writer.get_position() > 0 {
                     return Some(EntityStateMessage::new(net_id, serialization.owner_writer.to_bytes()));

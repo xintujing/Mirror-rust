@@ -42,9 +42,9 @@ impl PlayerScript {
 
     fn user_code_cmd_setup_player_string_color(&mut self, player_name: String, player_color: Vector4<f32>) {
         self.player_name = player_name;
-        self.generated_sync_var_setter(2);
+        self.set_sync_var_dirty_bits(2);
         self.player_color = player_color;
-        self.generated_sync_var_setter(4);
+        self.set_sync_var_dirty_bits(4);
         println!("PlayerScript::CmdSetupPlayer: player_name: {}, player_color: {:?}", self.player_name, self.player_color);
     }
 
