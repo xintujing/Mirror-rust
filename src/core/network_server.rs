@@ -330,13 +330,6 @@ impl NetworkServer {
                 early_update_duration.end();
             }
         }
-
-        // NetworkBehaviour update  模拟
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
-            identity.network_behaviours.iter_mut().for_each(|behaviour| {
-                behaviour.update();
-            });
-        });
     }
 
     // 网络更新
@@ -372,13 +365,6 @@ impl NetworkServer {
                 full_update_duration.end();
             }
         }
-
-        // NetworkBehaviour late_update
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
-            identity.network_behaviours.iter_mut().for_each(|behaviour| {
-                behaviour.late_update()
-            });
-        });
     }
 
     // Broadcast
