@@ -39,9 +39,9 @@ impl PlayerScript {
 
     fn user_code_cmd_setup_player_string_color(&mut self, player_name: String, player_color: Vector4<f32>) {
         self.player_name = player_name;
-        self.set_sync_var_dirty_bits(2);
+        self.set_sync_var_dirty_bits(1 << 1);
         self.player_color = player_color;
-        self.set_sync_var_dirty_bits(4);
+        self.set_sync_var_dirty_bits(1 << 2);
         println!("PlayerScript::CmdSetupPlayer: player_name: {}, player_color: {:?}", self.player_name, self.player_color);
     }
 
@@ -251,13 +251,13 @@ impl NetworkBehaviourTrait for PlayerScript {
             writer.write_vector4(self.player_color);
         } else {
             writer.write_ulong(self.sync_var_dirty_bits());
-            if self.sync_var_dirty_bits() & 1 != 0 {
+            if self.sync_var_dirty_bits() & 1 << 0 != 0 {
                 writer.write_int(self.active_weapon_synced);
             }
-            if self.sync_var_dirty_bits() & 2 != 0 {
+            if self.sync_var_dirty_bits() & 1 << 1 != 0 {
                 writer.write_string(self.player_name.to_string());
             }
-            if self.sync_var_dirty_bits() & 4 != 0 {
+            if self.sync_var_dirty_bits() & 1 << 2 != 0 {
                 writer.write_vector4(self.player_color);
             }
         }
