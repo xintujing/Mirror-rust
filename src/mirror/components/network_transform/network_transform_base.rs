@@ -1,7 +1,7 @@
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting};
-use crate::mirror::core::network_behaviour::NetworkBehaviour;
-use crate::mirror::core::network_manager::{GameObject, NetworkManagerStatic};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour};
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;

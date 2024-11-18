@@ -1,6 +1,5 @@
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
-use crate::mirror::core::network_manager::GameObject;
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::sync::Once;

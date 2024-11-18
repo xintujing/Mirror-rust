@@ -1,9 +1,8 @@
 use crate::mirror::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_manager::GameObject;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;

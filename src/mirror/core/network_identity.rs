@@ -1,7 +1,6 @@
 use crate::mirror::core::backend_data::BackendDataStatic;
-use crate::mirror::core::network_behaviour::{NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode, Transform};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_manager::{GameObject, Transform};
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
 use crate::mirror::core::network_server::NetworkServerStatic;

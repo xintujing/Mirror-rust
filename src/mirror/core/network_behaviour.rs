@@ -1,10 +1,9 @@
 use crate::mirror::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::mirror::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
-use crate::mirror::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
+use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent, NetworkBehaviourSetting};
 use crate::mirror::core::messages::{EntityStateMessage, RpcMessage};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_identity::NetworkIdentity;
-use crate::mirror::core::network_manager::GameObject;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
@@ -14,6 +13,7 @@ use crate::mirror::core::transport::TransportChannel;
 use crate::quick_start::player_script::PlayerScript;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
+use nalgebra::{Quaternion, Vector3};
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
@@ -47,6 +47,96 @@ impl NetworkBehaviourFactory {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Transform {
+    pub position: Vector3<f32>,
+    pub rotation: Quaternion<f32>,
+    pub scale: Vector3<f32>,
+
+    pub local_position: Vector3<f32>,
+    pub local_rotation: Quaternion<f32>,
+    pub local_scale: Vector3<f32>,
+}
+
+// GameObject 的 Transform 组件
+impl Transform {
+    pub fn new(position: Vector3<f32>,
+               rotation: Quaternion<f32>,
+               scale: Vector3<f32>,
+               local_position: Vector3<f32>,
+               local_rotation: Quaternion<f32>,
+               local_scale: Vector3<f32>) -> Self {
+        Self {
+            position,
+            rotation,
+            scale,
+            local_position,
+            local_rotation,
+            local_scale,
+        }
+    }
+
+    pub fn default() -> Self {
+        Self::new(Vector3::new(0.0, 1.0, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0),
+                  Vector3::new(0.0, 1.0, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0))
+    }
+}
+
+// GameObject
+#[derive(Debug, Clone)]
+pub struct GameObject {
+    pub name: String,
+    pub prefab: String,
+    pub transform: Transform,
+}
+
+// GameObject 的默认实现
+impl GameObject {
+    pub fn new(prefab: String) -> Self {
+        Self {
+            name: "".to_string(),
+            prefab,
+            transform: Transform::default(),
+        }
+    }
+    pub fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            prefab: "".to_string(),
+            transform: Transform::default(),
+        }
+    }
+    pub fn is_has_component(&self) -> bool {
+        if self.prefab == "" {
+            return false;
+        }
+        if let None = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
+            return false;
+        }
+        true
+    }
+    pub fn get_component(&mut self) -> Option<NetworkIdentity> {
+        if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
+            let mut identity = NetworkIdentity::new(asset_id);
+            identity.set_game_object(self.clone());
+            return Some(identity);
+        };
+        None
+    }
+    pub fn is_null(&self) -> bool {
+        self.name == "" && self.prefab == ""
+    }
+}
+// GameObject 的 PartialEq 实现
+impl PartialEq for GameObject {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.prefab == other.prefab
+    }
+}
 
 #[derive(Debug, PartialOrd, PartialEq)]
 pub enum SyncDirection {

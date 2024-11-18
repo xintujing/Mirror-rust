@@ -1,10 +1,10 @@
 use crate::mirror::core::batching::un_batcher::UnBatcher;
 use crate::mirror::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_identity::Visibility::ForceShown;
 use crate::mirror::core::network_identity::{NetworkIdentity, Visibility};
-use crate::mirror::core::network_manager::GameObject;
 use crate::mirror::core::network_messages::NetworkMessages;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;

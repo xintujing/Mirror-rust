@@ -1,7 +1,6 @@
 use crate::mirror::components::SyncVar;
 use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
-use crate::mirror::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
-use crate::mirror::core::network_manager::GameObject;
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::sync_object::SyncObject;
 use dashmap::DashMap;
