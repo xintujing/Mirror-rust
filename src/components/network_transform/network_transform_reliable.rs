@@ -3,6 +3,7 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_manager::GameObject;
+use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
@@ -11,7 +12,7 @@ use crate::core::sync_object::SyncObject;
 use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::tools::compress::{Compress, CompressTrait};
 use crate::core::tools::delta_compression::DeltaCompression;
-use nalgebra::{UnitQuaternion, Vector3};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
@@ -285,6 +286,33 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             // set 'last'
             self.last_snapshot = snapshot;
         }
+    }
+    fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        let mut position = Vector3::identity();
+        let rotation = Quaternion::<f32>::identity();
+        let mut scale = Vector3::identity();
+        if initial_state {
+            if self.sync_position() {
+                position = reader.read_vector3();
+            }
+            if self.sync_rotation() {
+                if self.compress_rotation {
+                    let compressed = reader.read_uint();
+                    let decompressed = Quaternion::decompress(compressed);
+                    self.last_snapshot.rotation = decompressed;
+                } else {
+                    self.last_snapshot.rotation = reader.read_quaternion();
+                }
+            }
+            if self.sync_scale() {
+                scale = reader.read_vector3();
+            }
+        } else {
+            if self.sync_position() {
+                let quantized = DeltaCompression::decompress_vector3long(reader, self.last_deserialized_position);
+            }
+        }
+        true
     }
     fn update(&mut self) {
         self.update_server();

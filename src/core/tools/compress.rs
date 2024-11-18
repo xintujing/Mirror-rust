@@ -1,16 +1,11 @@
 use nalgebra::{Quaternion, Vector3, Vector4};
 use tklog::error;
 
-const QUATERNION_MIN_RANGE: f32 = -std::f32::consts::FRAC_1_SQRT_2;
-const QUATERNION_MAX_RANGE: f32 = std::f32::consts::FRAC_1_SQRT_2;
-const TEN_BITS_MAX: u16 = 1023;
 pub trait CompressTrait {
     fn compress(&self) -> u32;
-}
-
-pub trait DecompressTrait {
     fn decompress(compressed: u32) -> Self;
 }
+
 
 impl CompressTrait for Quaternion<f32> {
     fn compress(&self) -> u32 {
@@ -20,25 +15,22 @@ impl CompressTrait for Quaternion<f32> {
             without_largest = -without_largest;
         }
 
-        let a_scaled = Compress::scale_float_to_ushort(without_largest.x, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
-        let b_scaled = Compress::scale_float_to_ushort(without_largest.y, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
-        let c_scaled = Compress::scale_float_to_ushort(without_largest.z, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE, 0, TEN_BITS_MAX);
+        let a_scaled = Compress::scale_float_to_ushort(without_largest.x, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
+        let b_scaled = Compress::scale_float_to_ushort(without_largest.y, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
+        let c_scaled = Compress::scale_float_to_ushort(without_largest.z, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
 
         // 将它们打包到一个整数中
         (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | (c_scaled as u32)
     }
-}
-
-impl DecompressTrait for Quaternion<f32> {
     fn decompress(data: u32) -> Self {
-        let c_scaled = ((data >> 00) & TEN_BITS_MAX as u32) as u16;
-        let b_scaled = ((data >> 10) & TEN_BITS_MAX as u32) as u16;
-        let a_scaled = ((data >> 20) & TEN_BITS_MAX as u32) as u16;
+        let c_scaled = ((data >> 00) & Compress::TEN_BITS_MAX as u32) as u16;
+        let b_scaled = ((data >> 10) & Compress::TEN_BITS_MAX as u32) as u16;
+        let a_scaled = ((data >> 20) & Compress::TEN_BITS_MAX as u32) as u16;
         let largest_index = data >> 30;
 
-        let a = Compress::scale_ushort_to_float(a_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
-        let b = Compress::scale_ushort_to_float(b_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
-        let c = Compress::scale_ushort_to_float(c_scaled, 0, TEN_BITS_MAX, QUATERNION_MIN_RANGE, QUATERNION_MAX_RANGE);
+        let a = Compress::scale_ushort_to_float(a_scaled, 0, Compress::TEN_BITS_MAX, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE);
+        let b = Compress::scale_ushort_to_float(b_scaled, 0, Compress::TEN_BITS_MAX, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE);
+        let c = Compress::scale_ushort_to_float(c_scaled, 0, Compress::TEN_BITS_MAX, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE);
 
         let d = (1.0 - a * a - b * b - c * c).max(0.0).sqrt();
 
@@ -51,9 +43,13 @@ impl DecompressTrait for Quaternion<f32> {
     }
 }
 
+
 pub struct Compress;
 
 impl Compress {
+    pub const QUATERNION_MIN_RANGE: f32 = -0.707107f32;
+    pub const QUATERNION_MAX_RANGE: f32 = 0.707107f32;
+    pub const TEN_BITS_MAX: u16 = 1023;
     fn largest_absolute_component_index(q: &Quaternion<f32>) -> (usize, f32, Vector3<f32>) {
         let abs = Vector4::new(q.i.abs(), q.j.abs(), q.k.abs(), q.w.abs());
 

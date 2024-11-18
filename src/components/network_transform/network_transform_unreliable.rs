@@ -16,7 +16,7 @@ use crate::core::remote_calls::{RemoteCallDelegate, RemoteProcedureCalls};
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::sync_object::SyncObject;
 use crate::core::tools::accurateinterval::AccurateInterval;
-use crate::core::tools::compress::DecompressTrait;
+use crate::core::tools::compress::CompressTrait;
 use crate::core::transport::TransportChannel;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
