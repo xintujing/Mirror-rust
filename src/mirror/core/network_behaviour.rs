@@ -77,10 +77,10 @@ impl Transform {
     }
 
     pub fn default() -> Self {
-        Self::new(Vector3::new(0.0, 1.0, 0.0),
+        Self::new(Vector3::new(0.0, 0.5, 0.0),
                   Quaternion::new(1.0, 0.0, 0.0, 0.0),
                   Vector3::new(1.0, 1.0, 1.0),
-                  Vector3::new(0.0, 1.0, 0.0),
+                  Vector3::new(0.0, 0.5, 0.0),
                   Quaternion::new(1.0, 0.0, 0.0, 0.0),
                   Vector3::new(1.0, 1.0, 1.0))
     }

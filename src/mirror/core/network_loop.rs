@@ -1,6 +1,7 @@
 use crate::mirror::authenticators::basic_authenticator::BasicAuthenticator;
 use crate::mirror::core::network_manager::{NetworkManager, NetworkManagerStatic, NetworkManagerTrait};
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
+use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 use std::time::{Duration, Instant};
@@ -11,6 +12,7 @@ impl NetworkLoop {
     // 1
     fn awake() {
         Kcp2kTransport::awake();
+        NetworkStartPosition::awake();
         NetworkManager::awake();
     }
 

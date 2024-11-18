@@ -10,14 +10,15 @@ use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, Netwo
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use atomic::Atomic;
 use lazy_static::lazy_static;
+use nalgebra::Vector3;
 use std::sync::atomic::Ordering;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tklog::{error, info, warn};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 
 lazy_static! {
-    static ref START_POSITIONS: Vec<Transform> = Vec::new();
+    static ref START_POSITIONS: Arc<RwLock<Vec<Transform>>> = Arc::new(RwLock::new(Vec::new()));
     static ref START_POSITIONS_INDEX: Atomic<usize> = Atomic::new(0);
     static ref NETWORK_SCENE_NAME: RwLock<&'static str> = RwLock::new("");
 }
@@ -247,6 +248,19 @@ impl NetworkManager {
         network_manager.on_server_add_player(conn_id);
     }
 
+    pub fn register_start_position(mut start: Transform) {
+        // 在生成 五个随机位置
+        for _ in 0..5 {
+            let x = rand::random::<f32>() * 10.0;
+            let y = 0.5;
+            let z = rand::random::<f32>() * 10.0;
+            let v3 = Vector3::new(x, y, z);
+            start.position = v3;
+            start.local_position = v3;
+            START_POSITIONS.write().unwrap().push(start.clone());
+        }
+    }
+
     fn update_scene() {
         // TODO  UpdateScene
     }
@@ -316,18 +330,18 @@ pub trait NetworkManagerTrait {
     fn awake()
     where
         Self: Sized;
-    fn get_start_position(&mut self) -> Option<Transform> {
-        if START_POSITIONS.len() == 0 {
-            return None;
+    fn get_start_position(&mut self) -> Transform {
+        if START_POSITIONS.read().unwrap().len() == 0 {
+            return Transform::default();
         }
 
         if *self.player_spawn_method() == PlayerSpawnMethod::Random {
-            let index = rand::random::<u32>() % START_POSITIONS.len() as u32;
-            return Some(START_POSITIONS[index as usize].clone());
+            let index = rand::random::<u32>() % START_POSITIONS.read().unwrap().len() as u32;
+            return START_POSITIONS.read().unwrap()[index as usize].clone();
         }
         let index = NetworkManagerStatic::get_start_positions_index();
-        NetworkManagerStatic::set_start_positions_index(index + 1 % START_POSITIONS.len());
-        Some(START_POSITIONS[index].clone())
+        NetworkManagerStatic::set_start_positions_index(index + 1 % START_POSITIONS.read().unwrap().len());
+        START_POSITIONS.read().unwrap()[index].clone()
     }
     fn on_server_add_player(&mut self, conn_id: u64) {
         let mut player_obj = self.player_obj().clone();
@@ -337,13 +351,8 @@ pub trait NetworkManagerTrait {
             return;
         }
 
-        let mut start_position = Transform::default();
-        if let Some(sp) = self.get_start_position() {
-            start_position = sp;
-        }
-
         // 修改 player_obj 的 transform 属性
-        player_obj.transform = start_position;
+        player_obj.transform = self.get_start_position();
 
         NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
