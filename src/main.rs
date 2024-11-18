@@ -1,11 +1,6 @@
-use crate::core::network_loop::NetworkLoop;
-
-mod transports;
-mod tools;
-mod components;
-mod core;
+use mirror::core::network_loop::NetworkLoop;
 mod quick_start;
-mod authenticators;
+mod mirror;
 
 fn main() {
     NetworkLoop::run();
