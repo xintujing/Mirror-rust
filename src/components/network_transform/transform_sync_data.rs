@@ -1,7 +1,7 @@
 use crate::core::messages::NetworkMessageTrait;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use crate::core::tools::compress::Compress;
+use crate::core::tools::compress::{Compress, CompressTrait};
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use std::fmt::Debug;
 use std::ops::BitOrAssign;
@@ -109,13 +109,7 @@ impl SyncData {
         );
 
         // 计算省略的分量 d，基于 a² + b² + c² + d² = 1
-        let d_squared = 1.0 - a * a - b * b - c * c;
-
-        let d = if d_squared > 0.0 {
-            d_squared.sqrt()
-        } else {
-            0.0
-        };
+        let d = (1.0 - a * a - b * b - c * c).sqrt();
 
         // 根据 largestIndex 重建四元数
         let v4 = match largest_index {
@@ -148,25 +142,25 @@ impl SyncData {
     }
 
     fn largest_absolute_component_index(value: Vector4<f32>) -> (usize, f32, Vector3<f32>) {
-        let abs = value.map(|x| x.abs());
+        let abs = Vector4::new(value.x.abs(), value.y.abs(), value.z.abs(), value.w.abs());
         let mut largest_abs = abs.x;
-        let mut without_largest = Vector3::new(abs.y, abs.z, abs.w);
+        let mut without_largest = Vector3::new(value.y, value.z, value.w);
         let mut largest_index = 0;
 
         if abs.y > largest_abs {
             largest_index = 1;
             largest_abs = abs.y;
-            without_largest = Vector3::new(abs.x, abs.z, abs.w);
+            without_largest = Vector3::new(value.x, value.z, value.w);
         }
         if abs.z > largest_abs {
             largest_index = 2;
             largest_abs = abs.z;
-            without_largest = Vector3::new(abs.x, abs.y, abs.w);
+            without_largest = Vector3::new(value.x, value.y, value.w);
         }
         if abs.w > largest_abs {
             largest_index = 3;
             largest_abs = abs.w;
-            without_largest = Vector3::new(abs.x, abs.y, abs.z);
+            without_largest = Vector3::new(value.x, value.y, value.z);
         }
         (largest_index, largest_abs, without_largest)
     }
@@ -328,6 +322,18 @@ impl From<u8> for Changed {
     }
 }
 
+// 保留小数
+pub trait Round {
+    fn my_round(&self, digits: u32) -> f32;
+}
+
+impl Round for f32 {
+    fn my_round(&self, digits: u32) -> f32 {
+        let multiplier = 10u32.pow(digits);
+        (self * multiplier as f32).round() / multiplier as f32
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -335,10 +341,15 @@ mod tests {
 
     #[test]
     fn test_sync_data() {
-        let quat = Quaternion::new(4.0, 1.0, 2.0, 3.0);
+        // -0.00069123507 0.93129396 -0.00069123507 -0.36426723
+        let quat = Quaternion::new(-0.36426723, -0.00069123507, 0.93129396, -0.00069123507);
+        println!("decompress_quaternion1: {:?}", quat);
         let compress_quaternion = SyncData::compress_quaternion(quat);
         println!("compress_quaternion: {}", compress_quaternion);
         let decompress_quaternion = SyncData::decompress_quaternion(compress_quaternion);
-        println!("decompress_quaternion: {:?}", decompress_quaternion);
+        println!("decompress_quaternion2: {:?}", decompress_quaternion);
+
+        let compress_quaternion = decompress_quaternion.compress();
+        println!("compress_quaternion: {}", compress_quaternion);
     }
 }

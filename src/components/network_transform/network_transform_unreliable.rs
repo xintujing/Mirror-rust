@@ -18,6 +18,7 @@ use crate::core::sync_object::SyncObject;
 use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::tools::compress::CompressTrait;
 use crate::core::transport::TransportChannel;
+use crate::tools::utils::to_hex_string;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
