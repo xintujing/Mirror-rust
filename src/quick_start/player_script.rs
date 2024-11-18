@@ -1,5 +1,5 @@
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::NetworkBehaviourComponent;
+use crate::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};

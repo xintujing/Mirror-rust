@@ -1,9 +1,17 @@
-use crate::components::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
+use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkBehaviourComponent;
+use crate::core::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_manager::GameObject;
+use crate::core::network_server::NetworkServerStatic;
+use crate::core::network_time::NetworkTime;
+use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::core::sync_object::SyncObject;
-use nalgebra::Vector3;
+use crate::core::tools::accurateinterval::AccurateInterval;
+use crate::core::tools::compress::{Compress, CompressTrait};
+use crate::core::tools::delta_compression::DeltaCompression;
+use nalgebra::{UnitQuaternion, Vector3};
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
@@ -13,35 +21,65 @@ pub struct NetworkTransformReliable {
     network_transform_base: NetworkTransformBase,
 
     // NetworkTransformReliableSetting start
-    pub only_sync_on_change_correction_multiplier: f32,
-    pub rotation_sensitivity: f32,
-    pub position_precision: f32,
-    pub scale_precision: f32,
-    pub compress_rotation: bool,
+    only_sync_on_change_correction_multiplier: f32,
+    rotation_sensitivity: f32,
+    position_precision: f32,
+    scale_precision: f32,
+    compress_rotation: bool,
     // NetworkTransformReliableSetting end
 
-    pub last_serialized_position: Vector3<i64>,
-    pub last_deserialized_position: Vector3<i64>,
-    pub last_serialized_scale: Vector3<i64>,
-    pub last_deserialized_scale: Vector3<i64>,
+    send_interval_counter: u32,
+    last_send_interval_time: f64,
+    last_snapshot: TransformSnapshot,
+    last_serialized_position: Vector3<i64>,
+    last_deserialized_position: Vector3<i64>,
+    last_serialized_scale: Vector3<i64>,
+    last_deserialized_scale: Vector3<i64>,
 }
 
 impl NetworkTransformReliable {
-    #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformReliable";
-    #[allow(dead_code)]
-    pub fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self {
-        NetworkTransformReliable {
-            network_transform_base: NetworkTransformBase::new(game_object, network_behaviour_component.network_transform_base_setting, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
-            only_sync_on_change_correction_multiplier: network_behaviour_component.network_transform_reliable_setting.only_sync_on_change_correction_multiplier,
-            rotation_sensitivity: network_behaviour_component.network_transform_reliable_setting.rotation_sensitivity,
-            position_precision: network_behaviour_component.network_transform_reliable_setting.position_precision,
-            scale_precision: network_behaviour_component.network_transform_reliable_setting.scale_precision,
-            compress_rotation: true,
-            last_serialized_position: Default::default(),
-            last_deserialized_position: Default::default(),
-            last_serialized_scale: Default::default(),
-            last_deserialized_scale: Default::default(),
+
+    // UpdateServer()
+    fn update_server(&mut self) {
+        if *self.sync_direction() == SyncDirection::ClientToServer && self.connection_to_client() != 0 {
+            if self.network_transform_base.server_snapshots.len() == 0 {
+                return;
+            }
+
+            if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+                let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
+                let computed = TransformSnapshot::transform_snapshot(from, to, t);
+                self.apply(computed, to);
+            }
+        }
+    }
+
+    fn changed(&self, current: TransformSnapshot) -> bool {
+        // 最后一次快照的旋转
+        let last_rotation = UnitQuaternion::from_quaternion(self.last_snapshot.rotation);
+        // 当前快照的旋转
+        let current_rotation = UnitQuaternion::from_quaternion(current.rotation);
+        // 计算角度差异
+        let angle = last_rotation.angle_to(&current_rotation);
+        Self::quantized_changed(self.last_snapshot.position, current.position, self.position_precision) ||
+            angle > self.rotation_sensitivity ||
+            Self::quantized_changed(self.last_snapshot.scale, current.scale, self.scale_precision)
+    }
+    fn quantized_changed(u: Vector3<f32>, v: Vector3<f32>, precision: f32) -> bool {
+        let u_quantized = Compress::scale_to_long_0(u, precision);
+        let v_quantized = Compress::scale_to_long_0(v, precision);
+        u_quantized != v_quantized
+    }
+
+    // CheckLastSendTime
+    fn check_last_send_time(&mut self) {
+        if self.send_interval_counter >= self.network_transform_base.send_interval_multiplier {
+            self.send_interval_counter = 0;
+        }
+
+        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
+            self.send_interval_counter += 1;
         }
     }
 }
@@ -50,21 +88,36 @@ impl NetworkTransformReliable {
 impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
-        todo!()
+        Self::call_register_delegate();
+        Self {
+            network_transform_base: NetworkTransformBase::new(game_object, network_behaviour_component.network_transform_base_setting, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
+            only_sync_on_change_correction_multiplier: network_behaviour_component.network_transform_reliable_setting.only_sync_on_change_correction_multiplier,
+            rotation_sensitivity: network_behaviour_component.network_transform_reliable_setting.rotation_sensitivity,
+            position_precision: network_behaviour_component.network_transform_reliable_setting.position_precision,
+            scale_precision: network_behaviour_component.network_transform_reliable_setting.scale_precision,
+            compress_rotation: true,
+            send_interval_counter: 0,
+            last_send_interval_time: f64::MIN,
+            last_snapshot: TransformSnapshot::default(),
+            last_serialized_position: Default::default(),
+            last_deserialized_position: Default::default(),
+            last_serialized_scale: Default::default(),
+            last_deserialized_scale: Default::default(),
+        }
     }
 
     fn register_delegate()
     where
-        Self: Sized
+        Self: Sized,
     {
         todo!()
     }
 
     fn get_once() -> &'static Once
     where
-        Self: Sized
+        Self: Sized,
     {
         static ONCE: Once = Once::new();
         &ONCE
@@ -183,125 +236,56 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self
     }
 
-    fn on_start_server(&mut self) {
-        todo!()
+    // OnSerialize()
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        let mut snapshot = self.construct();
+        if initial_state {
+            if self.last_snapshot.remote_time > 0.0 {
+                snapshot = self.last_snapshot;
+            }
+            // 写入位置
+            if self.sync_position() {
+                writer.write_vector3(snapshot.position);
+            }
+            // 写入旋转
+            if self.sync_rotation() {
+                if self.compress_rotation {
+                    writer.write_uint(snapshot.rotation.compress())
+                } else {
+                    writer.write_quaternion(snapshot.rotation);
+                }
+            }
+            // 写入缩放
+            if self.sync_scale() {
+                writer.write_vector3(snapshot.scale);
+            }
+        } else {
+            if self.sync_position() {
+                let (_, quantized) = Compress::scale_to_long_0(snapshot.position, self.position_precision);
+                DeltaCompression::compress_vector3long(writer, self.last_serialized_position, quantized);
+            }
+            if self.sync_rotation() {
+                if self.compress_rotation {
+                    writer.write_uint(snapshot.rotation.compress());
+                } else {
+                    writer.write_quaternion(snapshot.rotation);
+                }
+            }
+            if self.sync_scale() {
+                let (_, quantized) = Compress::scale_to_long_0(snapshot.scale, self.scale_precision);
+                DeltaCompression::compress_vector3long(writer, self.last_serialized_scale, quantized);
+            }
+        }
     }
-
-    fn on_stop_server(&mut self) {
-        todo!()
+    fn update(&mut self) {
+        self.update_server();
     }
-
-    // fn serialize(&mut self, initial_state: bool) -> Batch {
-    //     let mut batch = Batch::new();
-    //     if initial_state {
-    //         if self.network_transform_base.sync_position {
-    //             batch.write_vector3_f32_le(self.sync_data.position);
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             if self.compress_rotation {
-    //                 batch.write_u32_le(self.sync_data.quat_rotation.compress());
-    //             } else {
-    //                 batch.write_quaternion_f32_le(self.sync_data.quat_rotation);
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             batch.write_vector3_f32_le(self.sync_data.scale);
-    //         }
-    //     } else {
-    //         if self.network_transform_base.sync_position {
-    //             let (_, v3) = scale_to_long_0(self.sync_data.position, self.position_precision);
-    //             batch.compress_var_i64_le(v3.x - self.last_serialized_position.x);
-    //             batch.compress_var_i64_le(v3.y - self.last_serialized_position.y);
-    //             batch.compress_var_i64_le(v3.z - self.last_serialized_position.z);
-    //             self.last_serialized_position = v3;
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             if self.compress_rotation {
-    //                 batch.write_u32_le(self.sync_data.quat_rotation.compress());
-    //             } else {
-    //                 batch.write_quaternion_f32_le(self.sync_data.quat_rotation);
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             let (_, v3) = scale_to_long_0(self.sync_data.scale, self.scale_precision);
-    //             batch.compress_var_i64_le(v3.x - self.last_serialized_scale.x);
-    //             batch.compress_var_i64_le(v3.y - self.last_serialized_scale.y);
-    //             batch.compress_var_i64_le(v3.z - self.last_serialized_scale.z);
-    //             self.last_serialized_scale = v3;
-    //         }
-    //     }
-    //     batch
-    // }
-    //
-    // fn deserialize(&mut self, un_batch: &mut UnBatch, initial_state: bool) {
-    //     if initial_state {
-    //         if self.network_transform_base.sync_position {
-    //             if let Ok(position) = un_batch.read_vector3_f32_le() {
-    //                 self.sync_data.position = position;
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             if self.compress_rotation {
-    //                 if let Ok(compressed) = un_batch.read_u32_le() {
-    //                     self.sync_data.quat_rotation = Quaternion::decompress(compressed);
-    //                 }
-    //             } else {
-    //                 if let Ok(quat_rotation) = un_batch.read_quaternion_f32_le() {
-    //                     self.sync_data.quat_rotation = quat_rotation;
-    //                 }
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             if let Ok(scale) = un_batch.read_vector3_f32_le() {
-    //                 self.sync_data.scale = scale;
-    //             }
-    //         }
-    //     } else {
-    //         if self.network_transform_base.sync_position {
-    //             let mut x = self.sync_data.position.x as i64;
-    //             let mut y = self.sync_data.position.y as i64;
-    //             let mut z = self.sync_data.position.z as i64;
-    //             if let Ok(x_) = un_batch.decompress_var_i64_le() {
-    //                 x = self.last_deserialized_position.x + x_;
-    //             }
-    //             if let Ok(y_) = un_batch.decompress_var_i64_le() {
-    //                 y += self.last_deserialized_position.y;
-    //             }
-    //             if let Ok(z_) = un_batch.decompress_var_i64_le() {
-    //                 z += self.last_deserialized_position.z;
-    //             }
-    //             self.last_deserialized_position = Vector3::new(x, y, z);
-    //             self.sync_data.position = Vector3::new(x as f32, y as f32, z as f32);
-    //         }
-    //         if self.network_transform_base.sync_rotation {
-    //             if self.compress_rotation {
-    //                 if let Ok(compressed) = un_batch.read_u32_le() {
-    //                     self.sync_data.quat_rotation = Quaternion::decompress(compressed);
-    //                 }
-    //             } else {
-    //                 if let Ok(quat_rotation) = un_batch.read_quaternion_f32_le() {
-    //                     self.sync_data.quat_rotation = quat_rotation;
-    //                 }
-    //             }
-    //         }
-    //         if self.network_transform_base.sync_scale {
-    //             let mut x = self.sync_data.scale.x as i64;
-    //             let mut y = self.sync_data.scale.y as i64;
-    //             let mut z = self.sync_data.scale.z as i64;
-    //             if let Ok(x_) = un_batch.decompress_var_i64_le() {
-    //                 x = self.last_deserialized_scale.x + x_;
-    //             }
-    //             if let Ok(y_) = un_batch.decompress_var_i64_le() {
-    //                 y += self.last_deserialized_scale.y;
-    //             }
-    //             if let Ok(z_) = un_batch.decompress_var_i64_le() {
-    //                 z += self.last_deserialized_scale.z;
-    //             }
-    //             self.last_deserialized_scale = Vector3::new(x, y, z);
-    //             self.sync_data.scale = Vector3::new(x as f32, y as f32, z as f32);
-    //         }
-    //     }
-    // }
+    fn late_update(&mut self) {
+        if self.send_interval_counter == self.network_transform_base.send_interval_multiplier && (!self.network_transform_base.only_sync_on_change || self.changed(self.construct())) {
+            self.set_dirty()
+        }
+        self.check_last_send_time();
+    }
 }
 
 impl NetworkTransformBaseTrait for NetworkTransformReliable {

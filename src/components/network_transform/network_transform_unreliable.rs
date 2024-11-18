@@ -1,9 +1,9 @@
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::messages::NetworkMessageTrait;
+use crate::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_identity::NetworkIdentity;
 use crate::core::network_manager::GameObject;
@@ -29,11 +29,11 @@ use tklog::{debug, error};
 #[derive(Debug)]
 pub struct NetworkTransformUnreliable {
     network_transform_base: NetworkTransformBase,
-    pub buffer_reset_multiplier: f32,
-    pub changed_detection: bool,
-    pub position_sensitivity: f32,
-    pub rotation_sensitivity: f32,
-    pub scale_sensitivity: f32,
+    buffer_reset_multiplier: f32,
+    changed_detection: bool,
+    position_sensitivity: f32,
+    rotation_sensitivity: f32,
+    scale_sensitivity: f32,
     send_interval_counter: u32,
     last_send_interval_time: f64,
 
@@ -52,8 +52,7 @@ impl NetworkTransformUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkTransformUnreliable";
     // UpdateServerInterpolation
     fn update_server_interpolation(&mut self) {
-        if *self.sync_direction() == SyncDirection::ClientToServer &&
-            self.connection_to_client() != 0 {
+        if *self.sync_direction() == SyncDirection::ClientToServer && self.connection_to_client() != 0 {
             if self.network_transform_base.server_snapshots.len() == 0 {
                 return;
             }
@@ -98,15 +97,6 @@ impl NetworkTransformUnreliable {
 
         if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
             self.send_interval_counter += 1;
-        }
-    }
-    fn construct(&self) -> TransformSnapshot {
-        TransformSnapshot {
-            position: self.get_position(),
-            rotation: self.get_rotation(),
-            scale: self.get_scale(),
-            remote_time: NetworkTime::local_time(),
-            local_time: 0.0,
         }
     }
     fn compare_changed_snapshots(&self, snapshot: &TransformSnapshot) -> u8 {

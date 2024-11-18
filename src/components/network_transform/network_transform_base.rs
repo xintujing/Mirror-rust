@@ -1,6 +1,6 @@
-use crate::components::network_behaviour::NetworkBehaviour;
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting};
+use crate::core::network_behaviour::NetworkBehaviour;
 use crate::core::network_manager::{GameObject, NetworkManagerStatic};
 use crate::core::network_time::NetworkTime;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
@@ -67,7 +67,6 @@ impl NetworkTransformBase {
             timeline_offset: network_transform_base_setting.timeline_offset,
         }
     }
-
     pub fn reset_state(&mut self) {
         self.server_snapshots.clear();
     }
@@ -125,6 +124,16 @@ pub trait NetworkTransformBaseTrait {
             game_object.transform.scale = value;
         }
         self.set_game_object(game_object);
+    }
+    // Construct()
+    fn construct(&self) -> TransformSnapshot {
+        TransformSnapshot {
+            position: self.get_position(),
+            rotation: self.get_rotation(),
+            scale: self.get_scale(),
+            remote_time: NetworkTime::local_time(),
+            local_time: 0.0,
+        }
     }
     fn sync_position(&self) -> bool;
     fn sync_rotation(&self) -> bool;

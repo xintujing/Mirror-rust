@@ -22,3 +22,4 @@ pub mod network_connection_to_client;
 pub mod network_connection;
 pub mod sync_object;
 pub mod network_loop;
+pub mod network_behaviour;

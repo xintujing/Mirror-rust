@@ -1,5 +1,5 @@
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
+use crate::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_manager::GameObject;
 use crate::core::sync_object::SyncObject;
 use std::any::Any;

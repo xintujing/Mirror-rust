@@ -1,6 +1,6 @@
-use crate::components::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::components::SyncVar;
 use crate::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
+use crate::core::network_behaviour::{NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_manager::GameObject;
 use crate::core::network_writer::NetworkWriter;
 use crate::core::sync_object::SyncObject;

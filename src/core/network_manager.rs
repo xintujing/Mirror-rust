@@ -1,8 +1,8 @@
 use crate::authenticators::network_authenticator::{NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic};
-use crate::components::network_behaviour::NetworkBehaviourFactory;
 use crate::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::core::connection_quality::ConnectionQualityMethod;
 use crate::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
+use crate::core::network_behaviour::NetworkBehaviourFactory;
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::core::network_identity::NetworkIdentity;

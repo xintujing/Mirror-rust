@@ -1,5 +1,5 @@
-use crate::components::network_behaviour::{NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::backend_data::BackendDataStatic;
+use crate::core::network_behaviour::{NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_manager::{GameObject, Transform};
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
@@ -11,9 +11,14 @@ use crate::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
 use atomic::Atomic;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
+use lazy_static::lazy_static;
 use std::default::Default;
 use std::sync::atomic::Ordering;
 use tklog::error;
+
+lazy_static! {
+    static ref NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Visibility { Default, ForceHidden, ForceShown }
@@ -27,10 +32,6 @@ pub struct NetworkIdentitySerialization {
     pub owner_writer: NetworkWriter,
     pub observers_writer: NetworkWriter,
 }
-
-static mut NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);
-pub type ClientAuthorityCallback = Box<dyn Fn(u64, NetworkIdentity, bool) + Send + Sync>;
-pub static mut CLIENT_AUTHORITY_CALLBACK: Option<ClientAuthorityCallback> = None;
 
 impl NetworkIdentitySerialization {
     pub fn new(tick: u32) -> Self {
@@ -362,40 +363,11 @@ impl NetworkIdentity {
         self.conn_to_client = conn_id;
     }
     pub fn get_static_next_network_id() -> u32 {
-        unsafe {
-            let id = NEXT_NETWORK_ID.load(Ordering::Relaxed);
-            NEXT_NETWORK_ID.store(id + 1, Ordering::Relaxed);
-            id
-        }
+        let id = NEXT_NETWORK_ID.load(Ordering::Relaxed);
+        NEXT_NETWORK_ID.store(id + 1, Ordering::Relaxed);
+        id
     }
     pub fn set_static_next_network_id(id: u32) {
-        unsafe {
-            NEXT_NETWORK_ID.store(id, Ordering::Relaxed);
-        }
-    }
-    pub fn set_static_client_authority_callback(callback: ClientAuthorityCallback) {
-        unsafe {
-            CLIENT_AUTHORITY_CALLBACK = Some(callback);
-        }
-    }
-}
-
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_dash_map() {
-        let mut map = DashMap::new();
-        map.insert(1, 2);
-        map.insert(2, 3);
-
-        if let Some(mut r) = map.get_mut(&1) {
-            println!("{:?}", r);
-            if let Some(mut r) = map.get_mut(&2) {
-                println!("{:?}", r);
-            }
-        };
+        NEXT_NETWORK_ID.store(id, Ordering::Relaxed);
     }
 }

@@ -1,6 +1,7 @@
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
 use crate::core::tools::compress;
+use crate::core::tools::compress::Compress;
 use std::collections::VecDeque;
 use tklog::warn;
 
@@ -24,7 +25,7 @@ impl Batcher {
     }
 
     pub fn message_header_size(message_size: usize) -> usize {
-        compress::var_uint_size(message_size as u64)
+        Compress::var_uint_size(message_size as u64)
     }
 
     pub fn max_message_overhead(message_size: usize) -> usize {
@@ -39,7 +40,7 @@ impl Batcher {
             }
         }
 
-        let header_size = compress::var_uint_size(message.len() as u64);
+        let header_size = Compress::var_uint_size(message.len() as u64);
         let needed_size = header_size + message.len();
 
         if let Some(ref batcher) = self.batcher {
