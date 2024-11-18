@@ -60,7 +60,7 @@ impl NetworkReader {
     pub fn read_blittable<T>(&mut self) -> T {
         let size = size_of::<T>();
         if self.remaining() < size {
-            panic!("Not enough data to read");
+            panic!("NetworkReader read_blittable not enough data to read");
         }
         let value = unsafe {
             let ptr = self.data.as_ptr().add(self.position) as *const T;

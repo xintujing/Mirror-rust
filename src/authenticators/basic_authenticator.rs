@@ -24,30 +24,40 @@ impl BasicAuthenticator {
 
 impl NetworkAuthenticatorTrait for BasicAuthenticator {
     fn on_auth_request_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
-        let message = AuthRequestMessage::deserialize(reader);
-        println!("on_auth_request_message: {:?}", message);
+        // 未认证标志
+        let mut no_authed = true;
+        // 获取认证器
         if let Some(authenticator) = Self::get_mut_dyn_any() {
             // 转为BasicAuthenticator
             let basic_authenticator = authenticator.downcast_mut::<Self>().unwrap();
+            // 反序列化 auth请求消息
+            let message = AuthRequestMessage::deserialize(reader);
             // 检查用户名和密码
             if message.username == basic_authenticator.username && message.password == basic_authenticator.password {
                 if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
                     let mut response = AuthResponseMessage::new(100, "Success".to_string());
 
+                    // 发送响应消息
                     conn.send_network_message(&mut response, channel);
 
+                    // 设置连接已认证
                     Self::server_accept(&mut conn);
                 }
-            } else {
-                if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
-                    let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
+                no_authed = false;
+                return;
+            }
+        }
 
-                    conn.send_network_message(&mut response, channel);
+        // 拒绝连接
+        if no_authed {
+            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
 
-                    conn.set_authenticated(false);
+                conn.send_network_message(&mut response, channel);
 
-                    Self::server_reject(&mut conn);
-                }
+                conn.set_authenticated(false);
+
+                Self::server_reject(&mut conn);
             }
         }
     }
