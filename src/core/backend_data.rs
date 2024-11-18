@@ -3,13 +3,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 lazy_static! {
+    static ref BACKEND_DATA_FILE: &'static str = "tobackend.json";
     static ref BACKEND_DATA: BackendData = BackendDataStatic::import("tobackend.json");
 }
 
 pub struct BackendDataStatic;
 
 impl BackendDataStatic {
-    #[allow(dead_code)]
     pub fn import(path: &'static str) -> BackendData {
         // 读取 JSON 文件内容
         if let Ok(data) = std::fs::read_to_string(path) {
@@ -20,7 +20,7 @@ impl BackendDataStatic {
         }
         panic!("Failed to import BackData");
     }
-    #[allow(dead_code)]
+
     pub fn get_backend_data() -> &'static BackendData {
         &BACKEND_DATA
     }
@@ -76,14 +76,14 @@ pub struct SyncVarData {
     pub dirty_bit: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct NetworkBehaviourSetting {
     #[serde(rename = "syncDirection")]
     /// need fix
     pub sync_direction: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct NetworkTransformBaseSetting {
     #[serde(rename = "syncPosition")]
     pub sync_position: bool,
@@ -130,7 +130,7 @@ pub struct NetworkTransformReliableSetting {
     pub scale_precision: f32,
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone,Default)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Default)]
 pub struct NetworkTransformUnreliableSetting {
     #[serde(rename = "bufferResetMultiplier")]
     pub buffer_reset_multiplier: f32,
