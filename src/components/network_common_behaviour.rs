@@ -165,13 +165,22 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     }
 
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        for i in 0..self.sync_vars.len() as u8 {
-            if let Some(sync_var) = self.sync_vars.get(&i) {
-                writer.write_array_segment_all(sync_var.data.as_slice());
+        if initial_state {
+            for i in 0..self.sync_vars.len() as u8 {
+                if let Some(sync_var) = self.sync_vars.get(&i) {
+                    writer.write_array_segment_all(sync_var.data.as_slice());
+                }
+            }
+        } else {
+            for i in 0..self.sync_vars.len() as u8 {
+                if self.sync_var_dirty_bits() & (1 << i) != 0 {
+                    if let Some(sync_var) = self.sync_vars.get(&i) {
+                        writer.write_array_segment_all(sync_var.data.as_slice());
+                    }
+                }
             }
         }
     }
-
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
