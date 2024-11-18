@@ -2,6 +2,7 @@ use crate::components::network_transform::network_transform_base::{CoordinateSpa
 use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::NetworkBehaviourComponent;
 use crate::core::network_behaviour::{NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_manager::GameObject;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::NetworkServerStatic;
@@ -13,8 +14,11 @@ use crate::core::tools::accurateinterval::AccurateInterval;
 use crate::core::tools::compress::{Compress, CompressTrait};
 use crate::core::tools::delta_compression::DeltaCompression;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use ordered_float::OrderedFloat;
 use std::any::Any;
+use std::collections::BTreeMap;
 use std::fmt::Debug;
+use std::mem::take;
 use std::sync::Once;
 
 #[derive(Debug)]
@@ -67,9 +71,10 @@ impl NetworkTransformReliable {
             angle > self.rotation_sensitivity ||
             Self::quantized_changed(self.last_snapshot.scale, current.scale, self.scale_precision)
     }
+
     fn quantized_changed(u: Vector3<f32>, v: Vector3<f32>, precision: f32) -> bool {
-        let u_quantized = Compress::scale_to_long_0(u, precision);
-        let v_quantized = Compress::scale_to_long_0(v, precision);
+        let u_quantized = Compress::vector3float_to_vector3long(u, precision);
+        let v_quantized = Compress::vector3float_to_vector3long(v, precision);
         u_quantized != v_quantized
     }
 
@@ -82,6 +87,41 @@ impl NetworkTransformReliable {
         if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
             self.send_interval_counter += 1;
         }
+    }
+
+    // OnClientToServerSync()
+    fn on_client_to_server_sync(&mut self, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
+        if self.sync_direction() != &SyncDirection::ClientToServer {
+            return;
+        }
+
+        let mut timestamp = 0f64;
+        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+            if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
+                return;
+            }
+            timestamp = conn.remote_time_stamp();
+        }
+
+        // TODO need 去确实是否需要
+        // if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::get_static_send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
+        //     RewriteHistory(
+        //         clientSnapshots,
+        //         NetworkClient.connection.remoteTimeStamp, // arrival remote timestamp. NOT remote timeline.
+        //         NetworkTime.localTime,                    // Unity 2019 doesn't have timeAsDouble yet
+        //         NetworkClient.sendInterval * sendIntervalMultiplier,
+        //         GetPosition(),
+        //         GetRotation(),
+        //         GetScale());
+        // }
+
+        let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
+        self.add_snapshot(&mut server_snapshots, timestamp + self.network_transform_base.time_stamp_adjustment + self.network_transform_base.offset, Some(position), Some(rotation), Some(scale));
+        self.network_transform_base.server_snapshots = server_snapshots;
+    }
+
+    fn needs_correction(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, remote_timestamp: f64, buffer_time: f64, tolerance_multiplier: f64) -> bool {
+        snapshots.len() == 1 && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time >= buffer_time * tolerance_multiplier
     }
 }
 
@@ -233,10 +273,6 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_transform_base.network_behaviour.is_dirty()
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
     // OnSerialize()
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         let mut snapshot = self.construct();
@@ -262,7 +298,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             }
         } else {
             if self.sync_position() {
-                let (_, quantized) = Compress::scale_to_long_0(snapshot.position, self.position_precision);
+                let (_, quantized) = Compress::vector3float_to_vector3long(snapshot.position, self.position_precision);
                 DeltaCompression::compress_vector3long(writer, self.last_serialized_position, quantized);
             }
             if self.sync_rotation() {
@@ -273,23 +309,25 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 }
             }
             if self.sync_scale() {
-                let (_, quantized) = Compress::scale_to_long_0(snapshot.scale, self.scale_precision);
+                let (_, quantized) = Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision);
                 DeltaCompression::compress_vector3long(writer, self.last_serialized_scale, quantized);
             }
             // save serialized as 'last' for next delta compression
             if self.sync_position() {
-                self.last_serialized_position = Compress::scale_to_long_0(snapshot.position, self.position_precision).1;
+                self.last_serialized_position = Compress::vector3float_to_vector3long(snapshot.position, self.position_precision).1;
             }
             if self.sync_scale() {
-                self.last_serialized_scale = Compress::scale_to_long_0(snapshot.scale, self.scale_precision).1;
+                self.last_serialized_scale = Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision).1;
             }
             // set 'last'
             self.last_snapshot = snapshot;
         }
     }
+
+    // OnDeserialize()
     fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         let mut position = Vector3::identity();
-        let rotation = Quaternion::<f32>::identity();
+        let mut rotation = Quaternion::<f32>::identity();
         let mut scale = Vector3::identity();
         if initial_state {
             if self.sync_position() {
@@ -299,9 +337,9 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 if self.compress_rotation {
                     let compressed = reader.read_uint();
                     let decompressed = Quaternion::decompress(compressed);
-                    self.last_snapshot.rotation = decompressed;
+                    rotation = decompressed;
                 } else {
-                    self.last_snapshot.rotation = reader.read_quaternion();
+                    rotation = reader.read_quaternion();
                 }
             }
             if self.sync_scale() {
@@ -310,9 +348,34 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         } else {
             if self.sync_position() {
                 let quantized = DeltaCompression::decompress_vector3long(reader, self.last_deserialized_position);
+                position = Compress::vector3long_to_vector3float(quantized, self.position_precision);
+            }
+            if self.sync_rotation() {
+                if self.compress_rotation {
+                    let compressed = reader.read_uint();
+                    rotation = Quaternion::decompress(compressed);
+                } else {
+                    rotation = reader.read_quaternion();
+                }
+            }
+            if self.sync_scale() {
+                let quantized = DeltaCompression::decompress_vector3long(reader, self.last_deserialized_scale);
+                scale = Compress::vector3long_to_vector3float(quantized, self.scale_precision);
             }
         }
+
+        self.on_client_to_server_sync(position, rotation, scale);
+
+        if self.sync_position() {
+            (_, self.last_deserialized_position) = Compress::vector3float_to_vector3long(position, self.position_precision);
+        }
+        if self.sync_scale() {
+            (_, self.last_deserialized_scale) = Compress::vector3float_to_vector3long(scale, self.scale_precision);
+        }
         true
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
     fn update(&mut self) {
         self.update_server();
@@ -364,5 +427,14 @@ impl NetworkTransformBaseTrait for NetworkTransformReliable {
 
     fn sync_scale(&self) -> bool {
         self.network_transform_base.sync_scale
+    }
+
+    fn reset_state(&mut self) {
+        self.network_transform_base.reset_state();
+        self.last_deserialized_position = Default::default();
+        self.last_deserialized_scale = Default::default();
+        self.last_serialized_position = Default::default();
+        self.last_serialized_scale = Default::default();
+        self.last_snapshot = TransformSnapshot::default();
     }
 }

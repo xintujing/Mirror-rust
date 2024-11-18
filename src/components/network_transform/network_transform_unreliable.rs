@@ -319,7 +319,7 @@ impl NetworkTransformUnreliable {
         }
         self.update_sync_data(&mut sync_data, &self.network_transform_base.server_snapshots);
         let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
-        self.add_snapshot(&mut server_snapshots, timestamp, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
+        self.add_snapshot(&mut server_snapshots, timestamp + self.network_transform_base.time_stamp_adjustment + self.network_transform_base.offset, Some(sync_data.position), Some(sync_data.quat_rotation), Some(sync_data.scale));
         self.network_transform_base.server_snapshots = server_snapshots;
     }
 
@@ -671,6 +671,10 @@ impl NetworkTransformBaseTrait for NetworkTransformUnreliable {
 
     fn sync_scale(&self) -> bool {
         self.network_transform_base.sync_scale
+    }
+
+    fn reset_state(&mut self) {
+        self.network_transform_base.reset_state();
     }
 }
 

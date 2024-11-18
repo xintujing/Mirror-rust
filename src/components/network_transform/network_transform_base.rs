@@ -2,6 +2,7 @@ use crate::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::core::backend_data::{NetworkBehaviourSetting, NetworkTransformBaseSetting};
 use crate::core::network_behaviour::NetworkBehaviour;
 use crate::core::network_manager::{GameObject, NetworkManagerStatic};
+use crate::core::network_server::NetworkServerStatic;
 use crate::core::network_time::NetworkTime;
 use crate::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use nalgebra::{Quaternion, Vector3};
@@ -47,7 +48,7 @@ pub struct NetworkTransformBase {
 
 impl NetworkTransformBase {
     pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
-        NetworkTransformBase {
+        let mut base = Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_setting, component_index),
             is_client_with_authority: false,
             server_snapshots: Default::default(),
@@ -65,7 +66,12 @@ impl NetworkTransformBase {
             coordinate_space: CoordinateSpace::from_u8(network_transform_base_setting.coordinate_space),
             send_interval_multiplier: network_transform_base_setting.send_interval_multiplier,
             timeline_offset: network_transform_base_setting.timeline_offset,
+        };
+        base.time_stamp_adjustment = NetworkServerStatic::get_static_send_interval() as f64 * (base.send_interval_multiplier as f64 - 1.0);
+        if base.timeline_offset {
+            base.offset = NetworkServerStatic::get_static_send_interval() as f64 * base.send_interval_multiplier as f64;
         }
+        base
     }
     pub fn reset_state(&mut self) {
         self.server_snapshots.clear();
@@ -141,6 +147,7 @@ pub trait NetworkTransformBaseTrait {
     fn interpolate_rotation(&self) -> bool;
     fn interpolate_scale(&self) -> bool;
     fn sync_scale(&self) -> bool;
+    fn reset_state(&mut self);
     // void AddSnapshot
     fn add_snapshot(&self, snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, timestamp: f64, mut position: Option<Vector3<f32>>, mut rotation: Option<Quaternion<f32>>, mut scale: Option<Vector3<f32>>) {
         let last_snapshot = snapshots.iter().last();

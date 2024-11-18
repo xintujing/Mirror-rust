@@ -145,28 +145,47 @@ impl Compress {
         }
     }
 
-    pub fn scale_to_long_0(value: Vector3<f32>, precision: f32) -> (bool, Vector3<i64>) {
-        let (result, x, y, z) = Self::scale_to_long_1(value, precision);
+    pub fn vector3float_to_vector3long(value: Vector3<f32>, precision: f32) -> (bool, Vector3<i64>) {
+        let (result, x, y, z) = Self::vector3float_to_long3(value, precision);
         (result, Vector3::new(x, y, z))
     }
 
-    pub fn scale_to_long_1(value: Vector3<f32>, precision: f32) -> (bool, i64, i64, i64) {
+    fn vector3float_to_long3(value: Vector3<f32>, precision: f32) -> (bool, i64, i64, i64) {
         let mut result = true;
-        let (res, x) = Self::scale_to_long_2(value.x, precision);
+        let (res, x) = Self::float_to_long(value.x, precision);
         result &= res;
-        let (res, y) = Self::scale_to_long_2(value.y, precision);
+        let (res, y) = Self::float_to_long(value.y, precision);
         result &= res;
-        let (res, z) = Self::scale_to_long_2(value.z, precision);
+        let (res, z) = Self::float_to_long(value.z, precision);
         result &= res;
         (result, x, y, z)
     }
 
-    pub fn scale_to_long_2(value: f32, precision: f32) -> (bool, i64) {
+    fn float_to_long(value: f32, precision: f32) -> (bool, i64) {
         if precision == 0.0 {
             error!("precision cannot be 0");
         }
         let quantized = (value / precision) as i64;
         (true, quantized)
+    }
+
+    fn long_to_float(value: i64, precision: f32) -> f32 {
+        if precision == 0.0 {
+            error!("precision cannot be 0");
+        }
+        value as f32 * precision
+    }
+
+    pub fn vector3long_to_vector3float(value: Vector3<i64>, precision: f32) -> Vector3<f32> {
+        Self::long3_to_vector3float(value.x, value.y, value.z, precision)
+    }
+
+    fn long3_to_vector3float(x: i64, y: i64, z: i64, precision: f32) -> Vector3<f32> {
+        let mut v = Vector3::new(0.0, 0.0, 0.0);
+        v.x = Self::long_to_float(x, precision);
+        v.y = Self::long_to_float(y, precision);
+        v.z = Self::long_to_float(z, precision);
+        v
     }
 
     pub fn var_uint_size(value: u64) -> usize {
