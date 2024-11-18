@@ -275,6 +275,15 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 let (_, quantized) = Compress::scale_to_long_0(snapshot.scale, self.scale_precision);
                 DeltaCompression::compress_vector3long(writer, self.last_serialized_scale, quantized);
             }
+            // save serialized as 'last' for next delta compression
+            if self.sync_position() {
+                self.last_serialized_position = Compress::scale_to_long_0(snapshot.position, self.position_precision).1;
+            }
+            if self.sync_scale() {
+                self.last_serialized_scale = Compress::scale_to_long_0(snapshot.scale, self.scale_precision).1;
+            }
+            // set 'last'
+            self.last_snapshot = snapshot;
         }
     }
     fn update(&mut self) {
