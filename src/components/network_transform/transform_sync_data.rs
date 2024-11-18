@@ -74,13 +74,13 @@ impl SyncData {
     /// 解压缩四元数
     pub fn decompress_quaternion(data: u32) -> Quaternion<f32> {
         // 获取 cScaled（位 0..10）
-        let c_scaled = (data & Compress::TEN_BITS_MAX as u32) as u16;
+        let c_scaled = (data & Compress::TEN_BITS_MAX) as u16;
 
         // 获取 bScaled（位 10..20）
-        let b_scaled = ((data >> 10) & Compress::TEN_BITS_MAX as u32) as u16;
+        let b_scaled = ((data >> 10) & Compress::TEN_BITS_MAX) as u16;
 
         // 获取 aScaled（位 20..30）
-        let a_scaled = ((data >> 20) & Compress::TEN_BITS_MAX as u32) as u16;
+        let a_scaled = ((data >> 20) & Compress::TEN_BITS_MAX) as u16;
 
         // 获取 largestIndex（位 30..32）
         let largest_index = (data >> 30) as usize;
@@ -89,21 +89,21 @@ impl SyncData {
         let a = SyncData::scale_ushort_to_float(
             a_scaled,
             0,
-            Compress::TEN_BITS_MAX as u32,
+            Compress::TEN_BITS_MAX,
             Compress::QUATERNION_MIN_RANGE,
             Compress::QUATERNION_MAX_RANGE,
         );
         let b = SyncData::scale_ushort_to_float(
             b_scaled,
             0,
-            Compress::TEN_BITS_MAX as u32,
+            Compress::TEN_BITS_MAX,
             Compress::QUATERNION_MIN_RANGE,
             Compress::QUATERNION_MAX_RANGE,
         );
         let c = SyncData::scale_ushort_to_float(
             c_scaled,
             0,
-            Compress::TEN_BITS_MAX as u32,
+            Compress::TEN_BITS_MAX,
             Compress::QUATERNION_MIN_RANGE,
             Compress::QUATERNION_MAX_RANGE,
         );
@@ -139,9 +139,9 @@ impl SyncData {
         }
 
         // 缩放到 u16 范围
-        let a_scaled = Self::scale_float_to_ushort(without_largest.x, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
-        let b_scaled = Self::scale_float_to_ushort(without_largest.y, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
-        let c_scaled = Self::scale_float_to_ushort(without_largest.z, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX);
+        let a_scaled = Self::scale_float_to_ushort(without_largest.x, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
+        let b_scaled = Self::scale_float_to_ushort(without_largest.y, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
+        let c_scaled = Self::scale_float_to_ushort(without_largest.z, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
 
         // 重建 u32 值
         (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | c_scaled as u32
