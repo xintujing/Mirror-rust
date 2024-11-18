@@ -4,7 +4,6 @@ use crate::core::network_connection::NetworkConnectionTrait;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use crate::core::tools::stable_hash::StableHash;
 use crate::core::transport::TransportChannel;
 use std::any::Any;
 
@@ -139,6 +138,7 @@ impl NetworkMessageTrait for AuthResponseMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::tools::stable_hash::StableHash;
 
     #[test]
     fn test_auth_response_message() {

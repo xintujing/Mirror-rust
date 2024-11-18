@@ -1,8 +1,8 @@
 use crate::core::messages::NetworkMessageTrait;
 use crate::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use crate::core::tools::compress::{Compress, CompressTrait};
-use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
+use crate::core::tools::compress::CompressTrait;
+use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use std::fmt::Debug;
 use std::ops::BitOrAssign;
 
@@ -21,7 +21,6 @@ pub struct SyncData {
 }
 
 impl SyncData {
-    #[allow(dead_code)]
     pub fn new(changed: u8, position: Vector3<f32>, quat_rotation: Quaternion<f32>, scale: Vector3<f32>) -> Self {
         let rotation = UnitQuaternion::from_quaternion(quat_rotation);
         Self {
@@ -32,143 +31,10 @@ impl SyncData {
             scale,
         }
     }
-
-    /// 安全地规范化四元数，即使输入包含无效值（如 NaN）
-    fn quaternion_normalize_safe(v4: Vector4<f32>) -> Quaternion<f32> {
-        const FLT_MIN_NORMAL: f64 = 1.175494351e-38f64;
-        let len = v4.dot(&v4);
-        if len > FLT_MIN_NORMAL as f32 {
-            v4.normalize().into()
-        } else {
-            Quaternion::identity()
-        }
-    }
-
-    /// 将 `u16` 值缩放到指定的浮点范围
-    fn scale_ushort_to_float(
-        value: u16,
-        min_value: u32,
-        max_value: u32,
-        min_target: f32,
-        max_target: f32,
-    ) -> f32 {
-        let target_range: f32 = max_target - min_target;
-        let value_range = (max_value - min_value) as f32;
-        let value_relative = (value as u32 - min_value) as f32;
-        min_target + value_relative / value_range * target_range
-    }
-
-    fn scale_float_to_ushort(
-        value: f32,
-        min_value: f32,
-        max_value: f32,
-        min_target: u16,
-        max_target: u16,
-    ) -> u16 {
-        let target_range = (max_target - min_target) as f32;
-        let value_range = max_value - min_value;
-        let value_relative = value - min_value;
-        min_target + (value_relative / value_range * target_range) as u16
-    }
-
-    /// 解压缩四元数
-    pub fn decompress_quaternion(data: u32) -> Quaternion<f32> {
-        // 获取 cScaled（位 0..10）
-        let c_scaled = (data & Compress::TEN_BITS_MAX) as u16;
-
-        // 获取 bScaled（位 10..20）
-        let b_scaled = ((data >> 10) & Compress::TEN_BITS_MAX) as u16;
-
-        // 获取 aScaled（位 20..30）
-        let a_scaled = ((data >> 20) & Compress::TEN_BITS_MAX) as u16;
-
-        // 获取 largestIndex（位 30..32）
-        let largest_index = (data >> 30) as usize;
-
-        // 缩放回浮点数
-        let a = SyncData::scale_ushort_to_float(
-            a_scaled,
-            0,
-            Compress::TEN_BITS_MAX,
-            Compress::QUATERNION_MIN_RANGE,
-            Compress::QUATERNION_MAX_RANGE,
-        );
-        let b = SyncData::scale_ushort_to_float(
-            b_scaled,
-            0,
-            Compress::TEN_BITS_MAX,
-            Compress::QUATERNION_MIN_RANGE,
-            Compress::QUATERNION_MAX_RANGE,
-        );
-        let c = SyncData::scale_ushort_to_float(
-            c_scaled,
-            0,
-            Compress::TEN_BITS_MAX,
-            Compress::QUATERNION_MIN_RANGE,
-            Compress::QUATERNION_MAX_RANGE,
-        );
-
-        // 计算省略的分量 d，基于 a² + b² + c² + d² = 1
-        let d = (1.0 - a * a - b * b - c * c).sqrt();
-
-        // 根据 largestIndex 重建四元数
-        let v4 = match largest_index {
-            0 => Vector4::new(d, a, b, c),
-            1 => Vector4::new(a, d, b, c),
-            2 => Vector4::new(a, b, d, c),
-            _ => Vector4::new(a, b, c, d),
-        };
-
-        SyncData::quaternion_normalize_safe(v4)
-    }
-
-    /// 压缩四元数
-    pub fn compress_quaternion(q: Quaternion<f32>) -> u32 {
-        let v4 = Vector4::new(q.i, q.j, q.k, q.w);
-        let (largest_index, _, mut without_largest) = Self::largest_absolute_component_index(v4);
-
-
-        if q[largest_index] < 0f32 {
-            without_largest = -without_largest;
-        }
-
-        // 缩放到 u16 范围
-        let a_scaled = Self::scale_float_to_ushort(without_largest.x, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
-        let b_scaled = Self::scale_float_to_ushort(without_largest.y, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
-        let c_scaled = Self::scale_float_to_ushort(without_largest.z, Compress::QUATERNION_MIN_RANGE, Compress::QUATERNION_MAX_RANGE, 0, Compress::TEN_BITS_MAX as u16);
-
-        // 重建 u32 值
-        (largest_index as u32) << 30 | (a_scaled as u32) << 20 | (b_scaled as u32) << 10 | c_scaled as u32
-    }
-
-    fn largest_absolute_component_index(value: Vector4<f32>) -> (usize, f32, Vector3<f32>) {
-        let abs = Vector4::new(value.x.abs(), value.y.abs(), value.z.abs(), value.w.abs());
-        let mut largest_abs = abs.x;
-        let mut without_largest = Vector3::new(value.y, value.z, value.w);
-        let mut largest_index = 0;
-
-        if abs.y > largest_abs {
-            largest_index = 1;
-            largest_abs = abs.y;
-            without_largest = Vector3::new(value.x, value.z, value.w);
-        }
-        if abs.z > largest_abs {
-            largest_index = 2;
-            largest_abs = abs.z;
-            without_largest = Vector3::new(value.x, value.y, value.w);
-        }
-        if abs.w > largest_abs {
-            largest_index = 3;
-            largest_abs = abs.w;
-            without_largest = Vector3::new(value.x, value.y, value.z);
-        }
-        (largest_index, largest_abs, without_largest)
-    }
 }
 
 impl NetworkMessageTrait for SyncData {
     const FULL_NAME: &'static str = "";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         // 改变的数据
         let changed = reader.read_byte();
@@ -192,7 +58,7 @@ impl NetworkMessageTrait for SyncData {
 
         if (changed & Changed::CompressRot.to_u8()) > 0 {
             if (changed & Changed::RotX.to_u8()) > 0 {
-                quaternion = SyncData::decompress_quaternion(reader.read_uint());
+                quaternion = Quaternion::decompress(reader.read_uint());
             }
         } else {
             if changed & Changed::RotX.to_u8() > 0 {
@@ -248,7 +114,7 @@ impl NetworkMessageTrait for SyncData {
         // rotation
         if (self.changed_data_byte & Changed::CompressRot.to_u8()) > 0 {
             if (self.changed_data_byte & Changed::Rot.to_u8()) > 0 {
-                write.write_uint(SyncData::compress_quaternion(self.quat_rotation));
+                write.write_uint(self.quat_rotation.compress());
             }
         } else {
             if (self.changed_data_byte & Changed::RotX.to_u8()) > 0 {
@@ -342,11 +208,11 @@ mod tests {
     #[test]
     fn test_sync_data() {
         // -0.00069123507 0.93129396 -0.00069123507 -0.36426723
-        let quat = Quaternion::new(-0.36426723, -0.00069123507, 0.93129396, -0.00069123507);
+        let quat = Quaternion::<f32>::new(-0.36426723, -0.00069123507, 0.93129396, -0.00069123507);
         println!("decompress_quaternion1: {:?}", quat);
-        let compress_quaternion = SyncData::compress_quaternion(quat);
+        let compress_quaternion = quat.compress();
         println!("compress_quaternion: {}", compress_quaternion);
-        let decompress_quaternion = SyncData::decompress_quaternion(compress_quaternion);
+        let decompress_quaternion = Quaternion::decompress(compress_quaternion);
         println!("decompress_quaternion2: {:?}", decompress_quaternion);
 
         let compress_quaternion = decompress_quaternion.compress();

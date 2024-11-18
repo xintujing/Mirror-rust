@@ -1,6 +1,5 @@
 use crate::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::core::network_writer_pool::NetworkWriterPool;
-use crate::core::tools::compress;
 use crate::core::tools::compress::Compress;
 use std::collections::VecDeque;
 use tklog::warn;
