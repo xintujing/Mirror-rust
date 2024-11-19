@@ -145,9 +145,9 @@ impl SnapshotInterpolation {
         while buffer.len() > 1 && i < buffer.len() - 2 {
             let first = buffer.iter().nth(i).unwrap();
             let second = buffer.iter().nth(i + 1).unwrap();
-            debug!(format!("1 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
+            // debug!(format!("1 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
             if local_timeline >= first.1.remote_time() && local_timeline <= second.1.remote_time() {
-                debug!(format!("2 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
+                // debug!(format!("2 {} {} {} {}",buffer.len(), first.1.remote_time(), local_timeline, second.1.remote_time()));
                 let from = first.0;
                 let to = second.0;
                 let t = (local_timeline - first.1.remote_time()) / (second.1.remote_time() - first.1.remote_time());

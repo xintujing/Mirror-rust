@@ -306,10 +306,10 @@ impl NetworkServer {
     }
 
     pub fn shutdown() {
-        if NetworkServerStatic::get_static_initialized(){
+        if NetworkServerStatic::get_static_initialized() {
             Self::disconnect_all();
 
-            if let Some(transport) = Transport::get_active_transport(){
+            if let Some(transport) = Transport::get_active_transport() {
                 transport.shutdown();
             }
 

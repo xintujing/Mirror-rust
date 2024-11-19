@@ -59,7 +59,6 @@ impl PlayerScript {
 
     fn user_code_cmd_shoot_ray(&mut self) {
         NetworkWriterPool::get_return(|writer| {
-            self.serialize(writer, false);
             self.send_rpc_internal("System.Void QuickStart.PlayerScript::RpcFireWeapon()", 546187665, writer, TransportChannel::Reliable, true);
         });
     }
