@@ -1,5 +1,5 @@
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{Animator, GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -513,6 +513,12 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.is_dirty()
     }
 
+    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        NetworkBehaviourTrait::on_serialize(self, writer, initial_state);
+
+        if initial_state {}
+    }
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -524,6 +530,24 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Animator {}
+impl Animator {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn get_integer(&self, id: i32) -> i32 {
+        id
+    }
+    pub fn get_float(&self, id: i32) -> f32 {
+        id as f32
+    }
+
+    pub fn get_bool(&self, id: i32) -> bool {
+        id > 0
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum AnimatorControllerParameterType {

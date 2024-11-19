@@ -1,5 +1,5 @@
 use crate::mirror::core::backend_data::BackendDataStatic;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode, Transform};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
@@ -14,6 +14,7 @@ use lazy_static::lazy_static;
 use std::default::Default;
 use std::sync::atomic::Ordering;
 use tklog::error;
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 lazy_static! {
     static ref NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);

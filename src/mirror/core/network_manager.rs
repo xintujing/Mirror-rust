@@ -2,7 +2,7 @@ use crate::mirror::authenticators::network_authenticator::{NetworkAuthenticatorT
 use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory, Transform};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::NetworkReader;
@@ -14,6 +14,7 @@ use nalgebra::Vector3;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use tklog::{error, info, warn};
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 

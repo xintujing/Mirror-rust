@@ -18,6 +18,7 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
 use tklog::{error, warn};
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
 
@@ -44,64 +45,6 @@ impl NetworkBehaviourFactory {
         Self::add_network_behaviour_factory(NetworkTransformReliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformReliable::new(game_object, component))));
         // QuickStart.PlayerScript
         Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Transform {
-    pub position: Vector3<f32>,
-    pub rotation: Quaternion<f32>,
-    pub scale: Vector3<f32>,
-
-    pub local_position: Vector3<f32>,
-    pub local_rotation: Quaternion<f32>,
-    pub local_scale: Vector3<f32>,
-}
-
-// GameObject 的 Transform 组件
-impl Transform {
-    pub fn new(position: Vector3<f32>,
-               rotation: Quaternion<f32>,
-               scale: Vector3<f32>,
-               local_position: Vector3<f32>,
-               local_rotation: Quaternion<f32>,
-               local_scale: Vector3<f32>) -> Self {
-        Self {
-            position,
-            rotation,
-            scale,
-            local_position,
-            local_rotation,
-            local_scale,
-        }
-    }
-
-    pub fn default() -> Self {
-        Self::new(Vector3::new(0.0, 0.5, 0.0),
-                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
-                  Vector3::new(1.0, 1.0, 1.0),
-                  Vector3::new(0.0, 0.5, 0.0),
-                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
-                  Vector3::new(1.0, 1.0, 1.0))
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Animator {}
-impl Animator {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn get_integer(&self, id: i32) -> i32 {
-        id
-    }
-    pub fn get_float(&self, id: i32) -> f32 {
-        id as f32
-    }
-
-    pub fn get_bool(&self, id: i32) -> bool {
-        id > 0
     }
 }
 

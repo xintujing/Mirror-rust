@@ -207,3 +207,42 @@ pub trait NetworkTransformBaseTrait {
         }
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Transform {
+    pub position: Vector3<f32>,
+    pub rotation: Quaternion<f32>,
+    pub scale: Vector3<f32>,
+
+    pub local_position: Vector3<f32>,
+    pub local_rotation: Quaternion<f32>,
+    pub local_scale: Vector3<f32>,
+}
+
+// GameObject 的 Transform 组件
+impl Transform {
+    pub fn new(position: Vector3<f32>,
+               rotation: Quaternion<f32>,
+               scale: Vector3<f32>,
+               local_position: Vector3<f32>,
+               local_rotation: Quaternion<f32>,
+               local_scale: Vector3<f32>) -> Self {
+        Self {
+            position,
+            rotation,
+            scale,
+            local_position,
+            local_rotation,
+            local_scale,
+        }
+    }
+
+    pub fn default() -> Self {
+        Self::new(Vector3::new(0.0, 0.5, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0),
+                  Vector3::new(0.0, 0.5, 0.0),
+                  Quaternion::new(1.0, 0.0, 0.0, 0.0),
+                  Vector3::new(1.0, 1.0, 1.0))
+    }
+}
