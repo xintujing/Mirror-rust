@@ -169,11 +169,11 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.is_dirty()
     }
 
-    fn fixed_update(&mut self) {}
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn fixed_update(&mut self) {}
 }
 
 

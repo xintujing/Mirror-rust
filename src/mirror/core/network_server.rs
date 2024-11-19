@@ -525,7 +525,7 @@ impl NetworkServer {
             TransportCallbackType::OnServerTransportException => {
                 Self::on_transport_exception(tbc.connection_id, tbc.error)
             }
-            _ => {}
+            TransportCallbackType::OnServerDataSent => {}
         }
     }
 

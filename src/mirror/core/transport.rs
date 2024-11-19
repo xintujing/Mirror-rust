@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 
 static mut ACTIVE_TRANSPORT: Option<Box<dyn TransportTrait>> = None;
 
@@ -76,7 +76,7 @@ impl Default for TransportCallback {
 pub type TransportFunc = Box<dyn Fn(TransportCallback)>;
 #[derive(Clone, Default)]
 pub struct Transport {
-    pub transport_cb_fn: Arc<Mutex<Option<TransportFunc>>>,
+    pub transport_cb_fn: Arc<RwLock<Option<TransportFunc>>>,
 }
 impl Transport {
     pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
