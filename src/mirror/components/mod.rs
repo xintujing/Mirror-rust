@@ -1,8 +1,8 @@
 pub mod network_common_behaviour;
 pub mod network_animator;
-pub mod network_rigidbody_unreliable;
 pub mod room;
 pub mod network_transform;
+pub mod network_rigidbody;
 
 #[derive(Debug, Clone)]
 pub struct SyncVar {

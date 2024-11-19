@@ -7,35 +7,40 @@ use std::sync::Once;
 #[derive(Debug)]
 pub struct NetworkRigidbodyUnreliable {
     network_behaviour: NetworkBehaviour,
+    pub was_kinematic: bool,
 }
 
 impl NetworkRigidbodyUnreliable {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRigidbodyUnreliable";
-    pub fn new(game_object: GameObject,network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(game_object: GameObject, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
         NetworkRigidbodyUnreliable {
-            network_behaviour: NetworkBehaviour::new(game_object,network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_setting, component_index),
+            was_kinematic: false,
         }
+    }
+    fn client_authority(&self) -> bool {
+        self.network_behaviour.sync_direction == SyncDirection::ClientToServer
     }
 }
 
 impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
         todo!()
     }
 
     fn register_delegate()
     where
-        Self: Sized
+        Self: Sized,
     {
         todo!()
     }
 
     fn get_once() -> &'static Once
     where
-        Self: Sized
+        Self: Sized,
     {
         static ONCE: Once = Once::new();
         &ONCE
@@ -46,7 +51,7 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_behaviour.sync_interval= value
+        self.network_behaviour.sync_interval = value
     }
 
     fn last_sync_time(&self) -> f64 {

@@ -1,32 +1,61 @@
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{Animator, GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Once;
 
 #[derive(Debug)]
 pub struct NetworkAnimator {
     network_behaviour: NetworkBehaviour,
+    client_authority: bool,
+    animator: Animator,
+    animator_speed: f32,
+    previous_speed: f32,
+    last_int_parameters: Vec<(i32)>,
+    last_float_parameters: Vec<(f32)>,
+    last_bool_parameters: Vec<(bool)>,
+    parameters: Vec<(AnimatorControllerParameter)>,
+    animation_hash: Vec<i32>,
+    transition_hash: Vec<i32>,
+    layer_weight: Vec<f32>,
+    next_send_time: f64,
 }
 
 impl NetworkBehaviourTrait for NetworkAnimator {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
-        Self: Sized
+        Self: Sized,
     {
-        todo!()
+        Self::call_register_delegate();
+        // TODO  Initialize
+        Self {
+            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
+            client_authority: false,
+            animator: Animator::new(),
+            animator_speed: 1.0,
+            previous_speed: 1.0,
+            last_int_parameters: Vec::default(),
+            last_float_parameters: Vec::default(),
+            last_bool_parameters: Vec::default(),
+            parameters: Vec::default(),
+            animation_hash: Vec::default(),
+            transition_hash: Vec::default(),
+            layer_weight: Vec::default(),
+            next_send_time: 0.0,
+        }
     }
 
     fn register_delegate()
     where
-        Self: Sized
+        Self: Sized,
     {
         todo!()
     }
 
     fn get_once() -> &'static Once
     where
-        Self: Sized
+        Self: Sized,
     {
         static ONCE: Once = Once::new();
         &ONCE
@@ -37,7 +66,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     }
 
     fn set_sync_interval(&mut self, value: f64) {
-        self.network_behaviour.sync_interval= value
+        self.network_behaviour.sync_interval = value
     }
 
     fn last_sync_time(&self) -> f64 {
@@ -140,6 +169,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.is_dirty()
     }
 
+    fn fixed_update(&mut self) {}
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
@@ -149,4 +179,80 @@ impl NetworkBehaviourTrait for NetworkAnimator {
 
 impl NetworkAnimator {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";
+
+    fn send_messages_allowed(&self) -> bool {
+        if !self.client_authority {
+            return true;
+        }
+        if self.network_behaviour.index != 0 && self.network_behaviour.connection_to_client != 0 {
+            return true;
+        }
+        self.client_authority
+    }
+    fn reset(&mut self) {
+        self.network_behaviour.sync_direction = SyncDirection::ClientToServer;
+    }
+}
+
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum AnimatorControllerParameterType {
+    Float = 1,
+    Int = 3,
+    Bool = 4,
+    Trigger = 9,
+}
+#[derive(Debug)]
+pub struct AnimatorControllerParameter {
+    m_name: String,
+    m_type: AnimatorControllerParameterType,
+    m_default_float: f32,
+    m_default_int: i32,
+    m_default_bool: bool,
+}
+
+impl AnimatorControllerParameter {
+    pub fn name(&self) -> &str {
+        &self.m_name
+    }
+    pub fn set_name(&mut self, value: String) {
+        self.m_name = value
+    }
+    pub fn r#type(&self) -> &AnimatorControllerParameterType {
+        &self.m_type
+    }
+    pub fn set_type(&mut self, value: AnimatorControllerParameterType) {
+        self.m_type = value
+    }
+    pub fn default_float(&self) -> f32 {
+        self.m_default_float
+    }
+    pub fn set_default_float(&mut self, value: f32) {
+        self.m_default_float = value
+    }
+    pub fn default_int(&self) -> i32 {
+        self.m_default_int
+    }
+    pub fn set_default_int(&mut self, value: i32) {
+        self.m_default_int = value
+    }
+    pub fn default_bool(&self) -> bool {
+        self.m_default_bool
+    }
+    pub fn set_default_bool(&mut self, value: bool) {
+        self.m_default_bool = value
+    }
+
+    pub fn equals(&self, o: &dyn Any) -> bool {
+        if let Some(controller_parameter) = o.downcast_ref::<AnimatorControllerParameter>() {
+            return self.m_name == controller_parameter.m_name && self.m_type == controller_parameter.m_type && self.m_default_float == controller_parameter.m_default_float && self.m_default_int == controller_parameter.m_default_int && self.m_default_bool == controller_parameter.m_default_bool;
+        }
+        false
+    }
+
+    pub fn hash_code(&self) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        self.name().hash(&mut hasher);
+        hasher.finish()
+    }
 }

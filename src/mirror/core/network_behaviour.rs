@@ -86,6 +86,14 @@ impl Transform {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub struct Animator {}
+impl Animator {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 // GameObject
 #[derive(Debug, Clone)]
 pub struct GameObject {
@@ -119,7 +127,7 @@ impl GameObject {
         }
         true
     }
-    pub fn get_component(&mut self) -> Option<NetworkIdentity> {
+    pub fn get_identity(&mut self) -> Option<NetworkIdentity> {
         if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
             let mut identity = NetworkIdentity::new(asset_id);
             identity.set_game_object(self.clone());
@@ -450,6 +458,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
+    fn fixed_update(&mut self){}
     fn update(&mut self) {}
     fn late_update(&mut self) {}
     // SerializeSyncVars

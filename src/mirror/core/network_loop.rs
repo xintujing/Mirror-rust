@@ -38,7 +38,14 @@ impl NetworkLoop {
     }
 
     // 4
-    fn fxied_update() {}
+    fn fixed_update() {
+        // NetworkBehaviour fixed_update  模拟
+        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
+            identity.network_behaviours.iter_mut().for_each(|behaviour| {
+                behaviour.fixed_update();
+            });
+        });
+    }
 
     // 5
     fn update() {
@@ -89,7 +96,7 @@ impl NetworkLoop {
         // 上一帧时间
         let mut previous_frame_time = Instant::now();
         loop {
-            Self::fxied_update();
+            Self::fixed_update();
             Self::update();
             Self::late_update();
             // 计算帧时间

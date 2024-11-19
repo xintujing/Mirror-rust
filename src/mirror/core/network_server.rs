@@ -790,7 +790,7 @@ impl NetworkServer {
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
-        if let Some(mut identity) = player.get_component() {
+        if let Some(mut identity) = player.get_identity() {
             if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
                 if connection.net_id() != 0 {
                     warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
