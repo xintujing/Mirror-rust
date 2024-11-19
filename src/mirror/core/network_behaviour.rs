@@ -92,6 +92,17 @@ impl Animator {
     pub fn new() -> Self {
         Self {}
     }
+
+    pub fn get_integer(&self, id: i32) -> i32 {
+        id
+    }
+    pub fn get_float(&self, id: i32) -> f32 {
+        id as f32
+    }
+
+    pub fn get_bool(&self, id: i32) -> bool {
+        id > 0
+    }
 }
 
 // GameObject

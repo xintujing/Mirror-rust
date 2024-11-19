@@ -4,6 +4,9 @@ use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Once;
+use crate::mirror::core::network_time::NetworkTime;
+use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 
 #[derive(Debug)]
 pub struct NetworkAnimator {
@@ -173,9 +176,15 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self
     }
 
-    fn fixed_update(&mut self) {}
-}
+    fn fixed_update(&mut self) {
+        if !self.send_messages_allowed() {
+            return;
+        }
+        // TODO if (!animator.enabled)
+        //                 return;
 
+    }
+}
 
 impl NetworkAnimator {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";
@@ -189,6 +198,99 @@ impl NetworkAnimator {
         }
         self.client_authority
     }
+
+    fn check_send_rate(&mut self) {
+        let now = NetworkTime::local_time();
+
+        if self.send_messages_allowed() && self.network_behaviour.sync_interval >= 0.0 && now >= self.next_send_time {
+            self.next_send_time = now + self.network_behaviour.sync_interval;
+        }
+
+        NetworkWriterPool::get_return(|writer| {
+            if self.write_parameters(writer, false) {
+                // send_animation_parameters_message
+            }
+        })
+    }
+
+    fn write_parameters(&mut self, writer: &mut NetworkWriter, force_all: bool) -> bool {
+        let parameter_count = self.parameters.len() as u8;
+        writer.write_byte(parameter_count);
+
+        let mut dirty_bits = 0;
+        if force_all {
+            dirty_bits = u64::MAX;
+        } else {
+            dirty_bits = self.next_dirty_bits();
+        }
+        writer.write_ulong(dirty_bits);
+
+        for i in 0..parameter_count as usize {
+            if dirty_bits & (1 << i) == 0 {
+                continue;
+            }
+
+            let par = &self.parameters[i];
+
+            if par.r#type() == &AnimatorControllerParameterType::Int {
+                writer.write_int(self.last_int_parameters[i]);
+            } else if par.r#type() == &AnimatorControllerParameterType::Float {
+                writer.write_float(self.last_float_parameters[i]);
+            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
+                writer.write_bool(self.last_bool_parameters[i]);
+            }
+        }
+
+        dirty_bits != 0
+    }
+
+    fn next_dirty_bits(&mut self) -> u64 {
+        let mut dirty_bits = 0;
+        for i in 0..self.parameters.len() {
+            let par = &self.parameters[i];
+            let mut changed = false;
+            if par.r#type() == &AnimatorControllerParameterType::Int {
+                let new_int_value = self.animator.get_integer(par.name_hash());
+                changed |= self.last_int_parameters[i] != new_int_value;
+                if changed {
+                    self.last_int_parameters[i] = new_int_value;
+                }
+            } else if par.r#type() == &AnimatorControllerParameterType::Float {
+                let new_float_value = self.animator.get_float(par.name_hash());
+                changed |= (new_float_value - self.last_float_parameters[i]).abs() > 0.001;
+                if changed {
+                    self.last_float_parameters[i] = new_float_value;
+                }
+            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
+                let new_bool_value = self.animator.get_bool(par.name_hash());
+                changed |= self.last_bool_parameters[i] != new_bool_value;
+                if changed {
+                    self.last_bool_parameters[i] = new_bool_value;
+                }
+            }
+            if changed {
+                dirty_bits |= 1 << i;
+            }
+        }
+        dirty_bits
+    }
+
+    fn send_animation_parameters_message(&mut self, parameters: Vec<u8>) {
+        self.rpc_on_animation_parameters_client_message(parameters);
+    }
+
+    fn rpc_on_animation_parameters_client_message(&mut self, parameters: Vec<u8>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_bytes_all(parameters);
+            // TODO send
+        })
+    }
+
+    // void send_animation_message(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
+    fn send_animation_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
+        // RpcOnAnimationClientMessage
+    }
+
     fn reset(&mut self) {
         self.network_behaviour.sync_direction = SyncDirection::ClientToServer;
     }
@@ -217,6 +319,12 @@ impl AnimatorControllerParameter {
     }
     pub fn set_name(&mut self, value: String) {
         self.m_name = value
+    }
+    pub fn name_hash(&self) -> i32 {
+        // TODO Animator.StringToHash(this.m_Name);
+        let mut hasher = DefaultHasher::new();
+        self.m_name.hash(&mut hasher);
+        hasher.finish() as i32
     }
     pub fn r#type(&self) -> &AnimatorControllerParameterType {
         &self.m_type
