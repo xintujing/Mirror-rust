@@ -4,9 +4,16 @@ use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Once;
+use tklog::error;
+use crate::mirror::core::network_identity::NetworkIdentity;
+use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use crate::mirror::core::network_reader_pool::NetworkReaderPool;
+use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
+use crate::mirror::core::remote_calls::{RemoteCallDelegate, RemoteProcedureCalls};
+use crate::mirror::core::transport::TransportChannel;
 
 #[derive(Debug)]
 pub struct NetworkAnimator {
@@ -25,6 +32,243 @@ pub struct NetworkAnimator {
     next_send_time: f64,
 }
 
+impl NetworkAnimator {
+    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";
+
+    fn send_messages_allowed(&self) -> bool {
+        if !self.client_authority {
+            return true;
+        }
+        if self.network_behaviour.index != 0 && self.network_behaviour.connection_to_client != 0 {
+            return true;
+        }
+        self.client_authority
+    }
+
+    //  no use start
+    fn check_send_rate(&mut self) {
+        let now = NetworkTime::local_time();
+
+        if self.send_messages_allowed() && self.network_behaviour.sync_interval >= 0.0 && now >= self.next_send_time {
+            self.next_send_time = now + self.network_behaviour.sync_interval;
+        }
+
+        NetworkWriterPool::get_return(|writer| {
+            if self.write_parameters(writer, false) {
+                // send_animation_parameters_message
+            }
+        })
+    }
+
+    fn write_parameters(&mut self, writer: &mut NetworkWriter, force_all: bool) -> bool {
+        let parameter_count = self.parameters.len() as u8;
+        writer.write_byte(parameter_count);
+
+        let mut dirty_bits = 0;
+        if force_all {
+            dirty_bits = u64::MAX;
+        } else {
+            dirty_bits = self.next_dirty_bits();
+        }
+        writer.write_ulong(dirty_bits);
+
+        for i in 0..parameter_count as usize {
+            if dirty_bits & (1 << i) == 0 {
+                continue;
+            }
+
+            let par = &self.parameters[i];
+
+            if par.r#type() == &AnimatorControllerParameterType::Int {
+                writer.write_int(self.last_int_parameters[i]);
+            } else if par.r#type() == &AnimatorControllerParameterType::Float {
+                writer.write_float(self.last_float_parameters[i]);
+            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
+                writer.write_bool(self.last_bool_parameters[i]);
+            }
+        }
+
+        dirty_bits != 0
+    }
+
+    fn next_dirty_bits(&mut self) -> u64 {
+        let mut dirty_bits = 0;
+        for i in 0..self.parameters.len() {
+            let par = &self.parameters[i];
+            let mut changed = false;
+            if par.r#type() == &AnimatorControllerParameterType::Int {
+                let new_int_value = self.animator.get_integer(par.name_hash());
+                changed |= self.last_int_parameters[i] != new_int_value;
+                if changed {
+                    self.last_int_parameters[i] = new_int_value;
+                }
+            } else if par.r#type() == &AnimatorControllerParameterType::Float {
+                let new_float_value = self.animator.get_float(par.name_hash());
+                changed |= (new_float_value - self.last_float_parameters[i]).abs() > 0.001;
+                if changed {
+                    self.last_float_parameters[i] = new_float_value;
+                }
+            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
+                let new_bool_value = self.animator.get_bool(par.name_hash());
+                changed |= self.last_bool_parameters[i] != new_bool_value;
+                if changed {
+                    self.last_bool_parameters[i] = new_bool_value;
+                }
+            }
+            if changed {
+                dirty_bits |= 1 << i;
+            }
+        }
+        dirty_bits
+    }
+
+    fn send_animation_parameters_message(&mut self, parameters: Vec<u8>) {
+        self.cmd_on_animation_parameters_server_message(parameters);
+    }
+
+    fn cmd_on_animation_parameters_server_message(&mut self, parameters: Vec<u8>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_bytes_all(parameters);
+        })
+    }
+
+    fn send_animation_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {}
+
+    // no use end
+
+    // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
+    fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(reader.read_int(), reader.read_float(), reader.read_int(), reader.read_float(), reader.read_remaining_bytes());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // 1 UserCode_CmdOnAnimationServerMessage__Int32__Single__Int32__Single__Byte\u005B\u005D
+    fn user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
+        if !self.client_authority {
+            return;
+        }
+
+        NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
+            self.handle_anim_msg(state_hash, normalized_time, layer_id, weight, reader);
+            self.rpc_on_animation_client_message(state_hash, normalized_time, layer_id, weight, parameters);
+        });
+    }
+    // 1 HandleAnimMsg
+    fn handle_anim_msg(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, reader: &mut NetworkReader) {
+        if self.client_authority {
+            return;
+        }
+        // TODO
+    }
+
+    // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
+    fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_on_animation_parameters_server_message_byte(reader.read_bytes_and_size());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // 2 UserCode_CmdOnAnimationParametersServerMessage__Byte\u005B\u005D
+    fn user_code_cmd_on_animation_parameters_server_message_byte(&mut self, parameters: Vec<u8>) {
+        if !self.client_authority {
+            return;
+        }
+
+        NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
+            self.handle_anim_params_msg(reader);
+            self.rpc_on_animation_parameters_client_message(parameters);
+        });
+    }
+
+    // 2 HandleAnimParamsMsg
+    fn handle_anim_params_msg(&mut self, reader: &mut NetworkReader) {
+        if self.client_authority {
+            return;
+        }
+        // TODO
+    }
+
+    // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
+    fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_on_animation_trigger_server_message_int32(reader.read_int());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // 3 UserCode_CmdOnAnimationTriggerServerMessage__Int32
+    fn user_code_cmd_on_animation_trigger_server_message_int32(&mut self, state_hash: i32) {
+        if !self.client_authority {
+            return;
+        }
+
+        self.handle_anim_trigger_msg(state_hash);
+        self.rpc_on_animation_trigger_client_message(state_hash);
+    }
+
+    // 3 HandleAnimTriggerMsg
+    fn handle_anim_trigger_msg(&mut self, state_hash: i32) {
+        if self.client_authority {
+            return;
+        }
+        // TODO
+    }
+
+
+    // 1 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
+    fn rpc_on_animation_client_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_int(state_hash);
+            writer.write_float(normalized_time);
+            writer.write_int(layer_id);
+            writer.write_float(weight);
+            writer.write_bytes_all(parameters);
+            self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationClientMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", -392669502, writer, TransportChannel::Reliable, true);
+        });
+    }
+
+    // 2 RpcOnAnimationParametersClientMessage(byte[] parameters)
+    fn rpc_on_animation_parameters_client_message(&mut self, parameters: Vec<u8>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_bytes_all(parameters);
+            self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationParametersClientMessage(System.Byte[])", -2095336766, writer, TransportChannel::Reliable, true);
+        });
+    }
+
+    // 3 RpcOnAnimationTriggerClientMessage(int stateHash)
+    fn rpc_on_animation_trigger_client_message(&mut self, state_hash: i32) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_int(state_hash);
+            self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationTriggerClientMessage(System.Int32)", 1759094990, writer, TransportChannel::Reliable, true);
+        });
+    }
+
+    fn reset(&mut self) {
+        self.network_behaviour.sync_direction = SyncDirection::ClientToServer;
+    }
+}
+
 impl NetworkBehaviourTrait for NetworkAnimator {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
@@ -34,7 +278,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         // TODO  Initialize
         Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
-            client_authority: false,
+            client_authority: true,
             animator: Animator::new(),
             animator_speed: 1.0,
             previous_speed: 1.0,
@@ -53,7 +297,26 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     where
         Self: Sized,
     {
-        todo!()
+        // 1 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", new RemoteCallDelegate(NetworkAnimator.invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte\u005B\u005D), true);
+        RemoteProcedureCalls::register_command_delegate(
+            "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])",
+            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte", Box::new(Self::invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte)),
+            true,
+        );
+
+        // 2 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationParametersServerMessage(System.Byte[])", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationParametersServerMessage__Byte\u005B\u005D), true);
+        RemoteProcedureCalls::register_command_delegate(
+            "System.Void Mirror.NetworkAnimator::CmdOnAnimationParametersServerMessage(System.Byte[])",
+            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_parameters_server_message_byte", Box::new(Self::invoke_user_code_cmd_on_animation_parameters_server_message_byte)),
+            true,
+        );
+
+        // 3 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationTriggerServerMessage__Int32), true);
+        RemoteProcedureCalls::register_command_delegate(
+            "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)",
+            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_trigger_server_message_int32", Box::new(Self::invoke_user_code_cmd_on_animation_trigger_server_message_int32)),
+            true,
+        );
     }
 
     fn get_once() -> &'static Once
@@ -180,119 +443,6 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         if !self.send_messages_allowed() {
             return;
         }
-        // TODO if (!animator.enabled)
-        //                 return;
-
-    }
-}
-
-impl NetworkAnimator {
-    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";
-
-    fn send_messages_allowed(&self) -> bool {
-        if !self.client_authority {
-            return true;
-        }
-        if self.network_behaviour.index != 0 && self.network_behaviour.connection_to_client != 0 {
-            return true;
-        }
-        self.client_authority
-    }
-
-    fn check_send_rate(&mut self) {
-        let now = NetworkTime::local_time();
-
-        if self.send_messages_allowed() && self.network_behaviour.sync_interval >= 0.0 && now >= self.next_send_time {
-            self.next_send_time = now + self.network_behaviour.sync_interval;
-        }
-
-        NetworkWriterPool::get_return(|writer| {
-            if self.write_parameters(writer, false) {
-                // send_animation_parameters_message
-            }
-        })
-    }
-
-    fn write_parameters(&mut self, writer: &mut NetworkWriter, force_all: bool) -> bool {
-        let parameter_count = self.parameters.len() as u8;
-        writer.write_byte(parameter_count);
-
-        let mut dirty_bits = 0;
-        if force_all {
-            dirty_bits = u64::MAX;
-        } else {
-            dirty_bits = self.next_dirty_bits();
-        }
-        writer.write_ulong(dirty_bits);
-
-        for i in 0..parameter_count as usize {
-            if dirty_bits & (1 << i) == 0 {
-                continue;
-            }
-
-            let par = &self.parameters[i];
-
-            if par.r#type() == &AnimatorControllerParameterType::Int {
-                writer.write_int(self.last_int_parameters[i]);
-            } else if par.r#type() == &AnimatorControllerParameterType::Float {
-                writer.write_float(self.last_float_parameters[i]);
-            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
-                writer.write_bool(self.last_bool_parameters[i]);
-            }
-        }
-
-        dirty_bits != 0
-    }
-
-    fn next_dirty_bits(&mut self) -> u64 {
-        let mut dirty_bits = 0;
-        for i in 0..self.parameters.len() {
-            let par = &self.parameters[i];
-            let mut changed = false;
-            if par.r#type() == &AnimatorControllerParameterType::Int {
-                let new_int_value = self.animator.get_integer(par.name_hash());
-                changed |= self.last_int_parameters[i] != new_int_value;
-                if changed {
-                    self.last_int_parameters[i] = new_int_value;
-                }
-            } else if par.r#type() == &AnimatorControllerParameterType::Float {
-                let new_float_value = self.animator.get_float(par.name_hash());
-                changed |= (new_float_value - self.last_float_parameters[i]).abs() > 0.001;
-                if changed {
-                    self.last_float_parameters[i] = new_float_value;
-                }
-            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
-                let new_bool_value = self.animator.get_bool(par.name_hash());
-                changed |= self.last_bool_parameters[i] != new_bool_value;
-                if changed {
-                    self.last_bool_parameters[i] = new_bool_value;
-                }
-            }
-            if changed {
-                dirty_bits |= 1 << i;
-            }
-        }
-        dirty_bits
-    }
-
-    fn send_animation_parameters_message(&mut self, parameters: Vec<u8>) {
-        self.rpc_on_animation_parameters_client_message(parameters);
-    }
-
-    fn rpc_on_animation_parameters_client_message(&mut self, parameters: Vec<u8>) {
-        NetworkWriterPool::get_return(|writer| {
-            writer.write_bytes_all(parameters);
-            // TODO
-        })
-    }
-
-    // void send_animation_message(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
-    fn send_animation_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
-        // RpcOnAnimationClientMessage
-    }
-
-    fn reset(&mut self) {
-        self.network_behaviour.sync_direction = SyncDirection::ClientToServer;
     }
 }
 

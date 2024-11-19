@@ -40,11 +40,11 @@ impl NetworkLoop {
     // 4
     fn fixed_update() {
         // NetworkBehaviour fixed_update  模拟
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
-            identity.network_behaviours.iter_mut().for_each(|behaviour| {
-                behaviour.fixed_update();
-            });
-        });
+        // NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
+        //     identity.network_behaviours.iter_mut().for_each(|behaviour| {
+        //         behaviour.fixed_update();
+        //     });
+        // });
     }
 
     // 5
