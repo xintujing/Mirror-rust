@@ -514,9 +514,15 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     }
 
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        NetworkBehaviourTrait::on_serialize(self, writer, initial_state);
+        // 默认实现 start
+        self.serialize_sync_objects(writer, initial_state);
+        self.serialize_sync_vars(writer, initial_state);
+        // 默认实现 end
 
-        if initial_state {}
+        if initial_state {
+            let layer_count = self.animator.layer_count as u8;
+            writer.write_byte(layer_count);
+        }
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -531,10 +537,14 @@ impl NetworkBehaviourTrait for NetworkAnimator {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct Animator {}
+pub struct Animator {
+    pub layer_count: i32,
+}
 impl Animator {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            layer_count: 0
+        }
     }
 
     pub fn get_integer(&self, id: i32) -> i32 {
