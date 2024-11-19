@@ -235,6 +235,62 @@ impl NetworkAnimator {
         // TODO
     }
 
+    // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
+    fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_on_animation_reset_trigger_server_message_int32(reader.read_int());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // 4 UserCode_CmdOnAnimationResetTriggerServerMessage__Int32
+    fn user_code_cmd_on_animation_reset_trigger_server_message_int32(&mut self, state_hash: i32) {
+        if !self.client_authority {
+            return;
+        }
+
+        self.handle_anim_reset_trigger_msg(state_hash);
+        self.rpc_on_animation_trigger_client_message(state_hash);
+    }
+
+    // 4 HandleAnimResetTriggerMsg
+    fn handle_anim_reset_trigger_msg(&mut self, state_hash: i32) {
+        if self.client_authority {
+            return;
+        }
+        // TODO
+    }
+
+    // 5 invoke_user_code_cmd_set_animator_speed_single
+    fn invoke_user_code_cmd_set_animator_speed_single(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+        if !NetworkServerStatic::get_static_active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut().
+            downcast_mut::<Self>().
+            unwrap().
+            user_code_cmd_set_animator_speed_single(reader.read_float());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // 5 UserCode_CmdSetAnimatorSpeed__Single
+    fn user_code_cmd_set_animator_speed_single(&mut self, speed: f32) {
+        if !self.client_authority {
+            return;
+        }
+        // TODO this.animator.speed = newSpeed;
+        self.animator_speed = speed;
+        self.set_sync_object_dirty_bits(1 << 0);
+    }
+
 
     // 1 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn rpc_on_animation_client_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
@@ -261,6 +317,14 @@ impl NetworkAnimator {
         NetworkWriterPool::get_return(|writer| {
             writer.write_int(state_hash);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationTriggerClientMessage(System.Int32)", 1759094990, writer, TransportChannel::Reliable, true);
+        });
+    }
+
+    // 4 RpcOnAnimationResetTriggerClientMessage(int stateHash)
+    fn rpc_on_animation_reset_trigger_client_message(&mut self, state_hash: i32) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_int(state_hash);
+            self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationResetTriggerClientMessage(System.Int32)", 1545278305, writer, TransportChannel::Reliable, true);
         });
     }
 
@@ -315,6 +379,20 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         RemoteProcedureCalls::register_command_delegate(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)",
             RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_trigger_server_message_int32", Box::new(Self::invoke_user_code_cmd_on_animation_trigger_server_message_int32)),
+            true,
+        );
+
+        // 4 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationResetTriggerServerMessage(System.Int32)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationResetTriggerServerMessage__Int32), true);
+        RemoteProcedureCalls::register_command_delegate(
+            "System.Void Mirror.NetworkAnimator::CmdOnAnimationResetTriggerServerMessage(System.Int32)",
+            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32", Box::new(Self::invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32)),
+            true,
+        );
+
+        // 5 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdSetAnimatorSpeed(System.Single)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdSetAnimatorSpeed__Single), true);
+        RemoteProcedureCalls::register_command_delegate(
+            "System.Void Mirror.NetworkAnimator::CmdSetAnimatorSpeed(System.Single)",
+            RemoteCallDelegate::new("invoke_user_code_cmd_set_animator_speed_single", Box::new(Self::invoke_user_code_cmd_set_animator_speed_single)),
             true,
         );
     }
