@@ -15,10 +15,10 @@ pub struct NetworkAnimator {
     animator: Animator,
     animator_speed: f32,
     previous_speed: f32,
-    last_int_parameters: Vec<(i32)>,
-    last_float_parameters: Vec<(f32)>,
-    last_bool_parameters: Vec<(bool)>,
-    parameters: Vec<(AnimatorControllerParameter)>,
+    last_int_parameters: Vec<i32>,
+    last_float_parameters: Vec<f32>,
+    last_bool_parameters: Vec<bool>,
+    parameters: Vec<AnimatorControllerParameter>,
     animation_hash: Vec<i32>,
     transition_hash: Vec<i32>,
     layer_weight: Vec<f32>,
@@ -282,7 +282,7 @@ impl NetworkAnimator {
     fn rpc_on_animation_parameters_client_message(&mut self, parameters: Vec<u8>) {
         NetworkWriterPool::get_return(|writer| {
             writer.write_bytes_all(parameters);
-            // TODO send
+            // TODO
         })
     }
 
