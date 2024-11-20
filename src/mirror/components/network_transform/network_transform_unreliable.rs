@@ -65,7 +65,7 @@ impl NetworkTransformUnreliable {
     }
     // UpdateServerBroadcast
     fn update_server_broadcast(&mut self) {
-        self.check_last_send_time();
+        self.r_check_last_send_time();
 
         if self.send_interval_counter == self.network_transform_base.send_interval_multiplier &&
             (*self.sync_direction() == SyncDirection::ServerToClient) {
@@ -89,7 +89,7 @@ impl NetworkTransformUnreliable {
         }
     }
     // CheckLastSendTime
-    fn check_last_send_time(&mut self) {
+    fn r_check_last_send_time(&mut self) {
         if self.send_interval_counter >= self.network_transform_base.send_interval_multiplier {
             self.send_interval_counter = 0;
         }

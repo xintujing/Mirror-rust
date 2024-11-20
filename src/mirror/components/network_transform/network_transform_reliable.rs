@@ -78,7 +78,7 @@ impl NetworkTransformReliable {
     }
 
     // CheckLastSendTime
-    fn check_last_send_time(&mut self) {
+    fn u_check_last_send_time(&mut self) {
         if self.send_interval_counter >= self.network_transform_base.send_interval_multiplier {
             self.send_interval_counter = 0;
         }
@@ -100,7 +100,7 @@ impl NetworkTransformReliable {
                 return;
             }
             timestamp = conn.remote_time_stamp();
-        }
+        } else {}
 
         // TODO need 去确实是否需要
         // if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::get_static_send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
@@ -381,7 +381,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         if self.send_interval_counter == self.network_transform_base.send_interval_multiplier && (!self.network_transform_base.only_sync_on_change || self.changed(self.construct())) {
             self.set_dirty()
         }
-        self.check_last_send_time();
+        self.u_check_last_send_time();
     }
 }
 
