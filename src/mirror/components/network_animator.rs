@@ -12,7 +12,7 @@ use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
-use crate::mirror::core::remote_calls::{RemoteCallDelegate, RemoteProcedureCalls};
+use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::transport::TransportChannel;
 
 #[derive(Debug)]

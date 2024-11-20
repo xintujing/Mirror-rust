@@ -19,6 +19,7 @@ pub struct Kcp2kTransport {
 }
 
 impl Kcp2kTransport {
+    #[allow(dead_code)]
     pub const SCHEME: &'static str = "kcp2k";
     pub fn from_kcp2k_channel(kcp2k_channel: Kcp2KChannel) -> TransportChannel {
         match kcp2k_channel {

@@ -5,7 +5,7 @@ use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
-use crate::mirror::core::remote_calls::{RemoteCallDelegate, RemoteProcedureCalls};
+use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
 use nalgebra::Vector4;
@@ -78,7 +78,7 @@ impl PlayerScript {
 
     fn user_code_cmd_change_active_weapon_int32(&mut self, active_weapon: i32) {
         self.active_weapon_synced = active_weapon;
-        self.set_sync_var_dirty_bits(1);
+        self.set_sync_var_dirty_bits(1 << 0);
     }
 }
 

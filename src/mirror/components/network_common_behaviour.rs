@@ -1,5 +1,4 @@
-use crate::mirror::components::SyncVar;
-use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent};
+use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent, SyncVarData};
 use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::sync_object::SyncObject;
@@ -12,7 +11,7 @@ use tklog::debug;
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
     network_behaviour: NetworkBehaviour,
-    pub sync_vars: DashMap<u8, SyncVar>,
+    sync_vars: DashMap<u8, SyncVarData>,
 }
 
 impl NetworkCommonBehaviour {
@@ -27,12 +26,8 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     {
         Self::call_register_delegate();
         let sync_vars = DashMap::new();
-        for (index, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
-            sync_vars.insert(index as u8, SyncVar::new(
-                sync_var.full_name.clone(),
-                sync_var.value.to_vec(),
-                sync_var.dirty_bit,
-            ));
+        for (i, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
+            sync_vars.insert(i as u8, (*sync_var).clone());
         }
         Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
@@ -167,14 +162,14 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         if initial_state {
             for i in 0..self.sync_vars.len() as u8 {
                 if let Some(sync_var) = self.sync_vars.get(&i) {
-                    writer.write_array_segment_all(sync_var.data.as_slice());
+                    writer.write_array_segment_all(sync_var.value.as_slice());
                 }
             }
         } else {
             for i in 0..self.sync_vars.len() as u8 {
                 if self.sync_var_dirty_bits() & (1 << i) != 0 {
                     if let Some(sync_var) = self.sync_vars.get(&i) {
-                        writer.write_array_segment_all(sync_var.data.as_slice());
+                        writer.write_array_segment_all(sync_var.value.as_slice());
                     }
                 }
             }

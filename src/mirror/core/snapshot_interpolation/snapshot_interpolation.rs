@@ -2,7 +2,6 @@ use crate::mirror::core::network_time::ExponentialMovingAverage;
 use crate::mirror::core::snapshot_interpolation::snapshot::Snapshot;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
-use tklog::debug;
 
 pub struct SnapshotInterpolation;
 
