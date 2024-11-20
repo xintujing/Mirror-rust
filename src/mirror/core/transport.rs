@@ -10,7 +10,7 @@ pub enum TransportChannel {
     Unreliable = 2,
 }
 
-impl TransportChannel{
+impl TransportChannel {
     pub fn from_u8(value: u8) -> Self {
         match value {
             1 => TransportChannel::Reliable,
@@ -91,11 +91,14 @@ impl Transport {
     }
     pub fn set_active_transport(transport: Box<dyn TransportTrait>) {
         unsafe {
-            ACTIVE_TRANSPORT = Some(transport);
+            ACTIVE_TRANSPORT.replace(transport);
         }
     }
 }
 pub trait TransportTrait {
+    fn awake()
+    where
+        Self: Sized;
     fn available(&self) -> bool;
     fn is_encrypted(&self) -> bool {
         false

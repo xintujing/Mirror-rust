@@ -3,9 +3,10 @@ use crate::mirror::core::network_manager::{NetworkManager, NetworkManagerStatic,
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
-use crate::mirror::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
+use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 use std::time::{Duration, Instant};
 use tklog::debug;
+use crate::mirror::core::transport::TransportTrait;
 
 pub struct NetworkLoop;
 

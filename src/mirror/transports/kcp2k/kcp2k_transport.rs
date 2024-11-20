@@ -9,10 +9,6 @@ use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use std::process::exit;
 use tklog::error;
 
-pub trait Kcp2kTransportTrait {
-    fn awake();
-}
-
 pub struct Kcp2kTransport {
     pub transport: Transport,
     pub server_active: bool,
@@ -78,8 +74,11 @@ impl Kcp2kTransport {
     }
 }
 
-impl Kcp2kTransportTrait for Kcp2kTransport {
-    fn awake() {
+impl TransportTrait for Kcp2kTransport {
+    fn awake()
+    where
+        Self: Sized,
+    {
         let kcp2k_transport = Self {
             transport: Transport::default(),
             server_active: false,
@@ -90,9 +89,7 @@ impl Kcp2kTransportTrait for Kcp2kTransport {
         };
         Transport::set_active_transport(Box::new(kcp2k_transport));
     }
-}
 
-impl TransportTrait for Kcp2kTransport {
     fn available(&self) -> bool {
         true
     }
