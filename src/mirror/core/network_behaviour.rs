@@ -224,6 +224,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         self.__set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
     }
     fn __set_sync_var_dirty_bits(&mut self, value: u64);
+    fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {}
     fn sync_object_dirty_bits(&self) -> u64;
     fn set_sync_object_dirty_bits(&mut self, value: u64) {
         self.__set_sync_object_dirty_bits(self.sync_object_dirty_bits() | value);

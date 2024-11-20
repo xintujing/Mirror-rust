@@ -98,6 +98,13 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         self.network_behaviour.sync_var_dirty_bits = value
     }
 
+    fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {
+        if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
+            sync_var.value = value;
+        }
+        self.set_sync_var_dirty_bits(1 << index);
+    }
+
     fn sync_object_dirty_bits(&self) -> u64 {
         self.network_behaviour.sync_object_dirty_bits
     }
