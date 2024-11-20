@@ -362,37 +362,37 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         Self: Sized,
     {
         // 1 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", new RemoteCallDelegate(NetworkAnimator.invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte\u005B\u005D), true);
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])",
-            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte", Box::new(Self::invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte)),
+            Box::new(Self::invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte),
             true,
         );
 
         // 2 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationParametersServerMessage(System.Byte[])", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationParametersServerMessage__Byte\u005B\u005D), true);
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationParametersServerMessage(System.Byte[])",
-            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_parameters_server_message_byte", Box::new(Self::invoke_user_code_cmd_on_animation_parameters_server_message_byte)),
+            Box::new(Self::invoke_user_code_cmd_on_animation_parameters_server_message_byte),
             true,
         );
 
         // 3 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationTriggerServerMessage__Int32), true);
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)",
-            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_trigger_server_message_int32", Box::new(Self::invoke_user_code_cmd_on_animation_trigger_server_message_int32)),
+            Box::new(Self::invoke_user_code_cmd_on_animation_trigger_server_message_int32),
             true,
         );
 
         // 4 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationResetTriggerServerMessage(System.Int32)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdOnAnimationResetTriggerServerMessage__Int32), true);
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationResetTriggerServerMessage(System.Int32)",
-            RemoteCallDelegate::new("invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32", Box::new(Self::invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32)),
+            Box::new(Self::invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32),
             true,
         );
 
         // 5 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdSetAnimatorSpeed(System.Single)", new RemoteCallDelegate(NetworkAnimator.InvokeUserCode_CmdSetAnimatorSpeed__Single), true);
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdSetAnimatorSpeed(System.Single)",
-            RemoteCallDelegate::new("invoke_user_code_cmd_set_animator_speed_single", Box::new(Self::invoke_user_code_cmd_set_animator_speed_single)),
+            Box::new(Self::invoke_user_code_cmd_set_animator_speed_single),
             true,
         );
     }

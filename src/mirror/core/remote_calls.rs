@@ -1,3 +1,5 @@
+use std::any::TypeId;
+use std::fmt::Debug;
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::tools::stable_hash::StableHash;
@@ -6,44 +8,34 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use tklog::error;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum RemoteCallType {
     Command,
     ClientRpc,
 }
 
-pub type RemoteCallDelegateType = Box<dyn Fn(&mut NetworkIdentity, u8, &mut NetworkReader, u64) + Send + Sync>;
-
-pub struct RemoteCallDelegate {
-    pub method_name: &'static str,
-    pub function: RemoteCallDelegateType,
-}
-
-impl RemoteCallDelegate {
-    pub fn new(method_name: &'static str, function: RemoteCallDelegateType) -> Self {
-        RemoteCallDelegate {
-            method_name,
-            function,
-        }
-    }
-}
+pub type RemoteCallDelegate = Box<dyn Fn(&mut NetworkIdentity, u8, &mut NetworkReader, u64) + Send + Sync>;
 
 pub struct Invoker {
+    pub type_id: TypeId,
     pub call_type: RemoteCallType,
-    pub remote_call_delegate: RemoteCallDelegate,
+    pub function: RemoteCallDelegate,
     pub cmd_requires_authority: bool,
 }
 
 impl Invoker {
-    pub fn new(call_type: RemoteCallType, function: RemoteCallDelegate, cmd_requires_authority: bool) -> Self {
+    pub fn new(type_id: TypeId, call_type: RemoteCallType, function: RemoteCallDelegate, cmd_requires_authority: bool) -> Self {
         Invoker {
+            type_id,
             call_type,
-            remote_call_delegate: function,
+            function,
             cmd_requires_authority,
         }
     }
-    pub fn are_equal(&self, remote_call_type: &RemoteCallType, invoke_function: &RemoteCallDelegate) -> bool {
-        self.call_type == *remote_call_type && self.remote_call_delegate.method_name == invoke_function.method_name
+    pub fn are_equal(&self, type_id: TypeId, remote_call_type: RemoteCallType, invoke_function: &RemoteCallDelegate) -> bool {
+        self.type_id == type_id
+            && self.call_type == remote_call_type
+            && std::ptr::addr_eq(self.function.as_ref() as *const _, invoke_function.as_ref() as *const _)
     }
 }
 
@@ -54,31 +46,32 @@ lazy_static! {
 pub struct RemoteProcedureCalls;
 
 impl RemoteProcedureCalls {
-    pub fn check_if_delegate_exists(remote_call_type: &RemoteCallType, delegate: &RemoteCallDelegate, func_hash: u16) -> bool {
+    pub fn check_if_delegate_exists(type_id: TypeId, remote_call_type: RemoteCallType, func: &RemoteCallDelegate, func_hash: u16) -> bool {
         if let Some(old_invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
-            if old_invoker.are_equal(remote_call_type, delegate) {
+            if old_invoker.are_equal(type_id, remote_call_type, func) {
                 return true;
             }
             error!("Delegate already exists for hash: {}", func_hash);
         }
         false
     }
-    pub fn register_delegate(function_full_name: &str, remote_call_type: RemoteCallType, delegate: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
+    pub fn register_delegate<T: 'static>(function_full_name: &str, remote_call_type: RemoteCallType, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
         let hash = function_full_name.get_fn_stable_hash_code();
-        if Self::check_if_delegate_exists(&remote_call_type, &delegate, hash) {
+        let type_id = Self::generate_type_id::<T>();
+        if Self::check_if_delegate_exists(type_id, remote_call_type, &func, hash) {
             return hash;
         }
-        let invoker = Invoker::new(remote_call_type, delegate, cmd_requires_authority);
+        let invoker = Invoker::new(type_id, remote_call_type, func, cmd_requires_authority);
         NETWORK_MESSAGE_HANDLERS.insert(hash, invoker);
         hash
     }
 
-    pub fn register_command_delegate(function_full_name: &str, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
-        Self::register_delegate(function_full_name, RemoteCallType::Command, func, cmd_requires_authority)
+    pub fn register_command_delegate<T: 'static>(function_full_name: &str, func: RemoteCallDelegate, cmd_requires_authority: bool) -> u16 {
+        Self::register_delegate::<T>(function_full_name, RemoteCallType::Command, func, cmd_requires_authority)
     }
 
-    pub fn register_rpc_delegate(function_full_name: &str, func: RemoteCallDelegate) -> u16 {
-        Self::register_delegate(function_full_name, RemoteCallType::ClientRpc, func, true)
+    pub fn register_rpc_delegate<T: 'static>(function_full_name: &str, func: RemoteCallDelegate) -> u16 {
+        Self::register_delegate::<T>(function_full_name, RemoteCallType::ClientRpc, func, true)
     }
 
     pub fn remove_delegate(func_hash: u16) {
@@ -87,7 +80,7 @@ impl RemoteProcedureCalls {
 
     pub fn get_function_method_name(func_hash: u16) -> Option<String> {
         if let Some(invoker) = NETWORK_MESSAGE_HANDLERS.get(&func_hash) {
-            return Some(invoker.remote_call_delegate.method_name.to_string());
+            return Some(format!("{:?}-{:?}", invoker.type_id, invoker.call_type));
         }
         None
     }
@@ -105,7 +98,7 @@ impl RemoteProcedureCalls {
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {
-                (invoker.remote_call_delegate.function)(identity, component_index, reader, conn_id);
+                (invoker.function)(identity, component_index, reader, conn_id);
                 return true;
             }
         }
@@ -121,5 +114,9 @@ impl RemoteProcedureCalls {
 
     pub fn get_delegate(func_hash: u16) -> Option<RefMut<'static, u16, Invoker>> {
         NETWORK_MESSAGE_HANDLERS.get_mut(&func_hash)
+    }
+
+    pub fn generate_type_id<T: 'static>() -> TypeId {
+        TypeId::of::<T>()
     }
 }

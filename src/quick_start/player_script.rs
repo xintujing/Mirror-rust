@@ -102,22 +102,22 @@ impl NetworkBehaviourTrait for PlayerScript {
         Self: Sized,
     {
         // System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)",
-            RemoteCallDelegate::new("invoke_user_code_cmd_setup_player_string_color", Box::new(Self::invoke_user_code_cmd_setup_player_string_color)),
+            Box::new(Self::invoke_user_code_cmd_setup_player_string_color),
             true,
         );
         // System.Void QuickStart.PlayerScript::CmdShootRay()
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdShootRay()",
-            RemoteCallDelegate::new("invoke_user_code_cmd_shoot_ray", Box::new(Self::invoke_user_code_cmd_shoot_ray)),
+            Box::new(Self::invoke_user_code_cmd_shoot_ray),
             true,
         );
 
         // System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)
-        RemoteProcedureCalls::register_command_delegate(
+        RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)",
-            RemoteCallDelegate::new("invoke_user_code_cmd_change_active_weapon_int32", Box::new(Self::invoke_user_code_cmd_change_active_weapon_int32)),
+            Box::new(Self::invoke_user_code_cmd_change_active_weapon_int32),
             true,
         );
     }

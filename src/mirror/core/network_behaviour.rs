@@ -386,7 +386,14 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             return;
         }
         let mut rpc = RpcMessage::new(self.net_id(), self.index(), function_hash_code as u16, writer.to_bytes());
-        self.send_message_internal(&mut rpc, channel, include_owner);
+        self.observers().iter().for_each(|observer| {
+            if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(observer) {
+                let is_owner = conn_to_client.connection_id() == self.connection_to_client();
+                if (!is_owner || include_owner) && conn_to_client.is_ready() {
+                    conn_to_client.send_network_message(&mut rpc, channel);
+                }
+            }
+        });
     }
     fn send_entity_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
         if !NetworkServerStatic::get_static_active() {
@@ -394,17 +401,11 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             return;
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
-        self.send_message_internal(&mut entity_message, channel, include_owner);
-    }
-    fn send_message_internal<T>(&self, message: &mut T, channel: TransportChannel, include_owner: bool)
-    where
-        T: NetworkMessageTrait + Send,
-    {
         for observer in self.observers().iter() {
             if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
-                    conn_to_client.send_network_message(message, channel);
+                    conn_to_client.send_network_message(&mut entity_message, channel);
                 }
             }
         }
@@ -416,10 +417,15 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn late_update(&mut self) {}
     // SerializeSyncVars
     // TODO serialize_sync_vars USED BY WEAVER
-    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {}
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        let _ = writer;
+        let _ = initial_state;
+    }
     // DeserializeSyncVars
     // TODO deserialize_sync_vars USED BY WEAVER
     fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+        let _ = reader;
+        let _ = initial_state;
         true
     }
 }
