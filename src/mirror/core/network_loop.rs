@@ -5,6 +5,7 @@ use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::transports::kcp2k::kcp2k_transport::{Kcp2kTransport, Kcp2kTransportTrait};
 use std::time::{Duration, Instant};
+use tklog::debug;
 
 pub struct NetworkLoop;
 
@@ -29,11 +30,11 @@ impl NetworkLoop {
         network_manager_singleton.start();
 
         NetworkServerStatic::for_each_network_message_handler(|item| {
-            println!("message hash: {} require_authentication: {}", item.key(), item.require_authentication);
+            debug!(format!("message hash: {} require_authentication: {}", item.key(), item.require_authentication));
         });
 
         NetworkServerStatic::for_each_network_connection(|item| {
-            println!("connection hash: {} address: {}", item.key(), item.address);
+            debug!(format!("connection hash: {} address: {}", item.key(), item.address));
         });
     }
 
