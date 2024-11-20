@@ -1,7 +1,7 @@
 use crate::mirror::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::mirror::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
 use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent, NetworkBehaviourSetting};
-use crate::mirror::core::messages::{EntityStateMessage, RpcMessage};
+use crate::mirror::core::messages::{EntityStateMessage, NetworkMessageTrait, RpcMessage};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
@@ -386,14 +386,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             return;
         }
         let mut rpc = RpcMessage::new(self.net_id(), self.index(), function_hash_code as u16, writer.to_bytes());
-        for observer in self.observers().iter() {
-            if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
-                let is_owner = conn_to_client.connection_id() == self.connection_to_client();
-                if (!is_owner || include_owner) && conn_to_client.is_ready() {
-                    conn_to_client.send_network_message(&mut rpc, channel);
-                }
-            }
-        }
+        self.send_message_internal(&mut rpc, channel, include_owner);
     }
     fn send_entity_state_message_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
         if !NetworkServerStatic::get_static_active() {
@@ -401,18 +394,24 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             return;
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
+        self.send_message_internal(&mut entity_message, channel, include_owner);
+    }
+    fn send_message_internal<T>(&self, message: &mut T, channel: TransportChannel, include_owner: bool)
+    where
+        T: NetworkMessageTrait + Send,
+    {
         for observer in self.observers().iter() {
             if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
-                    conn_to_client.send_network_message(&mut entity_message, channel);
+                    conn_to_client.send_network_message(message, channel);
                 }
             }
         }
     }
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
-    fn fixed_update(&mut self){}
+    fn fixed_update(&mut self) {}
     fn update(&mut self) {}
     fn late_update(&mut self) {}
     // SerializeSyncVars
