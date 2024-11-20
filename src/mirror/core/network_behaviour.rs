@@ -388,7 +388,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         let mut rpc = RpcMessage::new(self.net_id(), self.index(), function_hash_code as u16, writer.to_bytes());
         self.send_message_internal(&mut rpc, channel, include_owner);
     }
-    fn send_entity_state_message_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
+    fn send_entity_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
         if !NetworkServerStatic::get_static_active() {
             error!("EntityStateMessage called without an active server.");
             return;

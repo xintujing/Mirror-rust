@@ -46,7 +46,7 @@ pub trait NetworkConnectionTrait {
             message.serialize(writer);
             let max = NetworkMessages::max_message_size(channel);
             if writer.get_position() > max {
-                error!("Message too large to send: {}", writer.get_position());
+                error!("Message too large to send: ", writer.get_position());
                 return;
             }
             // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
