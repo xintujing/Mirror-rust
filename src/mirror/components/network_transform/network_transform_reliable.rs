@@ -46,7 +46,7 @@ impl NetworkTransformReliable {
 
     // UpdateServer()
     fn update_server(&mut self) {
-        if *self.sync_direction() == SyncDirection::ClientToServer && self.connection_to_client() != 0 {
+        if self.sync_direction() == &SyncDirection::ClientToServer && self.connection_to_client() != 0 {
             if self.network_transform_base.server_snapshots.len() == 0 {
                 return;
             }
@@ -55,7 +55,7 @@ impl NetworkTransformReliable {
                 let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
                 let computed = TransformSnapshot::transform_snapshot(from, to, t);
                 self.apply(computed, to);
-            }
+            } else {}
         }
     }
 
@@ -151,9 +151,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn register_delegate()
     where
         Self: Sized,
-    {
-
-    }
+    {}
 
     fn get_once() -> &'static Once
     where
