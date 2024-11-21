@@ -50,7 +50,7 @@ pub struct MethodData {
     #[serde(rename = "requiresAuthority")]
     pub requires_authority: bool,
     #[serde(rename = "type")]
-    /// need fix
+    //TODO fix
     pub r#type: String,
     #[serde(rename = "parameters")]
     pub parameters: Vec<KeyValue<String, String>>,

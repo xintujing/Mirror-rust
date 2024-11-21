@@ -340,7 +340,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     {
         Self::call_register_delegate();
         // TODO  Initialize
-        Self {
+        let animator = Self {
             network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
             client_authority: true,
             animator: Animator::new(),
@@ -354,7 +354,8 @@ impl NetworkBehaviourTrait for NetworkAnimator {
             transition_hash: Vec::default(),
             layer_weight: Vec::default(),
             next_send_time: 0.0,
-        }
+        };
+        animator
     }
 
     fn register_delegate()
