@@ -17,6 +17,12 @@ pub struct NetworkCommonBehaviour {
 impl NetworkCommonBehaviour {
     #[allow(dead_code)]
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
+    fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {
+        if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
+            sync_var.value = value;
+        }
+        self.set_sync_var_dirty_bits(1 << index);
+    }
 }
 
 impl NetworkBehaviourTrait for NetworkCommonBehaviour {
@@ -96,13 +102,6 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
 
     fn __set_sync_var_dirty_bits(&mut self, value: u64) {
         self.network_behaviour.sync_var_dirty_bits = value
-    }
-
-    fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {
-        if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
-            sync_var.value = value;
-        }
-        self.set_sync_var_dirty_bits(1 << index);
     }
 
     fn sync_object_dirty_bits(&self) -> u64 {
