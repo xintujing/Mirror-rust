@@ -57,7 +57,7 @@ lazy_static! {
     static ref IS_LOADING_SCENE: Atomic<bool> = Atomic::new(false);
     static ref EXCEPTIONS_DISCONNECT: Atomic<bool> = Atomic::new(false);
     static ref DISCONNECT_INACTIVE_CONNECTIONS: Atomic<bool> = Atomic::new(false);
-    static ref DISCONNECT_INACTIVE_TIMEOUT: Atomic<f32> = Atomic::new(60.0);
+    static ref DISCONNECT_INACTIVE_TIMEOUT: Atomic<f32> = Atomic::new(10.0);
     static ref ACTUAL_TICK_RATE: Atomic<u32> = Atomic::new(0);
     static ref ACTUAL_TICK_RATE_START: Atomic<f64> = Atomic::new(0.0);
     static ref ACTUAL_TICK_RATE_COUNTER: Atomic<u32> = Atomic::new(0);
@@ -275,15 +275,9 @@ impl NetworkServer {
             return;
         }
 
-        if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
-            *early_update_duration = TimeSample::new(NetworkServerStatic::get_static_send_rate());
-        }
-        if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
-            *full_update_duration = TimeSample::new(NetworkServerStatic::get_static_send_rate());
-        }
-        if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
-            *late_update_duration = TimeSample::new(NetworkServerStatic::get_static_send_rate());
-        }
+        NetworkServerStatic::set_static_early_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
+        NetworkServerStatic::set_static_full_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
+        NetworkServerStatic::set_static_late_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
     }
     pub fn listen(max_connections: usize) {
         // 初始化
