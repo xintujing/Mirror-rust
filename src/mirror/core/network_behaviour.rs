@@ -380,13 +380,13 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn send_rpc_internal(&self, function_full_name: &'static str, function_hash_code: i32, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!(format!("RPC Function {} called without an active server.", function_full_name));
             return;
         }
         let mut rpc = RpcMessage::new(self.net_id(), self.index(), function_hash_code as u16, writer.to_bytes());
         self.observers().iter().for_each(|observer| {
-            if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(observer) {
+            if let Some(mut conn_to_client) = NetworkServerStatic::network_connections().get_mut(observer) {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
                     conn_to_client.send_network_message(&mut rpc, channel);
@@ -395,13 +395,13 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         });
     }
     fn send_entity_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("EntityStateMessage called without an active server.");
             return;
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
         for observer in self.observers().iter() {
-            if let Some(mut conn_to_client) = NetworkServerStatic::get_static_network_connections().get_mut(&observer) {
+            if let Some(mut conn_to_client) = NetworkServerStatic::network_connections().get_mut(&observer) {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
                     conn_to_client.send_network_message(&mut entity_message, channel);

@@ -56,7 +56,7 @@ impl NetworkLoop {
         NetworkServer::network_early_update();
 
         // NetworkBehaviour update  模拟
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
+        NetworkServerStatic::spawned_network_identities().iter_mut().for_each(|mut identity| {
             identity.network_behaviours.iter_mut().for_each(|behaviour| {
                 behaviour.update();
             });
@@ -70,7 +70,7 @@ impl NetworkLoop {
         NetworkServer::network_late_update();
 
         // NetworkBehaviour late_update
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
+        NetworkServerStatic::spawned_network_identities().iter_mut().for_each(|mut identity| {
             identity.network_behaviours.iter_mut().for_each(|behaviour| {
                 behaviour.late_update()
             });
@@ -92,7 +92,7 @@ impl NetworkLoop {
         Self::start();
 
         // 目标帧率
-        let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::get_static_tick_rate();
+        let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 休眠时间
         let mut sleep_time = target_frame_time;
         // 上一帧时间

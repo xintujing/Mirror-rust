@@ -138,7 +138,7 @@ impl NetworkAnimator {
 
     // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -171,7 +171,7 @@ impl NetworkAnimator {
 
     // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -205,7 +205,7 @@ impl NetworkAnimator {
 
     // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
     fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -237,7 +237,7 @@ impl NetworkAnimator {
 
     // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
     fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -269,7 +269,7 @@ impl NetworkAnimator {
 
     // 5 invoke_user_code_cmd_set_animator_speed_single
     fn invoke_user_code_cmd_set_animator_speed_single(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }

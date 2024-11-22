@@ -102,7 +102,7 @@ impl NetworkIdentity {
         for component in self.network_behaviours.iter_mut() {
             component.set_net_id(self.net_id);
         }
-        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
+        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&self.conn_to_client) {
             conn.set_net_id(self.net_id);
         }
     }
@@ -117,7 +117,7 @@ impl NetworkIdentity {
         for component in self.network_behaviours.iter_mut() {
             component.set_connection_to_client(self.conn_to_client);
         }
-        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&self.conn_to_client) {
+        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&self.conn_to_client) {
             conn.owned().push(self.net_id);
         }
     }
@@ -304,7 +304,7 @@ impl NetworkIdentity {
     pub fn clear_observers(&mut self) {
         for i in 0..self.observers.len() {
             let conn_id = self.observers[i];
-            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+            if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
                 conn.remove_from_observing(self, true);
             }
         }
@@ -342,7 +342,7 @@ impl NetworkIdentity {
         // 添加观察者
         self.observers.push(conn_id);
 
-        if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
             // 添加到观察者
             conn.add_to_observing(self);
         }

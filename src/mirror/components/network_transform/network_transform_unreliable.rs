@@ -56,7 +56,7 @@ impl NetworkTransformUnreliable {
                 return;
             }
 
-            if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+            if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
                 let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
                 let computed = TransformSnapshot::transform_snapshot(from, to, t);
                 self.apply(computed, to);
@@ -94,7 +94,7 @@ impl NetworkTransformUnreliable {
             self.send_interval_counter = 0;
         }
 
-        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
+        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::send_interval() as f64, &mut self.last_send_interval_time) {
             self.send_interval_counter += 1;
         }
     }
@@ -185,7 +185,7 @@ impl NetworkTransformUnreliable {
     }
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
     fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -207,7 +207,7 @@ impl NetworkTransformUnreliable {
     }
 
     fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -237,7 +237,7 @@ impl NetworkTransformUnreliable {
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
     fn invoke_user_code_cmd_client_to_server_sync_sync_data(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -271,7 +271,7 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
@@ -279,7 +279,7 @@ impl NetworkTransformUnreliable {
         }
 
         if self.network_transform_base.only_sync_on_change {
-            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::get_static_send_interval() as f64;
+            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::send_interval() as f64;
 
             if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
                 if last_snapshot.remote_time + time_interval_check < timestamp {
@@ -300,7 +300,7 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
@@ -308,7 +308,7 @@ impl NetworkTransformUnreliable {
         }
 
         if self.network_transform_base.only_sync_on_change {
-            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::get_static_send_interval() as f64;
+            let time_interval_check = self.buffer_reset_multiplier as f64 * self.network_transform_base.send_interval_multiplier as f64 * NetworkServerStatic::send_interval() as f64;
 
             if let Some((_, last_snapshot)) = self.network_transform_base.server_snapshots.iter().last() {
                 if last_snapshot.remote_time + time_interval_check < timestamp {

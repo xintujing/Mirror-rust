@@ -24,7 +24,7 @@ pub struct PlayerScript {
 
 impl PlayerScript {
     fn invoke_user_code_cmd_setup_player_string_color(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -45,7 +45,7 @@ impl PlayerScript {
     }
 
     fn invoke_user_code_cmd_shoot_ray(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
@@ -64,7 +64,7 @@ impl PlayerScript {
     }
 
     fn invoke_user_code_cmd_change_active_weapon_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }

@@ -33,7 +33,7 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
             let message = AuthRequestMessage::deserialize(reader);
             // 检查用户名和密码
             if message.username == basic_authenticator.username && message.password == basic_authenticator.password {
-                if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+                if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&connection_id) {
                     let mut response = AuthResponseMessage::new(100, "Success".to_string());
 
                     // 发送响应消息
@@ -49,7 +49,7 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
 
         // 拒绝连接
         if no_authed {
-            if let Some(mut conn) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+            if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&connection_id) {
                 let mut response = AuthResponseMessage::new(200, "Invalid Credentials".to_string());
 
                 conn.send_network_message(&mut response, channel);

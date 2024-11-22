@@ -67,9 +67,9 @@ impl NetworkTransformBase {
             send_interval_multiplier: network_transform_base_setting.send_interval_multiplier,
             timeline_offset: network_transform_base_setting.timeline_offset,
         };
-        base.time_stamp_adjustment = NetworkServerStatic::get_static_send_interval() as f64 * (base.send_interval_multiplier as f64 - 1.0);
+        base.time_stamp_adjustment = NetworkServerStatic::send_interval() as f64 * (base.send_interval_multiplier as f64 - 1.0);
         if base.timeline_offset {
-            base.offset = NetworkServerStatic::get_static_send_interval() as f64 * base.send_interval_multiplier as f64;
+            base.offset = NetworkServerStatic::send_interval() as f64 * base.send_interval_multiplier as f64;
         }
         base
     }

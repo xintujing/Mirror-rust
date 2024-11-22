@@ -132,7 +132,7 @@ impl NetworkManager {
     }
 
     pub fn start_server(&mut self) {
-        if NetworkServerStatic::get_static_active() {
+        if NetworkServerStatic::active() {
             warn!("Server already started.");
             return;
         }
@@ -153,8 +153,8 @@ impl NetworkManager {
     fn setup_server(&mut self) {
         self.initialize_singleton();
 
-        NetworkServerStatic::set_static_disconnect_inactive_connections(self.disconnect_inactive_connections);
-        NetworkServerStatic::set_static_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
+        NetworkServerStatic::set_disconnect_inactive_connections(self.disconnect_inactive_connections);
+        NetworkServerStatic::set_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
         NetworkServerStatic::set_exceptions_disconnect(self.exceptions_disconnect);
 
         if let Some(ref mut authenticator) = self.authenticator() {
@@ -170,13 +170,13 @@ impl NetworkManager {
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
-        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnConnectedEvent, Box::new(Self::on_server_connect_internal));
+        NetworkServerStatic::connected_event().insert(EventHandlerType::OnConnectedEvent, Box::new(Self::on_server_connect_internal));
         // 添加断开连接事件
-        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnDisconnectedEvent, Box::new(Self::on_server_disconnect));
+        NetworkServerStatic::connected_event().insert(EventHandlerType::OnDisconnectedEvent, Box::new(Self::on_server_disconnect));
         // 添加错误事件
-        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnErrorEvent, Box::new(Self::on_server_error));
+        NetworkServerStatic::connected_event().insert(EventHandlerType::OnErrorEvent, Box::new(Self::on_server_error));
         // 添加异常事件
-        NetworkServerStatic::get_connected_event().insert(EventHandlerType::OnTransportExceptionEvent, Box::new(Self::on_server_transport_exception));
+        NetworkServerStatic::connected_event().insert(EventHandlerType::OnTransportExceptionEvent, Box::new(Self::on_server_transport_exception));
 
         // 添加 AddPlayerMessage 消息处理
         NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
@@ -239,7 +239,7 @@ impl NetworkManager {
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 false
-        if let Some(connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
             if connection.net_id() != 0 {
                 error!("There is already a player for this connection.");
                 return;
@@ -271,11 +271,11 @@ impl NetworkManager {
     }
 
     fn apply_configuration(&mut self) {
-        NetworkServerStatic::set_static_tick_rate(self.send_rate);
+        NetworkServerStatic::set_tick_rate(self.send_rate);
     }
 
     fn stop_server(&mut self) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             warn!("Server already stopped.");
             return;
         }
@@ -358,7 +358,7 @@ pub trait NetworkManagerTrait {
         NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
     fn is_network_active(&self) -> bool {
-        NetworkServerStatic::get_static_active()
+        NetworkServerStatic::active()
     }
     fn set_network_manager_mode(&mut self, mode: NetworkManagerMode);
     fn get_network_manager_mode(&mut self) -> &NetworkManagerMode;

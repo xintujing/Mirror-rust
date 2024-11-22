@@ -48,9 +48,9 @@ lazy_static! {
 
     static ref Initialized: Atomic<bool> = Atomic::new(false);
     static ref TickRate: Atomic<u32> = Atomic::new(60);
-    static ref TICK_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServerStatic::get_static_tick_rate() as f32);
-    static ref SEND_RATE: Atomic<u32> = Atomic::new(NetworkServerStatic::get_static_tick_rate());
-    static ref SEND_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServerStatic::get_static_send_rate() as f32);
+    static ref TICK_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServerStatic::tick_rate() as f32);
+    static ref SEND_RATE: Atomic<u32> = Atomic::new(NetworkServerStatic::tick_rate());
+    static ref SEND_INTERVAL: Atomic<f32> = Atomic::new(1f32 / NetworkServerStatic::send_rate() as f32);
     static ref LAST_SEND_TIME: Atomic<f64> = Atomic::new(0.0);
     static ref DONT_LISTEN: Atomic<bool> = Atomic::new(true);
     static ref ACTIVE: Atomic<bool> = Atomic::new(false);
@@ -75,148 +75,142 @@ lazy_static! {
 pub struct NetworkServerStatic;
 // NetworkServer 静态结构体方法
 impl NetworkServerStatic {
-    pub fn get_exceptions_disconnect() -> bool {
+    pub fn exceptions_disconnect() -> bool {
         EXCEPTIONS_DISCONNECT.load(Ordering::Relaxed)
     }
     pub fn set_exceptions_disconnect(value: bool) {
         EXCEPTIONS_DISCONNECT.store(value, Ordering::Relaxed);
     }
-    pub fn get_connected_event() -> &'static DashMap<EventHandlerType, Box<EventHandler>> {
+    pub fn connected_event() -> &'static DashMap<EventHandlerType, Box<EventHandler>> {
         &CONNECTED_EVENT
     }
-    pub fn get_static_initialized() -> bool {
+    pub fn initialized() -> bool {
         Initialized.load(Ordering::Relaxed)
     }
-    pub fn set_static_initialized(value: bool) {
+    pub fn set_initialized(value: bool) {
         Initialized.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_max_connections() -> usize {
+    pub fn max_connections() -> usize {
         MAX_CONNECTIONS.load(Ordering::Relaxed)
     }
-    pub fn set_static_max_connections(value: usize) {
+    pub fn set_max_connections(value: usize) {
         MAX_CONNECTIONS.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_spawned_size() -> usize {
-        NetworkServerStatic::get_static_spawned_network_identities().len()
+    pub fn spawned_size() -> usize {
+        NetworkServerStatic::spawned_network_identities().len()
     }
-    pub fn get_static_network_connections_size() -> usize {
+    pub fn network_connections_size() -> usize {
         NETWORK_CONNECTIONS.len()
     }
-    pub fn get_static_send_rate() -> u32 {
+    pub fn send_rate() -> u32 {
         SEND_RATE.load(Ordering::Relaxed)
     }
-    pub fn set_static_send_rate(value: u32) {
+    pub fn set_send_rate(value: u32) {
         SEND_RATE.store(value, Ordering::Relaxed);
-        Self::set_static_send_interval(1f32 / value as f32);
+        Self::set_send_interval(1f32 / value as f32);
     }
-    pub fn get_static_send_interval() -> f32 {
+    pub fn send_interval() -> f32 {
         SEND_INTERVAL.load(Ordering::Relaxed)
     }
-    pub fn set_static_send_interval(value: f32) {
+    pub fn set_send_interval(value: f32) {
         SEND_INTERVAL.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_dont_listen() -> bool {
+    pub fn dont_listen() -> bool {
         DONT_LISTEN.load(Ordering::Relaxed)
     }
-    pub fn set_static_dont_listen(value: bool) {
+    pub fn set_dont_listen(value: bool) {
         DONT_LISTEN.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_active() -> bool {
+    pub fn active() -> bool {
         ACTIVE.load(Ordering::Relaxed)
     }
-    pub fn set_static_active(value: bool) {
+    pub fn set_active(value: bool) {
         ACTIVE.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_is_loading_scene() -> bool {
+    pub fn is_loading_scene() -> bool {
         IS_LOADING_SCENE.load(Ordering::Relaxed)
     }
-    pub fn set_static_is_loading_scene(value: bool) {
+    pub fn set_is_loading_scene(value: bool) {
         IS_LOADING_SCENE.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_exceptions_disconnect() -> bool {
-        EXCEPTIONS_DISCONNECT.load(Ordering::Relaxed)
-    }
-    pub fn set_static_exceptions_disconnect(value: bool) {
-        EXCEPTIONS_DISCONNECT.store(value, Ordering::Relaxed);
-    }
-    pub fn get_static_disconnect_inactive_connections() -> bool {
+    pub fn disconnect_inactive_connections() -> bool {
         DISCONNECT_INACTIVE_CONNECTIONS.load(Ordering::Relaxed)
     }
-    pub fn set_static_disconnect_inactive_connections(value: bool) {
+    pub fn set_disconnect_inactive_connections(value: bool) {
         DISCONNECT_INACTIVE_CONNECTIONS.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_disconnect_inactive_timeout() -> f32 {
+    pub fn disconnect_inactive_timeout() -> f32 {
         DISCONNECT_INACTIVE_TIMEOUT.load(Ordering::Relaxed)
     }
-    pub fn set_static_disconnect_inactive_timeout(value: f32) {
+    pub fn set_disconnect_inactive_timeout(value: f32) {
         DISCONNECT_INACTIVE_TIMEOUT.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_actual_tick_rate() -> u32 {
+    pub fn actual_tick_rate() -> u32 {
         ACTUAL_TICK_RATE.load(Ordering::Relaxed)
     }
-    pub fn set_static_actual_tick_rate(value: u32) {
+    pub fn set_actual_tick_rate(value: u32) {
         ACTUAL_TICK_RATE.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_actual_tick_rate_start() -> f64 {
+    pub fn actual_tick_rate_start() -> f64 {
         ACTUAL_TICK_RATE_START.load(Ordering::Relaxed)
     }
-    pub fn set_static_actual_tick_rate_start(value: f64) {
+    pub fn set_actual_tick_rate_start(value: f64) {
         ACTUAL_TICK_RATE_START.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_actual_tick_rate_counter() -> u32 {
+    pub fn actual_tick_rate_counter() -> u32 {
         ACTUAL_TICK_RATE_COUNTER.load(Ordering::Relaxed)
     }
-    pub fn set_static_actual_tick_rate_counter(value: u32) {
+    pub fn set_actual_tick_rate_counter(value: u32) {
         ACTUAL_TICK_RATE_COUNTER.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_tick_rate() -> u32 {
+    pub fn tick_rate() -> u32 {
         TickRate.load(Ordering::Relaxed)
     }
-    pub fn set_static_tick_rate(value: u32) {
+    pub fn set_tick_rate(value: u32) {
         TickRate.store(value, Ordering::Relaxed);
-        Self::set_static_tick_interval(1f32 / value as f32);
-        Self::set_static_send_rate(value);
+        Self::set_tick_interval(1f32 / value as f32);
+        Self::set_send_rate(value);
     }
-    pub fn get_static_tick_interval() -> f32 {
+    pub fn tick_interval() -> f32 {
         TICK_INTERVAL.load(Ordering::Relaxed)
     }
-    pub fn set_static_tick_interval(value: f32) {
+    pub fn set_tick_interval(value: f32) {
         TICK_INTERVAL.store(value, Ordering::Relaxed);
     }
-    pub fn get_static_last_send_time() -> f64 {
+    pub fn last_send_time() -> f64 {
         LAST_SEND_TIME.load(Ordering::Relaxed)
     }
-    pub fn set_static_last_send_time(value: f64) {
+    pub fn set_last_send_time(value: f64) {
         LAST_SEND_TIME.store(value, Ordering::Relaxed);
     }
-    pub fn set_static_early_update_duration(value: TimeSample) {
+    pub fn set_early_update_duration(value: TimeSample) {
         if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
             *early_update_duration = value;
         }
     }
-    pub fn set_static_full_update_duration(value: TimeSample) {
+    pub fn set_full_update_duration(value: TimeSample) {
         if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
             *full_update_duration = value;
         }
     }
-    pub fn set_static_late_update_duration(value: TimeSample) {
+    pub fn set_late_update_duration(value: TimeSample) {
         if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
             *late_update_duration = value;
         }
     }
     // 获取 NetworkConnections
-    pub fn get_static_network_connections() -> &'static DashMap<u64, NetworkConnectionToClient> {
+    pub fn network_connections() -> &'static DashMap<u64, NetworkConnectionToClient> {
         &NETWORK_CONNECTIONS
     }
     // 添加连接
-    fn static_network_connections_add_connection(connection: NetworkConnectionToClient) -> bool {
+    fn add_network_connection(connection: NetworkConnectionToClient) -> bool {
         if NETWORK_CONNECTIONS.contains_key(&connection.connection_id()) {
             return false;
         }
         NETWORK_CONNECTIONS.insert(connection.connection_id(), connection);
         true
     }
-    pub fn get_static_spawned_network_identities() -> &'static DashMap<u32, NetworkIdentity> {
+    pub fn spawned_network_identities() -> &'static DashMap<u32, NetworkIdentity> {
         &SPAWNED_NETWORK_IDENTITIES
     }
     // 遍历NETWORK_CONNECTIONS
@@ -254,7 +248,7 @@ pub struct NetworkServer;
 // NetworkServer 结构体方法
 impl NetworkServer {
     fn initialize() {
-        if NetworkServerStatic::get_static_initialized() {
+        if NetworkServerStatic::initialized() {
             return;
         }
 
@@ -271,43 +265,43 @@ impl NetworkServer {
         }
 
         // NetworkServer 是初始化的
-        if NetworkServerStatic::get_static_initialized() {
+        if NetworkServerStatic::initialized() {
             return;
         }
 
-        NetworkServerStatic::set_static_early_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
-        NetworkServerStatic::set_static_full_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
-        NetworkServerStatic::set_static_late_update_duration(TimeSample::new(NetworkServerStatic::get_static_send_rate()));
+        NetworkServerStatic::set_early_update_duration(TimeSample::new(NetworkServerStatic::send_rate()));
+        NetworkServerStatic::set_full_update_duration(TimeSample::new(NetworkServerStatic::send_rate()));
+        NetworkServerStatic::set_late_update_duration(TimeSample::new(NetworkServerStatic::send_rate()));
     }
     pub fn listen(max_connections: usize) {
         // 初始化
         Self::initialize();
 
         // 设置最大连接数
-        NetworkServerStatic::set_static_max_connections(max_connections);
+        NetworkServerStatic::set_max_connections(max_connections);
 
         // 如果不监听
-        if NetworkServerStatic::get_static_dont_listen() {
+        if NetworkServerStatic::dont_listen() {
             if let Some(transport) = Transport::get_active_transport() {
                 transport.server_start();
             }
         }
         // 设置 NetworkServer 为激活状态
-        NetworkServerStatic::set_static_active(true);
+        NetworkServerStatic::set_active(true);
 
         // 注册消息处理器
         Self::register_message_handlers();
     }
 
     pub fn shutdown() {
-        if NetworkServerStatic::get_static_initialized() {
+        if NetworkServerStatic::initialized() {
             Self::disconnect_all();
 
             if let Some(transport) = Transport::get_active_transport() {
                 transport.shutdown();
             }
 
-            NetworkServerStatic::set_static_active(false);
+            NetworkServerStatic::set_active(false);
         }
     }
 
@@ -319,7 +313,7 @@ impl NetworkServer {
 
     // 网络早期更新
     pub fn network_early_update() {
-        if NetworkServerStatic::get_static_active() {
+        if NetworkServerStatic::active() {
             if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
                 early_update_duration.begin();
             }
@@ -337,7 +331,7 @@ impl NetworkServer {
             connection.update_time_interpolation();
         });
 
-        if NetworkServerStatic::get_static_active() {
+        if NetworkServerStatic::active() {
             if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
                 early_update_duration.end();
             }
@@ -346,7 +340,7 @@ impl NetworkServer {
 
     // 网络更新
     pub fn network_late_update() {
-        if NetworkServerStatic::get_static_active() {
+        if NetworkServerStatic::active() {
             if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
                 late_update_duration.begin();
             }
@@ -356,18 +350,18 @@ impl NetworkServer {
             active_transport.server_late_update();
         }
 
-        if NetworkServerStatic::get_static_active() {
-            let actual_tick_rate_counter = NetworkServerStatic::get_static_actual_tick_rate_counter();
-            NetworkServerStatic::set_static_actual_tick_rate_counter(actual_tick_rate_counter + 1);
+        if NetworkServerStatic::active() {
+            let actual_tick_rate_counter = NetworkServerStatic::actual_tick_rate_counter();
+            NetworkServerStatic::set_actual_tick_rate_counter(actual_tick_rate_counter + 1);
 
             let local_time = NetworkTime::local_time();
 
-            if local_time - NetworkServerStatic::get_static_actual_tick_rate_start() >= 1.0 {
-                let elapsed = local_time - NetworkServerStatic::get_static_actual_tick_rate_start();
-                let actual_tick_rate_counter = NetworkServerStatic::get_static_actual_tick_rate_counter();
-                NetworkServerStatic::set_static_actual_tick_rate(actual_tick_rate_counter / elapsed as u32);
-                NetworkServerStatic::set_static_actual_tick_rate_start(local_time);
-                NetworkServerStatic::set_static_actual_tick_rate_counter(0);
+            if local_time - NetworkServerStatic::actual_tick_rate_start() >= 1.0 {
+                let elapsed = local_time - NetworkServerStatic::actual_tick_rate_start();
+                let actual_tick_rate_counter = NetworkServerStatic::actual_tick_rate_counter();
+                NetworkServerStatic::set_actual_tick_rate(actual_tick_rate_counter / elapsed as u32);
+                NetworkServerStatic::set_actual_tick_rate_start(local_time);
+                NetworkServerStatic::set_actual_tick_rate_counter(0);
             }
 
             if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
@@ -412,7 +406,7 @@ impl NetworkServer {
 
     // SerializeForConnection
     fn serialize_for_connection(net_id: u32, conn_id: u64) -> Option<EntityStateMessage> {
-        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
+        if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&net_id) {
             let owned = identity.connection_to_client() == conn_id;
             let net_id = identity.net_id();
             let serialization = identity.get_server_serialization_at_tick(NetworkTime::frame_count());
@@ -430,8 +424,8 @@ impl NetworkServer {
     }
 
     fn disconnect_if_inactive(connection: &mut NetworkConnectionToClient) -> bool {
-        if NetworkServerStatic::get_static_disconnect_inactive_connections() &&
-            !connection.is_alive(NetworkServerStatic::get_static_disconnect_inactive_timeout() as f64) {
+        if NetworkServerStatic::disconnect_inactive_connections() &&
+            !connection.is_alive(NetworkServerStatic::disconnect_inactive_timeout() as f64) {
             warn!(format!("Server.DisconnectIfInactive: connectionId: {} is inactive. Disconnecting.", connection.connection_id()));
             connection.disconnect();
             return true;
@@ -541,8 +535,8 @@ impl NetworkServer {
             return;
         }
 
-        if NetworkServerStatic::get_static_network_connections_size() >= NetworkServerStatic::get_static_max_connections() {
-            error!(format!("Server.HandleConnect: max_connections reached: {}. Disconnecting connectionId: {}", NetworkServerStatic::get_static_max_connections(), connection_id));
+        if NetworkServerStatic::network_connections_size() >= NetworkServerStatic::max_connections() {
+            error!(format!("Server.HandleConnect: max_connections reached: {}. Disconnecting connectionId: {}", NetworkServerStatic::max_connections(), connection_id));
             if let Some(transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
@@ -559,7 +553,7 @@ impl NetworkServer {
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
             // 添加数据到 transport_data_un_batcher
             if !transport_data_un_batcher.add_batch_with_bytes(data) {
-                if NetworkServerStatic::get_static_exceptions_disconnect() {
+                if NetworkServerStatic::exceptions_disconnect() {
                     error!(format!("Server.HandleData: connectionId: {} failed to add batch. Disconnecting.", connection_id));
                     connection.disconnect();
                 } else {
@@ -572,7 +566,7 @@ impl NetworkServer {
         }
 
         // 如果没有加载场景
-        if !NetworkServerStatic::get_static_is_loading_scene() {
+        if !NetworkServerStatic::is_loading_scene() {
             // 处理消息
             while let Some((message, remote_time_stamp)) = transport_data_un_batcher.get_next_message() {
                 NetworkReaderPool::get_with_array_segment_return(&message, |reader| {
@@ -584,7 +578,7 @@ impl NetworkServer {
                         }
                         // 处理消息
                         if !Self::unpack_and_invoke(connection_id, reader, channel) {
-                            if NetworkServerStatic::get_static_exceptions_disconnect() {
+                            if NetworkServerStatic::exceptions_disconnect() {
                                 error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
                                 if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
                                     connection.disconnect();
@@ -595,7 +589,7 @@ impl NetworkServer {
                             return;
                         }
                     } else {
-                        if NetworkServerStatic::get_static_exceptions_disconnect() {
+                        if NetworkServerStatic::exceptions_disconnect() {
                             error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
                             if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
                                 connection.disconnect();
@@ -631,9 +625,9 @@ impl NetworkServer {
 
     // 处理 TransportDisconnected 消息
     fn on_transport_disconnected(connection_id: u64) {
-        if let Some((_, mut connection)) = NetworkServerStatic::get_static_network_connections().remove(&connection_id) {
+        if let Some((_, mut connection)) = NetworkServerStatic::network_connections().remove(&connection_id) {
             connection.cleanup();
-            if let Some(on_disconnected_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnDisconnectedEvent) {
+            if let Some(on_disconnected_event) = NetworkServerStatic::connected_event().get(&EventHandlerType::OnDisconnectedEvent) {
                 on_disconnected_event(&mut connection, TransportError::None);
             } else {
                 Self::destroy_player_for_connection(&mut connection);
@@ -648,7 +642,7 @@ impl NetworkServer {
     }
 
     pub fn destroy(identity: &mut NetworkIdentity) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("Server.Destroy: NetworkServer is not active. Cannot destroy objects without an active server.");
             return;
         }
@@ -673,7 +667,7 @@ impl NetworkServer {
 
         match options {
             RemovePlayerOptions::KeepActive => {
-                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
+                if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id()) {
                     identity.set_connection_to_client(0);
                     conn.owned().retain(|id| *id != identity.net_id());
                     Self::send_change_owner_message(&mut identity, conn);
@@ -683,7 +677,7 @@ impl NetworkServer {
                 }
             }
             RemovePlayerOptions::UnSpawn => {
-                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
+                if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id()) {
                     Self::un_spawn(&mut identity);
                 } else {
                     error!(format!("Server.RemovePlayer: netId {} not found in spawned.", conn.net_id()));
@@ -691,7 +685,7 @@ impl NetworkServer {
                 }
             }
             RemovePlayerOptions::Destroy => {
-                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&conn.net_id()) {
+                if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id()) {
                     Self::destroy(&mut identity);
                 } else {
                     error!(format!("Server.RemovePlayer: netId {} not found in spawned.", conn.net_id()));
@@ -730,7 +724,7 @@ impl NetworkServer {
     }
 
     fn un_spawn_internal(identity: &mut NetworkIdentity, reset_state: bool) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!("UnSpawn: NetworkServer is not active. Cannot unspawn objects without an active server.".to_string());
             return;
         }
@@ -742,7 +736,7 @@ impl NetworkServer {
             return;
         }
 
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.connection_to_client()) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&identity.connection_to_client()) {
             connection.remove_owned_object(identity.net_id());
         }
         let net_id = identity.net_id();
@@ -774,7 +768,7 @@ impl NetworkServer {
 
             for i in 0..identity.observers.len() {
                 let conn_id = identity.observers[i];
-                if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+                if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
                     connection.send(segment, channel);
                 }
             }
@@ -785,7 +779,7 @@ impl NetworkServer {
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
         if let Some(mut identity) = player.get_identity() {
-            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+            if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
                 if connection.net_id() != 0 {
                     warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
                     return false;
@@ -812,7 +806,7 @@ impl NetworkServer {
 
     // SpawnObject(
     fn spawn_object(mut identity: NetworkIdentity, conn_id: u64) {
-        if !NetworkServerStatic::get_static_active() {
+        if !NetworkServerStatic::active() {
             error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object()));
             return;
         }
@@ -821,7 +815,7 @@ impl NetworkServer {
             return;
         }
 
-        if NetworkServerStatic::get_static_spawned_network_identities().contains_key(&identity.net_id()) {
+        if NetworkServerStatic::spawned_network_identities().contains_key(&identity.net_id()) {
             warn!(format!("SpawnObject for {:?}, netId {} already exists. Use UnSpawnObject first.", identity.game_object(), identity.net_id()));
             return;
         }
@@ -842,7 +836,7 @@ impl NetworkServer {
             Self::rebuild_observers(&mut identity, true);
 
             // 添加到 SPAWNED 中
-            NetworkServerStatic::get_static_spawned_network_identities().insert(identity.net_id(), identity);
+            NetworkServerStatic::spawned_network_identities().insert(identity.net_id(), identity);
 
             return;
         }
@@ -873,7 +867,7 @@ impl NetworkServer {
 
     fn add_all_ready_server_connections_to_observers(identity: &mut NetworkIdentity) {
         let mut conn_ids = Vec::new();
-        NetworkServerStatic::get_static_network_connections().iter_mut().for_each(|connection| {
+        NetworkServerStatic::network_connections().iter_mut().for_each(|connection| {
             if connection.is_ready() {
                 conn_ids.push(connection.connection_id());
             }
@@ -889,7 +883,7 @@ impl NetworkServer {
             Self::spawn(identity, conn_id);
         } else {
             // 找到连接
-            if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&identity.connection_to_client()) {
+            if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&identity.connection_to_client()) {
                 Self::send_spawn_message(&mut identity, &mut connection);
             }
         }
@@ -897,8 +891,8 @@ impl NetworkServer {
 
     // 处理 TransportError 消息
     fn on_transport_error(connection_id: u64, transport_error: TransportError) {
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
-            if let Some(on_error_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnErrorEvent) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&connection_id) {
+            if let Some(on_error_event) = NetworkServerStatic::connected_event().get(&EventHandlerType::OnErrorEvent) {
                 on_error_event(&mut connection, transport_error);
             }
         }
@@ -908,7 +902,7 @@ impl NetworkServer {
     fn on_transport_exception(connection_id: u64, transport_error: TransportError) {
         warn!(format!("Server.HandleTransportException: connectionId: {}, error: {:?}", connection_id, transport_error));
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            if let Some(on_exception_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnTransportExceptionEvent) {
+            if let Some(on_exception_event) = NetworkServerStatic::connected_event().get(&EventHandlerType::OnTransportExceptionEvent) {
                 on_exception_event(&mut connection, transport_error);
             }
         }
@@ -917,13 +911,13 @@ impl NetworkServer {
     // 处理 Connected 消息
     fn on_connected(mut conn: NetworkConnectionToClient) {
         // 如果有 OnConnectedEvent
-        if let Some(on_connected_event) = NetworkServerStatic::get_connected_event().get(&EventHandlerType::OnConnectedEvent) {
+        if let Some(on_connected_event) = NetworkServerStatic::connected_event().get(&EventHandlerType::OnConnectedEvent) {
             on_connected_event(&mut conn, TransportError::None);
         } else {
             warn!("OnConnectedEvent is null");
         }
         // 添加连接 到 NETWORK_CONNECTIONS
-        NetworkServerStatic::static_network_connections_add_connection(conn);
+        NetworkServerStatic::add_network_connection(conn);
     }
 
     // 注册消息处理程序 zhuce
@@ -952,7 +946,7 @@ impl NetworkServer {
     }
     // 设置客户端准备就绪
     pub fn set_client_ready(conn_id: u64) {
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
             connection.set_ready(true);
         }
         // 为连接生成观察者
@@ -961,7 +955,7 @@ impl NetworkServer {
     // 为连接生成观察者
     fn spawn_observers_for_connection(conn_id: u64) {
         // 发送 ObjectSpawnStartedMessage 消息
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
             if !connection.is_ready() {
                 return;
             }
@@ -969,7 +963,7 @@ impl NetworkServer {
         }
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
-        NetworkServerStatic::get_static_spawned_network_identities().iter_mut().for_each(|mut identity| {
+        NetworkServerStatic::spawned_network_identities().iter_mut().for_each(|mut identity| {
             if identity.visibility == ForceShown {
                 identity.add_observer(conn_id);
             } else if identity.visibility == Visibility::ForceHidden {
@@ -981,7 +975,7 @@ impl NetworkServer {
         });
 
         // 发送 ObjectSpawnFinishedMessage 消息
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&conn_id) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
             connection.send_network_message(&mut ObjectSpawnFinishedMessage::default(), TransportChannel::Reliable);
         }
     }
@@ -990,13 +984,13 @@ impl NetworkServer {
     fn on_command_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = CommandMessage::deserialize(reader);
 
-        if let Some(mut connection) = NetworkServerStatic::get_static_network_connections().get_mut(&connection_id) {
+        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&connection_id) {
             // connection 没有准备好
             if !connection.is_ready() {
                 // 如果 channel 是 Reliable
                 if channel == TransportChannel::Reliable {
                     // 如果 SPAWNED 中有 message.net_id
-                    if let Some(identity) = NetworkServerStatic::get_static_spawned_network_identities().get(&message.net_id) {
+                    if let Some(identity) = NetworkServerStatic::spawned_network_identities().get(&message.net_id) {
                         // 如果 message.component_index 小于 net_identity.network_behaviours.len()
                         if (message.component_index as usize) < identity.network_behaviours.len() {
                             // 如果 message.function_hash 在 RemoteProcedureCalls 中
@@ -1012,7 +1006,7 @@ impl NetworkServer {
             }
         }
 
-        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&message.net_id) {
+        if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&message.net_id) {
             // 是否需要权限
             let requires_authority = RemoteProcedureCalls::command_requires_authority(message.function_hash);
             // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
@@ -1046,11 +1040,11 @@ impl NetworkServer {
     // 处理 OnEntityStateMessage 消息
     fn on_entity_state_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
         let message = EntityStateMessage::deserialize(reader);
-        if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&message.net_id) {
+        if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&message.net_id) {
             if identity.connection_to_client() == connection_id {
                 NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
                     if !identity.deserialize_server(reader) {
-                        if NetworkServerStatic::get_static_exceptions_disconnect() {
+                        if NetworkServerStatic::exceptions_disconnect() {
                             error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.net_id(), identity.net_id()));
                             if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
                                 connection.disconnect();

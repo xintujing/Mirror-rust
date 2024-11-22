@@ -45,7 +45,7 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             snapshot_buffer_size_limit: 64,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         };
-        network_connection_to_client.buffer_time = NetworkServerStatic::get_static_send_interval() as f64 * network_connection_to_client.buffer_time_multiplier;
+        network_connection_to_client.buffer_time = NetworkServerStatic::send_interval() as f64 * network_connection_to_client.buffer_time_multiplier;
         if let Some(mut transport) = Transport::get_active_transport() {
             network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
@@ -142,7 +142,7 @@ impl NetworkConnectionToClient {
         // dynamic adjustment
         if snapshot_settings.dynamic_adjustment {
             self.buffer_time_multiplier = SnapshotInterpolation::dynamic_adjustment(
-                NetworkServerStatic::get_static_send_interval() as f64,
+                NetworkServerStatic::send_interval() as f64,
                 self.delivery_time_ema.standard_deviation,
                 snapshot_settings.dynamic_adjustment_tolerance as f64,
             )
@@ -154,7 +154,7 @@ impl NetworkConnectionToClient {
             snapshot,
             &mut self.remote_timeline,
             &mut self.remote_timescale,
-            NetworkServerStatic::get_static_send_interval() as f64,
+            NetworkServerStatic::send_interval() as f64,
             self.buffer_time,
             snapshot_settings.catchup_speed,
             snapshot_settings.slowdown_speed,
@@ -192,7 +192,7 @@ impl NetworkConnectionToClient {
     pub fn remove_from_observings_observers(&mut self) {
         let conn_id = self.connection_id();
         for net_id in self.observing.iter_mut() {
-            if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(net_id) {
+            if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(net_id) {
                 identity.remove_observer(conn_id);
             }
         }
@@ -210,7 +210,7 @@ impl NetworkConnectionToClient {
         for i in 0..self.owned().len() {
             let net_id = self.owned()[i];
             if net_id != 0 {
-                if let Some(mut identity) = NetworkServerStatic::get_static_spawned_network_identities().get_mut(&net_id) {
+                if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&net_id) {
                     if identity.scene_id != 0 {
                         NetworkServer::remove_player_for_connection(self, RemovePlayerOptions::KeepActive);
                     } else {
@@ -218,7 +218,7 @@ impl NetworkConnectionToClient {
                     }
                 }
             }
-            NetworkServerStatic::get_static_spawned_network_identities().remove(&net_id);
+            NetworkServerStatic::spawned_network_identities().remove(&net_id);
         }
         self.owned().clear();
     }

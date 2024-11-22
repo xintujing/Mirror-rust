@@ -51,7 +51,7 @@ impl NetworkTransformReliable {
                 return;
             }
 
-            if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+            if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
                 let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
                 let computed = TransformSnapshot::transform_snapshot(from, to, t);
                 self.apply(computed, to);
@@ -83,7 +83,7 @@ impl NetworkTransformReliable {
             self.send_interval_counter = 0;
         }
 
-        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::get_static_send_interval() as f64, &mut self.last_send_interval_time) {
+        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::send_interval() as f64, &mut self.last_send_interval_time) {
             self.send_interval_counter += 1;
         }
     }
@@ -95,7 +95,7 @@ impl NetworkTransformReliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::get_static_network_connections().get(&self.connection_to_client()) {
+        if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
             if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
                 return;
             }
