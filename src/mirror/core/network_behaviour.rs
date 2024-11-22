@@ -29,11 +29,11 @@ impl NetworkBehaviourFactory {
     fn add_network_behaviour_factory(name: String, factory: NetworkBehaviourFactoryType) {
         NETWORK_BEHAVIOURS_FAACTORIES.insert(name, factory);
     }
-    pub fn create_network_behaviour(name: &str, game_object: GameObject, component: &NetworkBehaviourComponent) -> Option<Box<dyn NetworkBehaviourTrait>> {
-        if let Some(factory) = NETWORK_BEHAVIOURS_FAACTORIES.get(name) {
+    pub fn create_network_behaviour(game_object: GameObject, component: &NetworkBehaviourComponent) -> Option<Box<dyn NetworkBehaviourTrait>> {
+        if let Some(factory) = NETWORK_BEHAVIOURS_FAACTORIES.get(&component.sub_class) {
             Some(factory(game_object, component))
         } else {
-            error!("Using NetworkCommonBehaviour creat ",name);
+            error!("Using NetworkCommonBehaviour creat ",component.sub_class);
             Some(Box::new(NetworkCommonBehaviour::new(game_object, component)))
         }
     }

@@ -161,7 +161,7 @@ impl NetworkIdentity {
     }
     pub fn initialize_network_behaviours(&mut self) {
         for component in BackendDataStatic::get_backend_data().get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
-            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(component.sub_class.as_str(), self.game_object.clone(), component) {
+            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(self.game_object.clone(), component) {
                 self.network_behaviours.push(network_behaviour);
             }
         }
