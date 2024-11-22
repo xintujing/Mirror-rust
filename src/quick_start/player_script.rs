@@ -1,5 +1,8 @@
+use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
@@ -23,56 +26,87 @@ pub struct PlayerScript {
 }
 
 impl PlayerScript {
-    fn invoke_user_code_cmd_setup_player_string_color(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_setup_player_string_color(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index).
-            as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_setup_player_string_color(reader.read_string(), reader.read_vector4());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
-    fn user_code_cmd_setup_player_string_color(&mut self, player_name: String, player_color: Vector4<f32>) {
+    fn user_code_cmd_setup_player_string_color(
+        &mut self,
+        player_name: String,
+        player_color: Vector4<f32>,
+    ) {
         self.player_name = player_name;
         self.set_sync_var_dirty_bits(1 << 1);
         self.player_color = player_color;
         self.set_sync_var_dirty_bits(1 << 2);
-        println!("PlayerScript::CmdSetupPlayer: player_name: {}, player_color: {:?}", self.player_name, self.player_color);
+        println!(
+            "PlayerScript::CmdSetupPlayer: player_name: {}, player_color: {:?}",
+            self.player_name, self.player_color
+        );
     }
 
-    fn invoke_user_code_cmd_shoot_ray(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_shoot_ray(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index).
-            as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_shoot_ray();
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_shoot_ray();
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     fn user_code_cmd_shoot_ray(&mut self) {
         NetworkWriterPool::get_return(|writer| {
-            self.send_rpc_internal("System.Void QuickStart.PlayerScript::RpcFireWeapon()", 546187665, writer, TransportChannel::Reliable, true);
+            self.send_rpc_internal(
+                "System.Void QuickStart.PlayerScript::RpcFireWeapon()",
+                546187665,
+                writer,
+                TransportChannel::Reliable,
+                true,
+            );
         });
     }
 
-    fn invoke_user_code_cmd_change_active_weapon_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_change_active_weapon_int32(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index).
-            as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_change_active_weapon_int32(reader.read_int());
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_change_active_weapon_int32(reader.read_int());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -82,7 +116,6 @@ impl PlayerScript {
     }
 }
 
-
 impl NetworkBehaviourTrait for PlayerScript {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
     where
@@ -90,7 +123,13 @@ impl NetworkBehaviourTrait for PlayerScript {
     {
         Self::call_register_delegate();
         Self {
-            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
+            network_behaviour: NetworkBehaviour::new(
+                game_object,
+                network_behaviour_component
+                    .network_behaviour_setting
+                    .clone(),
+                network_behaviour_component.index,
+            ),
             active_weapon_synced: 0,
             player_name: "".to_string(),
             player_color: Vector4::new(255.0, 255.0, 255.0, 255.0),
@@ -265,3 +304,5 @@ impl NetworkBehaviourTrait for PlayerScript {
         true
     }
 }
+
+impl NetworkCommonBehaviour {}

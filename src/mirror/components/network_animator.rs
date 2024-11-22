@@ -1,10 +1,7 @@
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
-use crate::mirror::core::sync_object::SyncObject;
-use std::any::Any;
-use std::hash::{DefaultHasher, Hash, Hasher};
-use std::sync::Once;
-use tklog::error;
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
@@ -13,7 +10,12 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
+use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use std::any::Any;
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::Once;
+use tklog::error;
 
 #[derive(Debug)]
 pub struct NetworkAnimator {
@@ -49,7 +51,10 @@ impl NetworkAnimator {
     fn check_send_rate(&mut self) {
         let now = NetworkTime::local_time();
 
-        if self.send_messages_allowed() && self.network_behaviour.sync_interval >= 0.0 && now >= self.next_send_time {
+        if self.send_messages_allowed()
+            && self.network_behaviour.sync_interval >= 0.0
+            && now >= self.next_send_time
+        {
             self.next_send_time = now + self.network_behaviour.sync_interval;
         }
 
@@ -132,37 +137,77 @@ impl NetworkAnimator {
         })
     }
 
-    fn send_animation_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {}
+    fn send_animation_message(
+        &mut self,
+        state_hash: i32,
+        normalized_time: f32,
+        layer_id: i32,
+        weight: f32,
+        parameters: Vec<u8>,
+    ) {
+    }
 
     // no use end
 
     // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
-    fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(reader.read_int(), reader.read_float(), reader.read_int(), reader.read_float(), reader.read_remaining_bytes());
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
+                reader.read_int(),
+                reader.read_float(),
+                reader.read_int(),
+                reader.read_float(),
+                reader.read_remaining_bytes(),
+            );
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     // 1 UserCode_CmdOnAnimationServerMessage__Int32__Single__Int32__Single__Byte\u005B\u005D
-    fn user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
+    fn user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
+        &mut self,
+        state_hash: i32,
+        normalized_time: f32,
+        layer_id: i32,
+        weight: f32,
+        parameters: Vec<u8>,
+    ) {
         if !self.client_authority {
             return;
         }
 
         NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
             self.handle_anim_msg(state_hash, normalized_time, layer_id, weight, reader);
-            self.rpc_on_animation_client_message(state_hash, normalized_time, layer_id, weight, parameters);
+            self.rpc_on_animation_client_message(
+                state_hash,
+                normalized_time,
+                layer_id,
+                weight,
+                parameters,
+            );
         });
     }
     // 1 HandleAnimMsg
-    fn handle_anim_msg(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, reader: &mut NetworkReader) {
+    fn handle_anim_msg(
+        &mut self,
+        state_hash: i32,
+        normalized_time: f32,
+        layer_id: i32,
+        weight: f32,
+        reader: &mut NetworkReader,
+    ) {
         if self.client_authority {
             return;
         }
@@ -170,16 +215,24 @@ impl NetworkAnimator {
     }
 
     // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
-    fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_on_animation_parameters_server_message_byte(reader.read_bytes_and_size());
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_on_animation_parameters_server_message_byte(
+                reader.read_bytes_and_size(),
+            );
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -204,16 +257,22 @@ impl NetworkAnimator {
     }
 
     // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
-    fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_on_animation_trigger_server_message_int32(reader.read_int());
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_on_animation_trigger_server_message_int32(reader.read_int());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -236,16 +295,22 @@ impl NetworkAnimator {
     }
 
     // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
-    fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_on_animation_reset_trigger_server_message_int32(reader.read_int());
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_on_animation_reset_trigger_server_message_int32(reader.read_int());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -268,16 +333,22 @@ impl NetworkAnimator {
     }
 
     // 5 invoke_user_code_cmd_set_animator_speed_single
-    fn invoke_user_code_cmd_set_animator_speed_single(identity: &mut NetworkIdentity, component_index: u8, reader: &mut NetworkReader, conn_id: u64) {
+    fn invoke_user_code_cmd_set_animator_speed_single(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        func_hash: u16,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut().
-            downcast_mut::<Self>().
-            unwrap().
-            user_code_cmd_set_animator_speed_single(reader.read_float());
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_set_animator_speed_single(reader.read_float());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -291,9 +362,15 @@ impl NetworkAnimator {
         self.set_sync_object_dirty_bits(1 << 0);
     }
 
-
     // 1 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
-    fn rpc_on_animation_client_message(&mut self, state_hash: i32, normalized_time: f32, layer_id: i32, weight: f32, parameters: Vec<u8>) {
+    fn rpc_on_animation_client_message(
+        &mut self,
+        state_hash: i32,
+        normalized_time: f32,
+        layer_id: i32,
+        weight: f32,
+        parameters: Vec<u8>,
+    ) {
         NetworkWriterPool::get_return(|writer| {
             writer.write_int(state_hash);
             writer.write_float(normalized_time);
@@ -341,7 +418,11 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         Self::call_register_delegate();
         // TODO  Initialize
         let animator = Self {
-            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
+            network_behaviour: NetworkBehaviour::new(
+                game_object,
+                network_behaviour_component.network_behaviour_setting,
+                network_behaviour_component.index,
+            ),
             client_authority: true,
             animator: Animator::new(),
             animator_speed: 1.0,
@@ -543,9 +624,7 @@ pub struct Animator {
 }
 impl Animator {
     pub fn new() -> Self {
-        Self {
-            layer_count: 0
-        }
+        Self { layer_count: 0 }
     }
 
     pub fn get_integer(&self, id: i32) -> i32 {
@@ -616,7 +695,11 @@ impl AnimatorControllerParameter {
 
     pub fn equals(&self, o: &dyn Any) -> bool {
         if let Some(controller_parameter) = o.downcast_ref::<AnimatorControllerParameter>() {
-            return self.m_name == controller_parameter.m_name && self.m_type == controller_parameter.m_type && self.m_default_float == controller_parameter.m_default_float && self.m_default_int == controller_parameter.m_default_int && self.m_default_bool == controller_parameter.m_default_bool;
+            return self.m_name == controller_parameter.m_name
+                && self.m_type == controller_parameter.m_type
+                && self.m_default_float == controller_parameter.m_default_float
+                && self.m_default_int == controller_parameter.m_default_int
+                && self.m_default_bool == controller_parameter.m_default_bool;
         }
         false
     }

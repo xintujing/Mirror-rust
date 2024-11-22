@@ -400,5 +400,8 @@ mod tests {
         println!("{:?}", backend_data.get_network_identity_data_by_asset_id(0));
 
         println!("{:?}", backend_data.network_manager_settings);
+
+        let method_data = backend_data.get_method_data_by_method_name("System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)");
+        println!("{:?}", method_data);
     }
 }

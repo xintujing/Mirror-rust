@@ -1,27 +1,61 @@
-use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent, SyncVarData};
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::backend_data::{
+    BackendDataStatic, NetworkBehaviourComponent, SyncVarData,
+};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
+use crate::mirror::core::network_identity::NetworkIdentity;
+use crate::mirror::core::network_reader::NetworkReader;
+use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::sync_object::SyncObject;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::debug;
+use tklog::{debug, error};
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
     network_behaviour: NetworkBehaviour,
+    sub_class: String,
     sync_vars: DashMap<u8, SyncVarData>,
 }
 
 impl NetworkCommonBehaviour {
-    #[allow(dead_code)]
-    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommon";
     fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {
         if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
             sync_var.value = value;
         }
         self.set_sync_var_dirty_bits(1 << index);
+    }
+    fn get_sync_var_index(&self, name: &str) -> Option<u8> {
+        for sync_var in self.sync_vars.iter() {
+            if sync_var.name == name {
+                return Some(*sync_var.key());
+            }
+        }
+        None
+    }
+    fn invoke_user_code_cmd_common_update_sync_var(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
+        if !NetworkServerStatic::active() {
+            error!("Command CmdClientToServerSync called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_common_update_sync_var(reader, conn_id);
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+    fn user_code_cmd_common_update_sync_var(&mut self, reader: &mut NetworkReader, conn_id: u64) {
+
     }
 }
 
@@ -30,13 +64,24 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     where
         Self: Sized,
     {
-        Self::call_register_delegate();
         let sync_vars = DashMap::new();
-        for (i, sync_var) in BackendDataStatic::get_backend_data().get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref()).iter().enumerate() {
+        for (i, sync_var) in BackendDataStatic::get_backend_data()
+            .get_sync_var_data_s_by_sub_class(network_behaviour_component.sub_class.as_ref())
+            .iter()
+            .enumerate()
+        {
             sync_vars.insert(i as u8, (*sync_var).clone());
         }
+        Self::call_register_delegate();
         Self {
-            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting.clone(), network_behaviour_component.index),
+            network_behaviour: NetworkBehaviour::new(
+                game_object,
+                network_behaviour_component
+                    .network_behaviour_setting
+                    .clone(),
+                network_behaviour_component.index,
+            ),
+            sub_class: network_behaviour_component.sub_class.clone(),
             sync_vars,
         }
     }

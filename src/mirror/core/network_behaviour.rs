@@ -17,6 +17,7 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
 use tklog::{error, warn};
+use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
@@ -33,8 +34,8 @@ impl NetworkBehaviourFactory {
         if let Some(factory) = NETWORK_BEHAVIOURS_FAACTORIES.get(name) {
             Some(factory(game_object, component))
         } else {
-            error!(format!("NetworkBehaviourFactory::create - factory not found for {}", name));
-            None
+            error!(format!("NetworkBehaviourFactory::create - factory not found for {}, using NetworkCommonBehaviour", name));
+            Some(Box::new(NetworkCommonBehaviour::new(game_object, component)))
         }
     }
     pub fn register_network_behaviour_factory() {
@@ -43,7 +44,7 @@ impl NetworkBehaviourFactory {
         // NetworkTransformReliable
         Self::add_network_behaviour_factory(NetworkTransformReliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformReliable::new(game_object, component))));
         // QuickStart.PlayerScript
-        Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
+        // Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
     }
 }
 
