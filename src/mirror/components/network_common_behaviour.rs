@@ -56,9 +56,20 @@ impl NetworkCommonBehaviour {
                 });
             }
             // 常规类型
-            "System.Int32" => {
+
+            // 4 字节
+            "System.Int32" | "System.Float" => {
                 value = reader.read_bytes(4);
             }
+            // 8 字节
+            "System.Int64" | "System.Double" => {
+                value = reader.read_bytes(8);
+            }
+            // 12 字节
+            "UnityEngine.Vector3" => {
+                value = reader.read_bytes(12);
+            }
+            // 16 字节
             "UnityEngine.Color" => {
                 value = reader.read_bytes(16);
             }
@@ -104,6 +115,10 @@ impl NetworkCommonBehaviour {
         if let Some(method_data) =
             BackendDataStatic::get_backend_data().get_method_data_by_hash_code(func_hash)
         {
+            println!(
+                "Method found by hash code: {} - {}",
+                func_hash, method_data.name
+            );
             // 更新同步变量
             for (index, parameter) in method_data.parameters.iter().enumerate() {
                 let r#type = parameter.value.as_str();
@@ -111,7 +126,7 @@ impl NetworkCommonBehaviour {
                 self.update_sync_var(full_name, r#type, reader);
             }
 
-            // 发送RPC
+            // 发送RPCs
             NetworkWriterPool::get_return(|writer| {
                 writer.write_array_segment_all(reader.to_array_segment());
                 for rpc in method_data.rpc_list.iter() {
