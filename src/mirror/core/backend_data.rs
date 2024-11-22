@@ -380,6 +380,7 @@ impl BackendData {
 
 #[cfg(test)]
 mod tests {
+    use crate::mirror::core::tools::stable_hash::StableHash;
     use super::*;
 
     #[test]
@@ -401,7 +402,7 @@ mod tests {
 
         println!("{:?}", backend_data.network_manager_settings);
 
-        let method_data = backend_data.get_method_data_by_method_name("System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)");
+        let method_data = backend_data.get_method_data_by_hash_code("System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code());
         println!("{:?}", method_data);
     }
 }

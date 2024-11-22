@@ -10,7 +10,6 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
-use crate::quick_start::player_script::PlayerScript;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
@@ -34,7 +33,7 @@ impl NetworkBehaviourFactory {
         if let Some(factory) = NETWORK_BEHAVIOURS_FAACTORIES.get(name) {
             Some(factory(game_object, component))
         } else {
-            error!(format!("NetworkBehaviourFactory::create - factory not found for {}, using NetworkCommonBehaviour", name));
+            error!("Using NetworkCommonBehaviour creat ",name);
             Some(Box::new(NetworkCommonBehaviour::new(game_object, component)))
         }
     }

@@ -1,3 +1,4 @@
+use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::tools::stable_hash::StableHash;
@@ -145,10 +146,21 @@ impl RemoteProcedureCalls {
         if has {
             if let Some(invoker) = invoker_option {
                 (invoker.function)(identity, component_index, func_hash, reader, conn_id);
-                return true;
+                return has;
             }
         }
-        false
+
+        let (has, invoker_option) = Self::get_invoker_for_hash(
+            NetworkCommonBehaviour::INVOKE_USER_CODE_CMD.get_fn_stable_hash_code(),
+            remote_call_type,
+        );
+        if has {
+            if let Some(invoker) = invoker_option {
+                (invoker.function)(identity, component_index, func_hash, reader, conn_id);
+                return has;
+            }
+        }
+        has
     }
 
     pub fn command_requires_authority(func_hash: u16) -> bool {

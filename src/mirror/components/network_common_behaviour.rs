@@ -5,10 +5,14 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_identity::NetworkIdentity;
-use crate::mirror::core::network_reader::NetworkReader;
+use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
-use crate::mirror::core::network_writer::NetworkWriter;
+use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use crate::mirror::core::network_writer_pool::NetworkWriterPool;
+use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::tools::stable_hash::StableHash;
+use crate::mirror::core::transport::TransportChannel;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -23,23 +27,58 @@ pub struct NetworkCommonBehaviour {
 }
 
 impl NetworkCommonBehaviour {
-    fn update_sync_var(&mut self, index: u8, value: Vec<u8>) {
+    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommonBehaviour";
+    pub const INVOKE_USER_CODE_CMD: &'static str = "invoke_user_code_cmd";
+    fn __update_sync_var(&mut self, index: u8, value: Vec<u8>) {
         if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
             sync_var.value = value;
         }
         self.set_sync_var_dirty_bits(1 << index);
     }
-    fn get_sync_var_index(&self, name: &str) -> Option<u8> {
+    fn __get_sync_var_index(&self, full_name: &str) -> Option<u8> {
         for sync_var in self.sync_vars.iter() {
-            if sync_var.name == name {
+            if sync_var.full_name == full_name {
                 return Some(*sync_var.key());
             }
         }
         None
     }
+    fn get_sync_var_value_vec(&self, r#type: &str, reader: &mut NetworkReader) -> Vec<u8> {
+        // 初始化数据
+        let mut value = Vec::new();
+        match r#type {
+            // 非定长类型
+            "System.String" => {
+                let string = reader.read_string();
+                NetworkWriterPool::get_return(|writer| {
+                    writer.write_string(string);
+                    value = writer.to_bytes();
+                });
+            }
+            // 常规类型
+            "System.Int32" => {
+                value = reader.read_bytes(4);
+            }
+            "UnityEngine.Color" => {
+                value = reader.read_bytes(16);
+            }
+            // 未知类型
+            _ => {}
+        };
+        value
+    }
+    // 更新同步变量
+    fn update_sync_var(&mut self, full_name: &str, r#type: &str, reader: &mut NetworkReader) {
+        if let Some(index) = self.__get_sync_var_index(full_name) {
+            let value = self.get_sync_var_value_vec(r#type, reader);
+            self.__update_sync_var(index, value);
+        }
+    }
+    // 通用更新同步变量
     fn invoke_user_code_cmd_common_update_sync_var(
         identity: &mut NetworkIdentity,
         component_index: u8,
+        func_hash: u16,
         reader: &mut NetworkReader,
         conn_id: u64,
     ) {
@@ -51,11 +90,43 @@ impl NetworkCommonBehaviour {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_common_update_sync_var(reader, conn_id);
+            .user_code_cmd_common_update_sync_var(reader, func_hash, conn_id);
         NetworkBehaviour::late_invoke(identity, component_index);
     }
-    fn user_code_cmd_common_update_sync_var(&mut self, reader: &mut NetworkReader, conn_id: u64) {
+    // 通用更新同步变量
+    fn user_code_cmd_common_update_sync_var(
+        &mut self,
+        reader: &mut NetworkReader,
+        func_hash: u16,
+        conn_id: u64,
+    ) {
+        // 获取方法数据
+        if let Some(method_data) =
+            BackendDataStatic::get_backend_data().get_method_data_by_hash_code(func_hash)
+        {
+            // 更新同步变量
+            for (index, parameter) in method_data.parameters.iter().enumerate() {
+                let r#type = parameter.value.as_str();
+                let full_name = method_data.var_list[index].value.as_str();
+                self.update_sync_var(full_name, r#type, reader);
+            }
 
+            // 发送RPC
+            NetworkWriterPool::get_return(|writer| {
+                writer.write_array_segment_all(reader.to_array_segment());
+                for rpc in method_data.rpc_list.iter() {
+                    self.send_rpc_internal(
+                        rpc.as_str(),
+                        rpc.get_stable_hash_code(),
+                        writer,
+                        TransportChannel::Reliable,
+                        true,
+                    );
+                }
+            });
+        } else {
+            error!("Method not found by hash code: {}", func_hash);
+        }
     }
 }
 
@@ -90,7 +161,12 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     where
         Self: Sized,
     {
-        debug!("Registering delegate for NetworkCommonBehaviour");
+        debug!("Registering delegate for ", Self::COMPONENT_TAG);
+        RemoteProcedureCalls::register_command_delegate::<Self>(
+            Self::INVOKE_USER_CODE_CMD,
+            Box::new(Self::invoke_user_code_cmd_common_update_sync_var),
+            true,
+        );
     }
 
     fn get_once() -> &'static Once
@@ -209,7 +285,11 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         self.network_behaviour.is_dirty()
     }
 
-    fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
             for i in 0..self.sync_vars.len() as u8 {
                 if let Some(sync_var) = self.sync_vars.get(&i) {
@@ -217,6 +297,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
                 }
             }
         } else {
+            writer.write_ulong(self.sync_var_dirty_bits());
             for i in 0..self.sync_vars.len() as u8 {
                 if self.sync_var_dirty_bits() & (1 << i) != 0 {
                     if let Some(sync_var) = self.sync_vars.get(&i) {
@@ -225,9 +306,5 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
                 }
             }
         }
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
