@@ -1,6 +1,10 @@
+use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::mirror::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
-use crate::mirror::core::backend_data::{BackendDataStatic, NetworkBehaviourComponent, NetworkBehaviourSetting};
+use crate::mirror::core::backend_data::{
+    BackendDataStatic, NetworkBehaviourComponent, NetworkBehaviourSetting,
+};
 use crate::mirror::core::messages::{EntityStateMessage, RpcMessage};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_identity::NetworkIdentity;
@@ -10,38 +14,64 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
 use tklog::{error, warn};
-use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use crate::mirror::components::network_transform::network_transform_base::Transform;
 
-type NetworkBehaviourFactoryType = Box<dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync>;
+type NetworkBehaviourFactoryType = Box<
+    dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync,
+>;
 
 lazy_static! {
-    static ref NETWORK_BEHAVIOURS_FAACTORIES: DashMap<String, NetworkBehaviourFactoryType> = DashMap::new();
+    static ref NETWORK_BEHAVIOURS_FAACTORIES: DashMap<String, NetworkBehaviourFactoryType> =
+        DashMap::new();
 }
 pub struct NetworkBehaviourFactory;
 impl NetworkBehaviourFactory {
     fn add_network_behaviour_factory(name: String, factory: NetworkBehaviourFactoryType) {
         NETWORK_BEHAVIOURS_FAACTORIES.insert(name, factory);
     }
-    pub fn create_network_behaviour(game_object: GameObject, component: &NetworkBehaviourComponent) -> Option<Box<dyn NetworkBehaviourTrait>> {
-        if let Some(factory) = NETWORK_BEHAVIOURS_FAACTORIES.get(&component.sub_class) {
-            Some(factory(game_object, component))
-        } else {
-            error!("Using NetworkCommonBehaviour creat ",component.sub_class);
-            Some(Box::new(NetworkCommonBehaviour::new(game_object, component)))
+    pub fn create_network_behaviour(
+        game_object: GameObject,
+        component: &NetworkBehaviourComponent,
+    ) -> Option<Box<dyn NetworkBehaviourTrait>> {
+        // 根据 类名 从 NETWORK_BEHAVIOURS_FAACTORIES 中获取对应的工厂方法
+        match NETWORK_BEHAVIOURS_FAACTORIES.get(&component.sub_class) {
+            // 如果存在则调用工厂方法创建 NetworkBehaviour
+            Some(factory) => Some(factory(game_object, component)),
+            // 如果不存在则创建 NetworkCommonBehaviour
+            None => {
+                error!("Using NetworkCommonBehaviour creat ", component.sub_class);
+                Some(Box::new(NetworkCommonBehaviour::new(
+                    game_object,
+                    component,
+                )))
+            }
         }
     }
     pub fn register_network_behaviour_factory() {
         // NetworkTransformUnreliable
-        Self::add_network_behaviour_factory(NetworkTransformUnreliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformUnreliable::new(game_object, component))));
+        Self::add_network_behaviour_factory(
+            NetworkTransformUnreliable::COMPONENT_TAG.to_string(),
+            Box::new(
+                |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                    Box::new(NetworkTransformUnreliable::new(game_object, component))
+                },
+            ),
+        );
         // NetworkTransformReliable
-        Self::add_network_behaviour_factory(NetworkTransformReliable::COMPONENT_TAG.to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(NetworkTransformReliable::new(game_object, component))));
+        Self::add_network_behaviour_factory(
+            NetworkTransformReliable::COMPONENT_TAG.to_string(),
+            Box::new(
+                |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                    Box::new(NetworkTransformReliable::new(game_object, component))
+                },
+            ),
+        );
         // QuickStart.PlayerScript
         // Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
     }
@@ -75,13 +105,17 @@ impl GameObject {
         if self.prefab == "" {
             return false;
         }
-        if let None = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
+        if let None =
+            BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str())
+        {
             return false;
         }
         true
     }
     pub fn get_identity(&mut self) -> Option<NetworkIdentity> {
-        if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str()) {
+        if let Some(asset_id) =
+            BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str())
+        {
             let mut identity = NetworkIdentity::new(asset_id);
             identity.set_game_object(self.clone());
             return Some(identity);
@@ -142,7 +176,11 @@ pub struct NetworkBehaviour {
 }
 
 impl NetworkBehaviour {
-    pub fn new(game_object: GameObject, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(
+        game_object: GameObject,
+        network_behaviour_setting: NetworkBehaviourSetting,
+        component_index: u8,
+    ) -> Self {
         NetworkBehaviour {
             sync_interval: 0.0,
             last_sync_time: 0.0,
@@ -160,10 +198,13 @@ impl NetworkBehaviour {
         }
     }
     pub fn is_dirty(&self) -> bool {
-        self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64 &&
-            NetworkTime::local_time() - self.last_sync_time > self.sync_interval
+        self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64
+            && NetworkTime::local_time() - self.last_sync_time > self.sync_interval
     }
-    pub fn early_invoke(identity: &mut NetworkIdentity, component_index: u8) -> &mut Box<dyn NetworkBehaviourTrait> {
+    pub fn early_invoke(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+    ) -> &mut Box<dyn NetworkBehaviourTrait> {
         // 需要传递给 component 的参数
         let observers = identity.observers.clone();
         // 获取 component
@@ -190,9 +231,11 @@ impl NetworkBehaviour {
     }
 }
 
-
 pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
-    fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
+    fn new(
+        game_object: GameObject,
+        network_behaviour_component: &NetworkBehaviourComponent,
+    ) -> Self
     where
         Self: Sized;
     fn register_delegate()
@@ -325,7 +368,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         let size = reader.get_position() - chunk_start;
         let size_hash = size as u8 & 0xFF;
         if size_hash != safety {
-            warn!(format!("Deserialize failed. Size mismatch. Expected: {}, Received: {}", size_hash, safety));
+            warn!(format!(
+                "Deserialize failed. Size mismatch. Expected: {}, Received: {}",
+                size_hash, safety
+            ));
             let corrected_size = NetworkBehaviour::error_correction(size, safety);
             reader.set_position(chunk_start + corrected_size);
             result = false;
@@ -333,7 +379,11 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         result
     }
     // DeserializeSyncObjects
-    fn deserialize_sync_objects(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+    fn deserialize_sync_objects(
+        &mut self,
+        reader: &mut NetworkReader,
+        initial_state: bool,
+    ) -> bool {
         if initial_state {
             self.deserialize_objects_all(reader)
         } else {
@@ -379,14 +429,31 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         }
     }
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn send_rpc_internal(&self, function_full_name: &'static str, function_hash_code: i32, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
+    fn send_rpc_internal(
+        &self,
+        function_full_name: &'static str,
+        function_hash_code: i32,
+        writer: &NetworkWriter,
+        channel: TransportChannel,
+        include_owner: bool,
+    ) {
         if !NetworkServerStatic::active() {
-            error!(format!("RPC Function {} called without an active server.", function_full_name));
+            error!(format!(
+                "RPC Function {} called without an active server.",
+                function_full_name
+            ));
             return;
         }
-        let mut rpc = RpcMessage::new(self.net_id(), self.index(), function_hash_code as u16, writer.to_bytes());
+        let mut rpc = RpcMessage::new(
+            self.net_id(),
+            self.index(),
+            function_hash_code as u16,
+            writer.to_bytes(),
+        );
         self.observers().iter().for_each(|observer| {
-            if let Some(mut conn_to_client) = NetworkServerStatic::network_connections().get_mut(observer) {
+            if let Some(mut conn_to_client) =
+                NetworkServerStatic::network_connections().get_mut(observer)
+            {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
                     conn_to_client.send_network_message(&mut rpc, channel);
@@ -394,14 +461,21 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             }
         });
     }
-    fn send_entity_internal(&self, writer: &NetworkWriter, channel: TransportChannel, include_owner: bool) {
+    fn send_entity_internal(
+        &self,
+        writer: &NetworkWriter,
+        channel: TransportChannel,
+        include_owner: bool,
+    ) {
         if !NetworkServerStatic::active() {
             error!("EntityStateMessage called without an active server.");
             return;
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
         for observer in self.observers().iter() {
-            if let Some(mut conn_to_client) = NetworkServerStatic::network_connections().get_mut(&observer) {
+            if let Some(mut conn_to_client) =
+                NetworkServerStatic::network_connections().get_mut(&observer)
+            {
                 let is_owner = conn_to_client.connection_id() == self.connection_to_client();
                 if (!is_owner || include_owner) && conn_to_client.is_ready() {
                     conn_to_client.send_network_message(&mut entity_message, channel);
