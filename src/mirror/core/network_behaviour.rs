@@ -27,20 +27,20 @@ type NetworkBehaviourFactoryType = Box<
 >;
 
 lazy_static! {
-    static ref NETWORK_BEHAVIOURS_FAACTORIES: DashMap<String, NetworkBehaviourFactoryType> =
+    static ref NETWORK_BEHAVIOURS_FACTORIES: DashMap<String, NetworkBehaviourFactoryType> =
         DashMap::new();
 }
 pub struct NetworkBehaviourFactory;
 impl NetworkBehaviourFactory {
     fn add_network_behaviour_factory(name: String, factory: NetworkBehaviourFactoryType) {
-        NETWORK_BEHAVIOURS_FAACTORIES.insert(name, factory);
+        NETWORK_BEHAVIOURS_FACTORIES.insert(name, factory);
     }
     pub fn create_network_behaviour(
         game_object: GameObject,
         component: &NetworkBehaviourComponent,
     ) -> Option<Box<dyn NetworkBehaviourTrait>> {
-        // 根据 类名 从 NETWORK_BEHAVIOURS_FAACTORIES 中获取对应的工厂方法
-        match NETWORK_BEHAVIOURS_FAACTORIES.get(&component.sub_class) {
+        // 根据 类名 从 NETWORK_BEHAVIOURS_FACTORIES 中获取对应的工厂方法
+        match NETWORK_BEHAVIOURS_FACTORIES.get(&component.sub_class) {
             // 如果存在则调用工厂方法创建 NetworkBehaviour
             Some(factory) => Some(factory(game_object, component)),
             // 如果不存在则创建 NetworkCommonBehaviour
