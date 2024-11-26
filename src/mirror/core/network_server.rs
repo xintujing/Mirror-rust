@@ -626,12 +626,12 @@ impl NetworkServer {
     // 处理 TransportDisconnected 消息
     fn on_transport_disconnected(connection_id: u64) {
         if let Some((_, mut connection)) = NetworkServerStatic::network_connections().remove(&connection_id) {
-            connection.cleanup();
             if let Some(on_disconnected_event) = NetworkServerStatic::connected_event().get(&EventHandlerType::OnDisconnectedEvent) {
                 on_disconnected_event(&mut connection, TransportError::None);
             } else {
                 Self::destroy_player_for_connection(&mut connection);
             }
+            connection.cleanup();
         }
     }
 
