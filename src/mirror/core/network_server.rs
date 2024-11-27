@@ -207,7 +207,7 @@ impl NetworkServerStatic {
         }
     }
     // TRANSPORT_DATA_UN_BATCHER
-    pub fn transport_data_un_batcher() -> &'static RwLock<UnBatcher> {
+    fn transport_data_un_batcher() -> &'static RwLock<UnBatcher> {
         &TRANSPORT_DATA_UN_BATCHER
     }
     // 获取 NetworkConnections
