@@ -49,7 +49,7 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         };
         network_connection_to_client.buffer_time = NetworkServerStatic::send_interval() as f64
             * network_connection_to_client.buffer_time_multiplier;
-        if let Some(mut transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::get_active_transport() {
             network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
         network_connection_to_client
@@ -211,7 +211,7 @@ impl NetworkConnectionToClient {
         self.owned().push(net_id);
     }
     pub fn remove_owned_object(&mut self, net_id: u32) {
-        self.owned().retain(|x| net_id != net_id);
+        self.owned().retain(|id| *id != net_id);
     }
 
     pub fn destroy_owned_objects(&mut self) {

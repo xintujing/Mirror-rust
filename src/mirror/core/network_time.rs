@@ -110,8 +110,7 @@ impl NetworkTime {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn on_server_pong(connection_id: u64, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_pong(_connection_id: u64, un_batch: &mut NetworkReader, _channel: TransportChannel) {
         let message = NetworkPongMessage::deserialize(un_batch);
         if message.local_time > Self::local_time() {
             return;

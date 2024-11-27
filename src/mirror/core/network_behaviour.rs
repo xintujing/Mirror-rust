@@ -222,7 +222,7 @@ impl NetworkBehaviour {
         let cleared = size & 0xFFFFFF00;
         cleared | safety as usize
     }
-    fn sync_var_equal<T>(a: &T, b: &T) -> bool
+    pub fn sync_var_equal<T>(a: &T, b: &T) -> bool
     where
         T: PartialEq,
     {

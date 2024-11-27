@@ -36,7 +36,9 @@ pub trait NetworkAuthenticatorTrait: Send + Sync {
     fn on_stop_server(&mut self) {
         // NetworkServer::unregister_handler::<AuthRequestMessage>();
     }
-    fn on_server_authenticate(&mut self, conn: &mut NetworkConnectionToClient) {}
+    fn on_server_authenticate(&mut self, conn: &mut NetworkConnectionToClient) {
+        let _ = conn;
+    }
     fn server_accept(conn: &mut NetworkConnectionToClient)
     where
         Self: Sized,

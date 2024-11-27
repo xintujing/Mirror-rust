@@ -184,7 +184,9 @@ impl NetworkManager {
         NetworkServer::replace_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
     }
 
-    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError) {}
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError) {
+        let (_, _) = (conn, error);
+    }
 
     fn on_server_authenticated(conn: &mut NetworkConnectionToClient) {
         // 获取 NetworkManagerTrait 的单例
@@ -208,7 +210,7 @@ impl NetworkManager {
         Self::on_server_connect(conn);
     }
 
-    fn on_server_ready_message_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_server_ready_message_internal(conn_id: u64, _reader: &mut NetworkReader, _channel: TransportChannel) {
         Self::on_server_ready(conn_id)
     }
 
@@ -216,7 +218,7 @@ impl NetworkManager {
         NetworkServer::set_client_ready(conn_id);
     }
 
-    fn on_server_add_player_internal(conn_id: u64, reader: &mut NetworkReader, channel: TransportChannel) {
+    fn on_server_add_player_internal(conn_id: u64, _reader: &mut NetworkReader, _channel: TransportChannel) {
         // 获取 NetworkManagerTrait 的单例
         let network_manager = NetworkManagerStatic::get_network_manager_singleton();
 
@@ -315,18 +317,24 @@ pub trait NetworkManagerTrait {
     fn on_server_connect(conn: &mut NetworkConnectionToClient)
     where
         Self: Sized,
-    {}
+    {
+        let _ = conn;
+    }
     fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
         Self: Sized;
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
         Self: Sized,
-    {}
+    {
+        let (_, _) = (conn, error);
+    }
     fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
         Self: Sized,
-    {}
+    {
+        let (_, _) = (conn, error);
+    }
 
     fn awake()
     where
@@ -418,7 +426,7 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     // OnServerConnectInternal
-    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
     where
         Self: Sized,
     {
@@ -436,7 +444,7 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     // OnServerDisconnect
-    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
+    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
     where
         Self: Sized,
     {
@@ -533,7 +541,7 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     fn on_start_server(&mut self) {}
-    fn server_change_scene(&mut self, new_scene_name: &str) {
+    fn server_change_scene(&mut self, _new_scene_name: &str) {
         // TODO  SceneManager.LoadScene(newSceneName);
     }
 }

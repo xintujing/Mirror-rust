@@ -30,11 +30,11 @@ use std::sync::RwLock;
 use tklog::{error, warn};
 
 pub enum RemovePlayerOptions {
-    /// <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
+    // <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
     KeepActive,
-    /// <summary>Player Object is un_spawned on clients but remains on server</summary>
+    // <summary>Player Object is un_spawned on clients but remains on server</summary>
     UnSpawn,
-    /// <summary>Player Object is destroyed on server and clients</summary>
+    // <summary>Player Object is destroyed on server and clients</summary>
     Destroy,
 }
 
@@ -1167,7 +1167,7 @@ impl NetworkServer {
     ) {
         let message = CommandMessage::deserialize(reader);
 
-        if let Some(mut connection) =
+        if let Some(connection) =
             NetworkServerStatic::network_connections().get_mut(&connection_id)
         {
             // connection 没有准备好

@@ -31,8 +31,18 @@ impl NetworkCommonBehaviour {
     pub const INVOKE_USER_CODE_CMD: &'static str = "invoke_user_code_cmd";
     fn __update_sync_var(&mut self, index: u8, value: Vec<u8>) {
         if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
-            sync_var.value = value;
+            match NetworkBehaviour::sync_var_equal(&sync_var.value, &value) {
+                // 值相等
+                true => {
+                    return;
+                }
+                // 值不相等
+                false => {
+                    sync_var.value = value;
+                }
+            }
         }
+        // 设置同步变量脏位
         self.set_sync_var_dirty_bits(1 << index);
     }
     fn __get_sync_var_index(&self, full_name: &str) -> Option<u8> {
@@ -109,7 +119,7 @@ impl NetworkCommonBehaviour {
         &mut self,
         reader: &mut NetworkReader,
         func_hash: u16,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         // 获取方法数据
         if let Some(method_data) =

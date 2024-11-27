@@ -117,7 +117,7 @@ impl NetworkLoop {
         // 目标帧率
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 休眠时间
-        let mut sleep_time = target_frame_time;
+        let mut sleep_time: Duration;
         // 上一帧时间
         let mut previous_frame_time = Instant::now();
         loop {

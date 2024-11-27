@@ -54,8 +54,8 @@ impl UnBatcher {
     }
 
     pub fn get_next_message(&mut self) -> Option<(&[u8], f64)> {
-        let mut message: &[u8] = &[];
-        let mut remote_time_stamp = 0.0;
+        let message: &[u8];
+        let remote_time_stamp: f64;
         if self.un_batches.is_empty() {
             return None;
         }

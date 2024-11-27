@@ -241,9 +241,9 @@ impl NetworkTransformUnreliable {
     fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
@@ -278,9 +278,9 @@ impl NetworkTransformUnreliable {
     fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
@@ -304,7 +304,7 @@ impl NetworkTransformUnreliable {
         rotation: Option<u32>,
         scale: Option<Vector3<f32>>,
     ) {
-        let mut quaternion = None;
+        let quaternion: Option<Quaternion<f32>>;
         if rotation.is_none() {
             if self.network_transform_base.server_snapshots.len() > 0 {
                 let (_, last_snapshot) = self
@@ -328,9 +328,9 @@ impl NetworkTransformUnreliable {
     fn invoke_user_code_cmd_client_to_server_sync_sync_data(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             error!("Command CmdClientToServerSync called on client.");
