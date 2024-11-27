@@ -76,6 +76,7 @@ lazy_static! {
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
+    static ref TRANSPORT_DATA_UN_BATCHER: RwLock<UnBatcher> = RwLock::new(UnBatcher::new());
 }
 
 // NetworkServer 静态结构体
@@ -204,6 +205,10 @@ impl NetworkServerStatic {
         if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
             *late_update_duration = value;
         }
+    }
+    // TRANSPORT_DATA_UN_BATCHER
+    pub fn transport_data_un_batcher() -> &'static RwLock<UnBatcher> {
+        &TRANSPORT_DATA_UN_BATCHER
     }
     // 获取 NetworkConnections
     pub fn network_connections() -> &'static DashMap<u64, NetworkConnectionToClient> {
@@ -598,34 +603,48 @@ impl NetworkServer {
 
     // 处理 TransportData 消息
     fn on_transport_data(connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
-        let mut transport_data_un_batcher = UnBatcher::new();
-
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            // 添加数据到 transport_data_un_batcher
-            if !transport_data_un_batcher.add_batch_with_bytes(data) {
-                if NetworkServerStatic::exceptions_disconnect() {
-                    error!(format!(
-                        "Server.HandleData: connectionId: {} failed to add batch. Disconnecting.",
-                        connection_id
-                    ));
-                    connection.disconnect();
-                } else {
-                    warn!(format!(
-                        "Server.HandleData: connectionId: {} failed to add batch.",
-                        connection_id
-                    ));
-                }
+        // 获取 transport_data_un_batcher
+        if let Ok(mut transport_data_un_batcher) =
+            NetworkServerStatic::transport_data_un_batcher().write()
+        {
+            // 如果没有找到连接
+            if NETWORK_CONNECTIONS.get(&connection_id).is_none() {
+                error!(format!(
+                    "Server.HandleData: Unknown connectionId: {}",
+                    connection_id
+                ));
                 return;
             }
-        } else {
-            error!(format!(
-                "Server.HandleData: Unknown connectionId: {}",
-                connection_id
-            ));
-        }
 
-        // 如果没有加载场景
-        if !NetworkServerStatic::is_loading_scene() {
+            // 如果有连接
+            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
+                // 添加数据到 transport_data_un_batcher
+                if !transport_data_un_batcher.add_batch_with_bytes(data) {
+                    if NetworkServerStatic::exceptions_disconnect() {
+                        error!(format!(
+                            "Server.HandleData: connectionId: {} failed to add un_batch. Disconnecting.",
+                            connection_id
+                        ));
+                        connection.disconnect();
+                        return;
+                    }
+                    warn!(format!(
+                        "Server.HandleData: connectionId: {} failed to add un_batch.",
+                        connection_id
+                    ));
+                    return;
+                }
+            }
+
+            // 如果正在加载场景
+            if NetworkServerStatic::is_loading_scene() {
+                error!(format!(
+                    "Server.HandleData: connectionId: {} is loading scene. Ignoring message.",
+                    connection_id
+                ));
+                return;
+            }
+
             // 处理消息
             while let Some((message, remote_time_stamp)) =
                 transport_data_un_batcher.get_next_message()
