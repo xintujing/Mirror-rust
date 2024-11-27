@@ -307,18 +307,23 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     }
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        if initial_state {
-            for i in 0..self.sync_vars.len() as u8 {
-                if let Some(sync_var) = self.sync_vars.get(&i) {
-                    writer.write_array_segment_all(sync_var.value.as_slice());
-                }
-            }
-        } else {
-            writer.write_ulong(self.sync_var_dirty_bits());
-            for i in 0..self.sync_vars.len() as u8 {
-                if self.sync_var_dirty_bits() & (1 << i) != 0 {
+        match initial_state {
+            // 初始状态
+            true => {
+                for i in 0..self.sync_vars.len() as u8 {
                     if let Some(sync_var) = self.sync_vars.get(&i) {
                         writer.write_array_segment_all(sync_var.value.as_slice());
+                    }
+                }
+            }
+            // 非初始状态
+            false => {
+                writer.write_ulong(self.sync_var_dirty_bits());
+                for i in 0..self.sync_vars.len() as u8 {
+                    if self.sync_var_dirty_bits() & (1 << i) != 0 {
+                        if let Some(sync_var) = self.sync_vars.get(&i) {
+                            writer.write_array_segment_all(sync_var.value.as_slice());
+                        }
                     }
                 }
             }
