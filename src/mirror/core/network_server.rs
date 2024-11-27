@@ -1110,11 +1110,9 @@ impl NetworkServer {
     // 处理 ReadyMessage 消息
     fn on_client_ready_message(
         connection_id: u64,
-        reader: &mut NetworkReader,
-        channel: TransportChannel,
+        _reader: &mut NetworkReader,
+        _channel: TransportChannel,
     ) {
-        let _ = channel;
-        let _ = ReadyMessage::deserialize(reader);
         Self::set_client_ready(connection_id);
     }
     // 设置客户端准备就绪
