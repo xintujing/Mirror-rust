@@ -58,8 +58,6 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
 
                         conn.send_network_message(&mut response, channel);
 
-                        conn.set_authenticated(false);
-
                         Self::server_reject(&mut conn);
                     }
                 }
