@@ -5,16 +5,10 @@ edition = "2021"
 
 [dependencies]
 kcp2k_rust = { path = "src/mirror/transports/kcp2k/kcp2k-rust" }
-bytes = "1.8.0"
-byteorder = "1.5.0"
-bytemuck = "1.19.0"
 serde = { version = "1.0.214", features = ["derive"] }
 nalgebra = "0.33.2"
-encoding_rs = "0.8.35"
-hex = "0.4.3"
 dashmap = "6.1.0"
 tklog = "0.2.4"
-rust_multistack = "0.29.0"
 serde_json = "1.0.132"
 atomic = "0.6"
 lazy_static = "1.5.0"
