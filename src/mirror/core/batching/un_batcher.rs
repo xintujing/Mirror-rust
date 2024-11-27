@@ -14,19 +14,21 @@ impl UnBatcher {
     pub fn new() -> UnBatcher {
         UnBatcher {
             un_batches: VecDeque::new(),
-            un_batcher: NetworkReader::new_with_bytes(Vec::new()),
+            un_batcher: NetworkReader::new(),
             un_batch_timestamp: 0.0,
         }
     }
+
     pub fn batches_count(&self) -> usize {
         self.un_batches.len()
     }
-    pub fn add_batch_with_array_segment(&mut self, un_batch: &[u8]) -> bool {
-        if un_batch.len() < Batcher::TIMESTAMP_SIZE {
+
+    pub fn add_batch_with_array_segment(&mut self, data: &[u8]) -> bool {
+        if data.len() < Batcher::TIMESTAMP_SIZE {
             return false;
         }
         let mut writer = NetworkWriterPool::get();
-        writer.write_array_segment_all(un_batch);
+        writer.write_array_segment_all(data);
 
         if self.un_batches.is_empty() {
             self.un_batcher.set_array_segment(writer.to_array_segment());
@@ -36,12 +38,12 @@ impl UnBatcher {
         true
     }
 
-    pub fn add_batch_with_bytes(&mut self, un_batch: Vec<u8>) -> bool {
-        if un_batch.len() < Batcher::TIMESTAMP_SIZE {
+    pub fn add_batch_with_bytes(&mut self, data: Vec<u8>) -> bool {
+        if data.len() < Batcher::TIMESTAMP_SIZE {
             return false;
         }
         let mut writer = NetworkWriterPool::get();
-        writer.write_bytes_all(un_batch);
+        writer.write_bytes_all(data);
 
         if self.un_batches.is_empty() {
             self.un_batcher.set_array_segment(writer.to_array_segment());
@@ -59,7 +61,7 @@ impl UnBatcher {
         }
 
         if self.un_batcher.capacity() == 0 {
-            return None
+            return None;
         }
 
         if self.un_batcher.remaining() == 0 {
@@ -71,20 +73,20 @@ impl UnBatcher {
                 self.un_batcher.set_array_segment(next.to_array_segment());
                 self.un_batch_timestamp = self.un_batcher.read_double();
             } else {
-                return None
+                return None;
             }
         }
 
         remote_time_stamp = self.un_batch_timestamp;
 
         if self.un_batcher.remaining() == 0 {
-            return None
+            return None;
         }
 
         let size = self.un_batcher.decompress_var_uint() as usize;
 
         if self.un_batcher.remaining() < size {
-            return None
+            return None;
         }
 
         message = self.un_batcher.read_array_segment(size);
@@ -114,8 +116,11 @@ mod tests {
         assert_eq!(un_batcher.add_batch_with_array_segment(&batch), true);
         assert_eq!(un_batcher.batches_count(), 2);
 
-        while let Some((message, remote_time_stamp))= un_batcher.get_next_message() {
-            println!("Message: {:?}, Remote Time Stamp: {}", message, remote_time_stamp);
+        while let Some((message, remote_time_stamp)) = un_batcher.get_next_message() {
+            println!(
+                "Message: {:?}, Remote Time Stamp: {}",
+                message, remote_time_stamp
+            );
         }
         println!("Batches Count: {}", un_batcher.batches_count());
     }
