@@ -10,23 +10,6 @@ pub enum TransportChannel {
     Unreliable = 2,
 }
 
-impl TransportChannel {
-    pub fn from_u8(value: u8) -> Self {
-        match value {
-            1 => TransportChannel::Reliable,
-            2 => TransportChannel::Unreliable,
-            _ => TransportChannel::Reliable,
-        }
-    }
-
-    pub fn to_u8(&self) -> u8 {
-        match self {
-            TransportChannel::Reliable => 1,
-            TransportChannel::Unreliable => 2,
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum TransportCallbackType {
@@ -42,15 +25,15 @@ pub enum TransportCallbackType {
 #[repr(u8)]
 pub enum TransportError {
     None,
-    DnsResolve, // failed to resolve a host name
-    Refused, // connection refused by other end. server full etc.
-    Timeout, // ping timeout or dead link
-    Congestion, // more messages than transport / network can process
-    InvalidReceive, // recv invalid packet (possibly intentional attack)
-    InvalidSend, // user tried to send invalid data
-    ConnectionClosed, // connection closed voluntarily or lost involuntarily
-    Unexpected, // unexpected error / exception, requires fix.
-    SendError, // failed to send data
+    DnsResolve,         // failed to resolve a host name
+    Refused,            // connection refused by other end. server full etc.
+    Timeout,            // ping timeout or dead link
+    Congestion,         // more messages than transport / network can process
+    InvalidReceive,     // recv invalid packet (possibly intentional attack)
+    InvalidSend,        // user tried to send invalid data
+    ConnectionClosed,   // connection closed voluntarily or lost involuntarily
+    Unexpected,         // unexpected error / exception, requires fix.
+    SendError,          // failed to send data
     ConnectionNotFound, // connection not found
 }
 
@@ -80,14 +63,10 @@ pub struct Transport {
 }
 impl Transport {
     pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
-        unsafe {
-            ACTIVE_TRANSPORT.as_mut()
-        }
+        unsafe { ACTIVE_TRANSPORT.as_mut() }
     }
     pub fn active_transport_exists() -> bool {
-        unsafe {
-            ACTIVE_TRANSPORT.is_some()
-        }
+        unsafe { ACTIVE_TRANSPORT.is_some() }
     }
     pub fn set_active_transport(transport: Box<dyn TransportTrait>) {
         unsafe {

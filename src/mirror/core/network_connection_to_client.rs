@@ -183,17 +183,7 @@ impl NetworkConnectionToClient {
         self.observing.push(network_identity.net_id());
         NetworkServer::show_for_connection(network_identity, self);
     }
-    pub fn remove_from_observing_identities(
-        &mut self,
-        network_identity: &mut NetworkIdentity,
-        is_destroyed: bool,
-    ) {
-        self.observing
-            .retain(|net_id| *net_id != network_identity.net_id());
-        if !is_destroyed {
-            NetworkServer::hide_for_connection(network_identity, self);
-        }
-    }
+
     // void RemoveFromObservingsObservers()
     pub fn remove_from_observings_observers(&mut self) {
         let conn_id = self.connection_id();
@@ -250,6 +240,7 @@ impl NetworkConnectionToClient {
         self.owned().clear();
     }
 
+    // RemoveFromObserving
     pub fn remove_from_observing(&mut self, identity: &mut NetworkIdentity, is_destroyed: bool) {
         self.observing.retain(|net_id| *net_id != identity.net_id());
         if !is_destroyed {

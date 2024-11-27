@@ -138,5 +138,8 @@ impl NetworkLoop {
             // 休眠
             std::thread::sleep(sleep_time);
         }
+
+        Self::on_disable();
+        Self::on_destroy();
     }
 }

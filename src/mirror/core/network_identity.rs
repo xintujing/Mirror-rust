@@ -150,12 +150,7 @@ impl NetworkIdentity {
             component.set_game_object(self.game_object.clone());
         }
     }
-    pub fn set_transform(&mut self, transform: Transform) {
-        self.game_object.transform = transform;
-        for component in self.network_behaviours.iter_mut() {
-            component.set_game_object(self.game_object.clone());
-        }
-    }
+
     pub fn handle_remote_call(
         &mut self,
         component_index: u8,
