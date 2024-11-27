@@ -1,5 +1,8 @@
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::BackendDataStatic;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
@@ -14,17 +17,23 @@ use lazy_static::lazy_static;
 use std::default::Default;
 use std::sync::atomic::Ordering;
 use tklog::error;
-use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 lazy_static! {
     static ref NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Visibility { Default, ForceHidden, ForceShown }
+pub enum Visibility {
+    Default,
+    ForceHidden,
+    ForceShown,
+}
 
 #[derive(Debug)]
-pub enum OwnedType { Client, Server }
+pub enum OwnedType {
+    Client,
+    Server,
+}
 
 #[derive(Debug)]
 pub struct NetworkIdentitySerialization {
@@ -102,23 +111,34 @@ impl NetworkIdentity {
         for component in self.network_behaviours.iter_mut() {
             component.set_net_id(self.net_id);
         }
-        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&self.conn_to_client) {
+        if let Some(mut conn) =
+            NetworkServerStatic::network_connections().get_mut(&self.conn_to_client)
+        {
             conn.set_net_id(self.net_id);
         }
     }
     pub fn is_null(&self) -> bool {
-        self.net_id == 0 && self.asset_id == 0 && self.game_object.is_null() && self.network_behaviours.len() == 0 && self.scene_id == 0
+        self.net_id == 0
+            && self.asset_id == 0
+            && self.game_object.is_null()
+            && self.network_behaviours.len() == 0
+            && self.scene_id == 0
     }
     pub fn connection_to_client(&self) -> u64 {
         self.conn_to_client
     }
     pub fn set_connection_to_client(&mut self, conn_id: u64) {
+        // 如果已经有了conn_id
         self.conn_to_client = conn_id;
+        // 设置所有的component的conn_id
         for component in self.network_behaviours.iter_mut() {
             component.set_connection_to_client(self.conn_to_client);
         }
-        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&self.conn_to_client) {
-            conn.owned().push(self.net_id);
+        // 添加到conn的owned_objects
+        if let Some(mut conn) =
+            NetworkServerStatic::network_connections().get_mut(&self.conn_to_client)
+        {
+            conn.add_owned_object(self.net_id);
         }
     }
     pub fn game_object(&self) -> &GameObject {
@@ -136,15 +156,32 @@ impl NetworkIdentity {
             component.set_game_object(self.game_object.clone());
         }
     }
-    pub fn handle_remote_call(&mut self, component_index: u8, function_hash: u16, remote_call_type: RemoteCallType, reader: &mut NetworkReader, conn_id: u64) {
+    pub fn handle_remote_call(
+        &mut self,
+        component_index: u8,
+        function_hash: u16,
+        remote_call_type: RemoteCallType,
+        reader: &mut NetworkReader,
+        conn_id: u64,
+    ) {
         if component_index as usize >= self.network_behaviours.len() {
             error!("Component index out of bounds: ", component_index);
             return;
         }
 
         // 调用 invoke
-        if !RemoteProcedureCalls::invoke(function_hash, remote_call_type, self, component_index, reader, conn_id) {
-            error!("Failed to invoke remote call for function hash: ", function_hash);
+        if !RemoteProcedureCalls::invoke(
+            function_hash,
+            remote_call_type,
+            self,
+            component_index,
+            reader,
+            conn_id,
+        ) {
+            error!(
+                "Failed to invoke remote call for function hash: ",
+                function_hash
+            );
         }
     }
     pub fn reset_statics() {
@@ -160,15 +197,19 @@ impl NetworkIdentity {
         None
     }
     pub fn initialize_network_behaviours(&mut self) {
-        for component in BackendDataStatic::get_backend_data().get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id) {
-            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(self.game_object.clone(), component) {
+        for component in BackendDataStatic::get_backend_data()
+            .get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id)
+        {
+            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(
+                self.game_object.clone(),
+                component,
+            ) {
                 self.network_behaviours.push(network_behaviour);
             }
         }
         self.validate_components();
     }
-    pub fn awake(&mut self)
-    {
+    pub fn awake(&mut self) {
         self.initialize_network_behaviours();
         if self.has_spawned {
             error!("NetworkIdentity has already spawned.");
@@ -196,14 +237,14 @@ impl NetworkIdentity {
         }
     }
     pub fn on_start_server(&mut self) {
-        self.network_behaviours.iter_mut().for_each(|component| {
-            component.on_start_server()
-        });
+        self.network_behaviours
+            .iter_mut()
+            .for_each(|component| component.on_start_server());
     }
     pub fn on_stop_server(&mut self) {
-        self.network_behaviours.iter_mut().for_each(|component| {
-            component.on_stop_server()
-        });
+        self.network_behaviours
+            .iter_mut()
+            .for_each(|component| component.on_stop_server());
     }
     fn server_dirty_masks(&mut self, initial_state: bool) -> (u64, u64) {
         let mut owner_mask: u64 = 0;
@@ -213,7 +254,9 @@ impl NetworkIdentity {
             let nth_bit = 1 << i;
             let dirty = component.is_dirty();
 
-            if initial_state || (*component.sync_direction() == SyncDirection::ServerToClient) && dirty {
+            if initial_state
+                || (*component.sync_direction() == SyncDirection::ServerToClient) && dirty
+            {
                 owner_mask |= nth_bit;
             }
 
@@ -228,7 +271,12 @@ impl NetworkIdentity {
     fn is_dirty(mask: u64, index: u8) -> bool {
         (mask & (1 << index)) != 0
     }
-    pub fn serialize_server(&mut self, initial_state: bool, owner_writer: &mut NetworkWriter, observers_writer: &mut NetworkWriter) {
+    pub fn serialize_server(
+        &mut self,
+        initial_state: bool,
+        owner_writer: &mut NetworkWriter,
+        observers_writer: &mut NetworkWriter,
+    ) {
         self.validate_components();
         let (owner_mask, observers_mask) = self.server_dirty_masks(initial_state);
 
@@ -287,14 +335,21 @@ impl NetworkIdentity {
         }
         true
     }
-    pub fn get_server_serialization_at_tick(&mut self, tick: u32) -> &mut NetworkIdentitySerialization {
+    pub fn get_server_serialization_at_tick(
+        &mut self,
+        tick: u32,
+    ) -> &mut NetworkIdentitySerialization {
         if self.last_serialization.tick != tick {
             self.last_serialization.reset_writers();
             NetworkWriterPool::get_return(|owner_writer| {
                 NetworkWriterPool::get_return(|observers_writer| {
                     self.serialize_server(false, owner_writer, observers_writer);
-                    self.last_serialization.owner_writer.write_array_segment_all(owner_writer.to_array_segment());
-                    self.last_serialization.observers_writer.write_array_segment_all(observers_writer.to_array_segment());
+                    self.last_serialization
+                        .owner_writer
+                        .write_array_segment_all(owner_writer.to_array_segment());
+                    self.last_serialization
+                        .observers_writer
+                        .write_array_segment_all(observers_writer.to_array_segment());
                 });
             });
             self.last_serialization.tick = tick;

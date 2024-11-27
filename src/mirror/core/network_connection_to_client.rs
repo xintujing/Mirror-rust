@@ -1,7 +1,9 @@
 use crate::mirror::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
-use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic, RemovePlayerOptions};
+use crate::mirror::core::network_server::{
+    NetworkServer, NetworkServerStatic, RemovePlayerOptions,
+};
 use crate::mirror::core::network_time::{ExponentialMovingAverage, NetworkTime};
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
@@ -45,7 +47,8 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
             snapshot_buffer_size_limit: 64,
             _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
         };
-        network_connection_to_client.buffer_time = NetworkServerStatic::send_interval() as f64 * network_connection_to_client.buffer_time_multiplier;
+        network_connection_to_client.buffer_time = NetworkServerStatic::send_interval() as f64
+            * network_connection_to_client.buffer_time_multiplier;
         if let Some(mut transport) = Transport::get_active_transport() {
             network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
@@ -137,7 +140,8 @@ impl NetworkConnectionToClient {
             return;
         }
 
-        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
+        let snapshot_settings =
+            NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
 
         // dynamic adjustment
         if snapshot_settings.dynamic_adjustment {
@@ -172,18 +176,20 @@ impl NetworkConnectionToClient {
                 self.remote_timescale,
             );
 
-            SnapshotInterpolation::step_interpolation(
-                &mut self.snapshots,
-                self.remote_timeline,
-            );
+            SnapshotInterpolation::step_interpolation(&mut self.snapshots, self.remote_timeline);
         }
     }
     pub fn add_to_observing(&mut self, network_identity: &mut NetworkIdentity) {
         self.observing.push(network_identity.net_id());
         NetworkServer::show_for_connection(network_identity, self);
     }
-    pub fn remove_from_observing_identities(&mut self, network_identity: &mut NetworkIdentity, is_destroyed: bool) {
-        self.observing.retain(|net_id| *net_id != network_identity.net_id());
+    pub fn remove_from_observing_identities(
+        &mut self,
+        network_identity: &mut NetworkIdentity,
+        is_destroyed: bool,
+    ) {
+        self.observing
+            .retain(|net_id| *net_id != network_identity.net_id());
         if !is_destroyed {
             NetworkServer::hide_for_connection(network_identity, self);
         }
@@ -192,7 +198,9 @@ impl NetworkConnectionToClient {
     pub fn remove_from_observings_observers(&mut self) {
         let conn_id = self.connection_id();
         for net_id in self.observing.iter_mut() {
-            if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(net_id) {
+            if let Some(mut identity) =
+                NetworkServerStatic::spawned_network_identities().get_mut(net_id)
+            {
                 identity.remove_observer(conn_id);
             }
         }
@@ -208,18 +216,37 @@ impl NetworkConnectionToClient {
 
     pub fn destroy_owned_objects(&mut self) {
         for i in 0..self.owned().len() {
-            let net_id = self.owned()[i];
-            if net_id != 0 {
-                if let Some(mut identity) = NetworkServerStatic::spawned_network_identities().get_mut(&net_id) {
-                    if identity.scene_id != 0 {
-                        NetworkServer::remove_player_for_connection(self, RemovePlayerOptions::KeepActive);
-                    } else {
-                        NetworkServer::destroy(&mut identity);
+            let owned_net_id = self.owned()[i];
+            if owned_net_id != 0 {
+                // 记录当前的scene_id 避免 remove_player_for_connection 内再次 get_mut(&net_id) 造成死锁
+                let mut scene_id = 0;
+                // 如果找到了对应的identity
+                if let Some(mut identity) =
+                    NetworkServerStatic::spawned_network_identities().get_mut(&owned_net_id)
+                {
+                    match identity.scene_id {
+                        // 如果scene_id为0，直接销毁
+                        0 => {
+                            NetworkServer::destroy(&mut identity);
+                        }
+                        // 如果scene_id不为0，记录scene_id
+                        _ => {
+                            scene_id = identity.scene_id;
+                        }
                     }
                 }
+                // 如果scene_id不为0，移除player
+                if scene_id != 0 {
+                    NetworkServer::remove_player_for_connection(
+                        self,
+                        RemovePlayerOptions::KeepActive,
+                    );
+                }
             }
-            NetworkServerStatic::spawned_network_identities().remove(&net_id);
+            // 移除spawned_network_identities中的net_id
+            NetworkServerStatic::spawned_network_identities().remove(&owned_net_id);
         }
+        // 清空owned
         self.owned().clear();
     }
 
