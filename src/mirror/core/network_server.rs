@@ -32,7 +32,7 @@ use tklog::{error, warn};
 pub enum RemovePlayerOptions {
     /// <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
     KeepActive,
-    /// <summary>Player Object is unspawned on clients but remains on server</summary>
+    /// <summary>Player Object is un_spawned on clients but remains on server</summary>
     UnSpawn,
     /// <summary>Player Object is destroyed on server and clients</summary>
     Destroy,
@@ -264,7 +264,7 @@ impl NetworkServer {
             return;
         }
 
-        //Make sure connections are cleared in case any old connections references exist from previous sessions
+        //Make sure connections are cleared in case any old connections references to exist from previous sessions
         NETWORK_CONNECTIONS.clear();
 
         // TODO: if (aoi != null) aoi.reset_state();
@@ -855,7 +855,7 @@ impl NetworkServer {
 
     fn un_spawn_internal(identity: &mut NetworkIdentity, reset_state: bool) {
         if !NetworkServerStatic::active() {
-            error!("UnSpawn: NetworkServer is not active. Cannot unspawn objects without an active server.".to_string());
+            error!("UnSpawn: NetworkServer is not active. Cannot un_spawn objects without an active server.".to_string());
             return;
         }
 
@@ -1086,7 +1086,7 @@ impl NetworkServer {
         NetworkServerStatic::add_network_connection(conn);
     }
 
-    // 注册消息处理程序 zhuce
+    // 注册消息处理程序
     fn register_message_handlers() {
         // 注册 ReadyMessage 处理程序
         Self::register_handler::<ReadyMessage>(Box::new(Self::on_client_ready_message), true);
@@ -1237,7 +1237,7 @@ impl NetworkServer {
             // over reliable channel, commands should always come after spawn.
             // over unreliable, they might come in before the object was spawned.
             // for example, NetworkTransform.
-            // let's not spam the console for unreliable out of order messages.
+            // let's not spam the console for unreliable out-of-order messages.
             if channel == TransportChannel::Reliable {
                 warn!(format!(
                     "Spawned object not found when handling Command message netId={}",
@@ -1252,7 +1252,7 @@ impl NetworkServer {
     fn on_entity_state_message(
         connection_id: u64,
         reader: &mut NetworkReader,
-        channel: TransportChannel,
+        _channel: TransportChannel,
     ) {
         let message = EntityStateMessage::deserialize(reader);
         if let Some(mut identity) =
@@ -1262,7 +1262,7 @@ impl NetworkServer {
                 NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
                     if !identity.deserialize_server(reader) {
                         if NetworkServerStatic::exceptions_disconnect() {
-                            error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.net_id(), identity.net_id()));
+                            error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
                             if let Some(mut connection) =
                                 NETWORK_CONNECTIONS.get_mut(&connection_id)
                             {
@@ -1271,7 +1271,7 @@ impl NetworkServer {
                         } else {
                             warn!(format!(
                                 "Server failed to deserialize client state for {} with netId={}",
-                                identity.net_id(),
+                                identity.connection_to_client(),
                                 identity.net_id()
                             ));
                         }
@@ -1290,8 +1290,8 @@ impl NetworkServer {
     // 处理 OnTimeSnapshotMessage 消息
     fn on_time_snapshot_message(
         connection_id: u64,
-        reader: &mut NetworkReader,
-        channel: TransportChannel,
+        _reader: &mut NetworkReader,
+        _channel: TransportChannel,
     ) {
         if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
             let snapshot =
