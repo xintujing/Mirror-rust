@@ -7,6 +7,7 @@ name = "Mirror-rust"
 version = "0.1.0"
 dependencies = [
  "atomic",
+ "bytes",
  "crossbeam-channel",
  "dashmap",
  "half",
