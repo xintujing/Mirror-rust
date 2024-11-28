@@ -18,6 +18,7 @@ rust_decimal = "1.36.0"
 half = "2.4.1"
 rand = "0.9.0-beta.0"
 ordered-float = "4.5.0"
+log = "0.4.22"
 
 [profile.dev]
 opt-level = 0      # 优化级别

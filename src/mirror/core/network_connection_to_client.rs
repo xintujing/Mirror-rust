@@ -216,7 +216,7 @@ impl NetworkConnectionToClient {
                     match identity.scene_id {
                         // 如果scene_id为0，直接销毁
                         0 => {
-                            NetworkServer::destroy(&mut identity);
+                            NetworkServer::destroy(self, &mut identity);
                         }
                         // 如果scene_id不为0，记录scene_id
                         _ => {

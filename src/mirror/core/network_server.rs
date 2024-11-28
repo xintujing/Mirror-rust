@@ -23,11 +23,12 @@ use crate::mirror::core::transport::{
 };
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
+use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{error, warn};
+use tklog::{debug, error, warn};
 
 pub enum RemovePlayerOptions {
     // <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
@@ -749,7 +750,7 @@ impl NetworkServer {
         conn.set_net_id(0);
     }
 
-    pub fn destroy(identity: &mut NetworkIdentity) {
+    pub fn destroy(conn: &mut NetworkConnectionToClient, identity: &mut NetworkIdentity) {
         if !NetworkServerStatic::active() {
             error!("Server.Destroy: NetworkServer is not active. Cannot destroy objects without an active server.");
             return;
@@ -761,9 +762,9 @@ impl NetworkServer {
         }
 
         if identity.scene_id == 0 {
-            Self::un_spawn_internal(identity, true);
+            Self::un_spawn_internal(conn, identity, true);
         } else {
-            Self::un_spawn_internal(identity, false);
+            Self::un_spawn_internal(conn, identity, false);
             identity.destroy_called = true;
         }
     }
@@ -796,7 +797,7 @@ impl NetworkServer {
                 if let Some(mut identity) =
                     NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id())
                 {
-                    Self::un_spawn(&mut identity);
+                    Self::un_spawn(conn, &mut identity);
                 } else {
                     error!(format!(
                         "Server.RemovePlayer: netId {} not found in spawned.",
@@ -809,7 +810,7 @@ impl NetworkServer {
                 if let Some(mut identity) =
                     NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id())
                 {
-                    Self::destroy(&mut identity);
+                    Self::destroy(conn, &mut identity);
                 } else {
                     error!(format!(
                         "Server.RemovePlayer: netId {} not found in spawned.",
@@ -849,11 +850,15 @@ impl NetworkServer {
     }
 
     // UnSpawn
-    pub fn un_spawn(identity: &mut NetworkIdentity) {
-        Self::un_spawn_internal(identity, true);
+    pub fn un_spawn(conn: &mut NetworkConnectionToClient, identity: &mut NetworkIdentity) {
+        Self::un_spawn_internal(conn, identity, true);
     }
 
-    fn un_spawn_internal(identity: &mut NetworkIdentity, reset_state: bool) {
+    fn un_spawn_internal(
+        conn: &mut NetworkConnectionToClient,
+        identity: &mut NetworkIdentity,
+        reset_state: bool,
+    ) {
         if !NetworkServerStatic::active() {
             error!("UnSpawn: NetworkServer is not active. Cannot un_spawn objects without an active server.".to_string());
             return;
@@ -866,15 +871,13 @@ impl NetworkServer {
             return;
         }
 
-        if let Some(mut connection) =
-            NetworkServerStatic::network_connections().get_mut(&identity.connection_to_client())
-        {
-            connection.remove_owned_object(identity.net_id());
-        }
-        let net_id = identity.net_id();
+        // 移除 NetworkIdentity
+        conn.remove_owned_object(identity.net_id());
+
         Self::send_to_observers(
+            conn,
             identity,
-            ObjectDestroyMessage::new(net_id),
+            ObjectDestroyMessage::new(identity.net_id()),
             TransportChannel::Reliable,
         );
 
@@ -888,6 +891,7 @@ impl NetworkServer {
     }
 
     fn send_to_observers(
+        conn: &mut NetworkConnectionToClient,
         identity: &mut NetworkIdentity,
         mut message: ObjectDestroyMessage,
         channel: TransportChannel,
@@ -906,12 +910,17 @@ impl NetworkServer {
                 return;
             }
 
-            for i in 0..identity.observers.len() {
-                let conn_id = identity.observers[i];
-                if let Some(mut connection) =
-                    NetworkServerStatic::network_connections().get_mut(&conn_id)
-                {
-                    connection.send(segment, channel);
+            for conn_id in identity.observers.iter() {
+                match NetworkServerStatic::network_connections().try_get_mut(conn_id) {
+                    TryResult::Present(mut connection) => {
+                        connection.send(segment, channel);
+                    }
+                    TryResult::Absent => {
+                        conn.send(segment, channel);
+                    }
+                    TryResult::Locked => {
+                        error!("Server.SendToObservers: connection is locked.");
+                    }
                 }
             }
 
@@ -1167,8 +1176,7 @@ impl NetworkServer {
     ) {
         let message = CommandMessage::deserialize(reader);
 
-        if let Some(connection) =
-            NetworkServerStatic::network_connections().get_mut(&connection_id)
+        if let Some(connection) = NetworkServerStatic::network_connections().get_mut(&connection_id)
         {
             // connection 没有准备好
             if !connection.is_ready() {
