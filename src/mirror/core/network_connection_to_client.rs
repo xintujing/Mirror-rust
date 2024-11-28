@@ -205,14 +205,13 @@ impl NetworkConnectionToClient {
     }
 
     pub fn destroy_owned_objects(&mut self) {
-        for i in 0..self.owned().len() {
-            let owned_net_id = self.owned()[i];
-            if owned_net_id != 0 {
+        for owned_net_id in self.owned().to_vec().iter() {
+            if *owned_net_id != 0 {
                 // 记录当前的scene_id 避免 remove_player_for_connection 内再次 get_mut(&net_id) 造成死锁
                 let mut scene_id = 0;
                 // 如果找到了对应的identity
                 if let Some(mut identity) =
-                    NetworkServerStatic::spawned_network_identities().get_mut(&owned_net_id)
+                    NetworkServerStatic::spawned_network_identities().get_mut(owned_net_id)
                 {
                     match identity.scene_id {
                         // 如果scene_id为0，直接销毁

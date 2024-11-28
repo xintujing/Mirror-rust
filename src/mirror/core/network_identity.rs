@@ -1,4 +1,3 @@
-use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -352,9 +351,8 @@ impl NetworkIdentity {
         &mut self.last_serialization
     }
     pub fn clear_observers(&mut self) {
-        for i in 0..self.observers.len() {
-            let conn_id = self.observers[i];
-            if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
+        for conn_id in self.observers.to_vec().iter() {
+            if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(conn_id) {
                 conn.remove_from_observing(self, true);
             }
         }
