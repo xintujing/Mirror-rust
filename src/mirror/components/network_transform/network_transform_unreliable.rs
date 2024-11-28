@@ -433,15 +433,27 @@ impl NetworkTransformUnreliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) =
-            NetworkServerStatic::network_connections().get(&self.connection_to_client())
-        {
-            if self.network_transform_base.server_snapshots.len()
-                >= conn.snapshot_buffer_size_limit as usize
-            {
-                return;
+        match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
+            TryResult::Present(mut conn) => {
+                if self.network_transform_base.server_snapshots.len()
+                    >= conn.snapshot_buffer_size_limit as usize
+                {
+                    return;
+                }
+                timestamp = conn.remote_time_stamp();
             }
-            timestamp = conn.remote_time_stamp();
+            TryResult::Absent => {
+                error!(format!(
+                    "Failed because connection {} is absent.",
+                    self.connection_to_client()
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Failed because connection {} is locked.",
+                    &self.connection_to_client()
+                ));
+            }
         }
 
         if self.network_transform_base.only_sync_on_change {

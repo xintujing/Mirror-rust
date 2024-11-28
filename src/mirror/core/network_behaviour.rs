@@ -14,6 +14,7 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
@@ -449,16 +450,28 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             function_hash_code as u16,
             writer.to_bytes(),
         );
-        self.observers().iter().for_each(|observer| {
-            if let Some(mut conn_to_client) =
-                NetworkServerStatic::network_connections().get_mut(observer)
-            {
-                let is_owner = conn_to_client.connection_id() == self.connection_to_client();
-                if (!is_owner || include_owner) && conn_to_client.is_ready() {
-                    conn_to_client.send_network_message(&mut rpc, channel);
+        self.observers().iter().for_each(
+            |observer| match NetworkServerStatic::network_connections().try_get_mut(observer) {
+                TryResult::Present(mut conn_to_client) => {
+                    let is_owner = conn_to_client.connection_id() == self.connection_to_client();
+                    if (!is_owner || include_owner) && conn_to_client.is_ready() {
+                        conn_to_client.send_network_message(&mut rpc, channel);
+                    }
                 }
-            }
-        });
+                TryResult::Absent => {
+                    error!(format!(
+                        "Failed because connection {} is absent.",
+                        self.connection_to_client()
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Failed because connection {} is locked.",
+                        &self.connection_to_client()
+                    ));
+                }
+            },
+        );
     }
     fn send_entity_internal(
         &self,
