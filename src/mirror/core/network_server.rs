@@ -859,10 +859,6 @@ impl NetworkServer {
 
     // 处理 TransportDisconnected 消息
     fn on_transport_disconnected(connection_id: u64) {
-        debug!(format!(
-            "0 Server.HandleDisconnect: connectionId: {}",
-            connection_id
-        ));
         if let Some((_, mut connection)) =
             NetworkServerStatic::network_connections().remove(&connection_id)
         {
@@ -878,22 +874,9 @@ impl NetworkServer {
     }
 
     pub fn destroy_player_for_connection(conn: &mut NetworkConnectionToClient) {
-        // 在观察者中移除
-        debug!(format!(
-            "1 Server.DestroyPlayerForConnection: connectionId: {}",
-            conn.connection_id()
-        ));
         conn.remove_from_observings_observers();
-        debug!(format!(
-            "2 Server.DestroyPlayerForConnection: connectionId: {}",
-            conn.connection_id()
-        ));
         // 销毁 owned 对象
         conn.destroy_owned_objects();
-        debug!(format!(
-            "3 Server.DestroyPlayerForConnection: connectionId: {}",
-            conn.connection_id()
-        ));
         // 设置 net_id 为 0
         conn.set_net_id(0);
     }
