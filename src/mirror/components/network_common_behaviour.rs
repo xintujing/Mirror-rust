@@ -13,6 +13,7 @@ use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -30,15 +31,22 @@ impl NetworkCommonBehaviour {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkCommonBehaviour";
     pub const INVOKE_USER_CODE_CMD: &'static str = "invoke_user_code_cmd";
     fn __update_sync_var(&mut self, index: u8, value: Vec<u8>) {
-        if let Some(mut sync_var) = self.sync_vars.get_mut(&index) {
-            match NetworkBehaviour::sync_var_equal(&sync_var.value, &value) {
-                // 值相等
-                true => {
-                    return;
-                }
-                // 值不相等
-                false => {
-                    sync_var.value = value;
+        match self.sync_vars.get_mut(&index) {
+            // 未找到同步变量
+            None => {
+                return;
+            }
+            // 找到同步变量
+            Some(mut sync_var) => {
+                match NetworkBehaviour::sync_var_equal(&sync_var.value, &value) {
+                    // 值相等
+                    true => {
+                        return;
+                    }
+                    // 值不相等
+                    false => {
+                        sync_var.value = value;
+                    }
                 }
             }
         }
