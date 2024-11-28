@@ -369,8 +369,22 @@ impl NetworkIdentity {
     }
     pub fn clear_observers(&mut self) {
         for conn_id in self.observers.to_vec().iter() {
-            if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(conn_id) {
-                conn.remove_from_observing(self, true);
+            match NetworkServerStatic::network_connections().try_get_mut(conn_id) {
+                TryResult::Present(mut conn) => {
+                    conn.remove_from_observing(self, true);
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "Failed to clear observers because connection {} is absent.",
+                        conn_id
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Failed to clear observers because connection {} is locked.",
+                        conn_id
+                    ));
+                }
             }
         }
         self.observers.clear();

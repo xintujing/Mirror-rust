@@ -1,11 +1,15 @@
 use crate::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
+use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::mapref::one::RefMut;
+use dashmap::try_result::TryResult;
 use std::any::Any;
+use tklog::error;
 
 pub struct BasicAuthenticator {
     username: String,
@@ -36,29 +40,53 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
             {
                 // 认证成功
                 true => {
-                    if let Some(mut conn) =
-                        NetworkServerStatic::network_connections().get_mut(&connection_id)
-                    {
-                        let mut response = AuthResponseMessage::new(100, "Success".to_string());
+                    match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+                        TryResult::Present(mut conn) => {
+                            let mut response = AuthResponseMessage::new(100, "Success".to_string());
 
-                        // 发送响应消息
-                        conn.send_network_message(&mut response, channel);
+                            // 发送响应消息
+                            conn.send_network_message(&mut response, channel);
 
-                        // 设置连接已认证
-                        Self::server_accept(&mut conn);
+                            // 设置连接已认证
+                            Self::server_accept(&mut conn);
+                        }
+                        TryResult::Absent => {
+                            error!(format!(
+                                "Failed to clear observers because connection {} is absent.",
+                                connection_id
+                            ));
+                        }
+                        TryResult::Locked => {
+                            error!(format!(
+                                "Failed to clear observers because connection {} is locked.",
+                                connection_id
+                            ));
+                        }
                     }
                 }
                 // 认证失败
                 false => {
-                    if let Some(mut conn) =
-                        NetworkServerStatic::network_connections().get_mut(&connection_id)
-                    {
-                        let mut response =
-                            AuthResponseMessage::new(200, "Invalid Credentials".to_string());
+                    match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+                        TryResult::Present(mut conn) => {
+                            let mut response =
+                                AuthResponseMessage::new(200, "Invalid Credentials".to_string());
 
-                        conn.send_network_message(&mut response, channel);
+                            conn.send_network_message(&mut response, channel);
 
-                        Self::server_reject(&mut conn);
+                            Self::server_reject(&mut conn);
+                        }
+                        TryResult::Absent => {
+                            error!(format!(
+                                "Failed to clear observers because connection {} is absent.",
+                                connection_id
+                            ));
+                        }
+                        TryResult::Locked => {
+                            error!(format!(
+                                "Failed to clear observers because connection {} is locked.",
+                                connection_id
+                            ));
+                        }
                     }
                 }
             }

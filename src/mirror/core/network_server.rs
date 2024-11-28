@@ -745,8 +745,11 @@ impl NetworkServer {
     }
 
     pub fn destroy_player_for_connection(conn: &mut NetworkConnectionToClient) {
+        // 在观察者中移除
         conn.remove_from_observings_observers();
+        // 销毁 owned 对象
         conn.destroy_owned_objects();
+        // 设置 net_id 为 0
         conn.set_net_id(0);
     }
 
