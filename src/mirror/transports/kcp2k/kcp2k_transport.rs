@@ -1,4 +1,9 @@
-use crate::mirror::core::transport::{Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError, TransportFunc, TransportTrait};
+use crate::mirror::core::tools::logger::debug;
+use crate::mirror::core::transport::{
+    Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
+    TransportFunc, TransportTrait,
+};
+use bytes::Bytes;
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
@@ -6,8 +11,8 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use std::process::exit;
-use bytes::Bytes;
-use tklog::error;
+use std::sync::TryLockResult;
+use tklog::{debug, error};
 
 pub struct Kcp2kTransport {
     pub transport: Transport,
@@ -65,9 +70,14 @@ impl Kcp2kTransport {
                 tcb.data = cb.data.to_vec();
                 tcb.channel = Self::from_kcp2k_channel(cb.channel);
                 tcb.error = Self::from_kcp2k_error_code(cb.error_code);
-                if let Ok(transport_cb_fn) = self.transport.transport_cb_fn.read() {
-                    if let Some(func) = transport_cb_fn.as_ref() {
-                        func(tcb);
+                match self.transport.transport_cb_fn.try_read() {
+                    Ok(transport_cb_fn) => {
+                        if let Some(func) = transport_cb_fn.as_ref() {
+                            func(tcb);
+                        }
+                    }
+                    Err(e) => {
+                        error!(format!("Kcp2kTransport recv_data error: {:?}", e));
                     }
                 }
             }
@@ -115,7 +125,11 @@ impl TransportTrait for Kcp2kTransport {
 
     fn server_send(&mut self, connection_id: u64, data: Vec<u8>, channel: TransportChannel) {
         let mut tcb = TransportCallback::default();
-        match self.kcp_serv.as_ref().unwrap().s_send(connection_id, Bytes::copy_from_slice(data.as_slice()), Self::two_kcp2k_channel(channel)) {
+        match self.kcp_serv.as_ref().unwrap().s_send(
+            connection_id,
+            Bytes::copy_from_slice(data.as_slice()),
+            Self::two_kcp2k_channel(channel),
+        ) {
             Ok(_) => {
                 tcb.r#type = TransportCallbackType::OnServerDataSent;
                 tcb.connection_id = connection_id;
@@ -136,11 +150,17 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_disconnect(&mut self, connection_id: u64) {
-        self.kcp_serv.as_ref().unwrap().close_connection(connection_id);
+        self.kcp_serv
+            .as_ref()
+            .unwrap()
+            .close_connection(connection_id);
     }
 
     fn server_get_client_address(&self, connection_id: u64) -> String {
-        self.kcp_serv.as_ref().unwrap().get_connection_address(connection_id)
+        self.kcp_serv
+            .as_ref()
+            .unwrap()
+            .get_connection_address(connection_id)
     }
 
     fn server_early_update(&mut self) {
@@ -170,9 +190,10 @@ impl TransportTrait for Kcp2kTransport {
             TransportChannel::Reliable => {
                 Kcp2KPeer::unreliable_max_message_size(self.config.mtu as u32)
             }
-            TransportChannel::Unreliable => {
-                Kcp2KPeer::reliable_max_message_size(self.config.mtu as u32, self.config.receive_window_size as u32)
-            }
+            TransportChannel::Unreliable => Kcp2KPeer::reliable_max_message_size(
+                self.config.mtu as u32,
+                self.config.receive_window_size as u32,
+            ),
         }
     }
 
