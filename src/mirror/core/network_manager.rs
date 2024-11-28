@@ -1,4 +1,7 @@
-use crate::mirror::authenticators::network_authenticator::{NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic};
+use crate::mirror::authenticators::network_authenticator::{
+    NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic,
+};
+use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
@@ -9,12 +12,13 @@ use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use atomic::Atomic;
+use dashmap::mapref::one::RefMut;
+use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use tklog::{error, info, warn};
-use crate::mirror::components::network_transform::network_transform_base::Transform;
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 
@@ -39,9 +43,7 @@ impl NetworkManagerStatic {
     }
 
     pub fn network_manager_singleton_exists() -> bool {
-        unsafe {
-            NETWORK_MANAGER_SINGLETON.is_some()
-        }
+        unsafe { NETWORK_MANAGER_SINGLETON.is_some() }
     }
 
     pub fn set_network_manager_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
@@ -153,13 +155,17 @@ impl NetworkManager {
     fn setup_server(&mut self) {
         self.initialize_singleton();
 
-        NetworkServerStatic::set_disconnect_inactive_connections(self.disconnect_inactive_connections);
+        NetworkServerStatic::set_disconnect_inactive_connections(
+            self.disconnect_inactive_connections,
+        );
         NetworkServerStatic::set_disconnect_inactive_timeout(self.disconnect_inactive_timeout);
         NetworkServerStatic::set_exceptions_disconnect(self.exceptions_disconnect);
 
         if let Some(ref mut authenticator) = self.authenticator() {
             authenticator.on_start_server();
-            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(Box::new(Self::on_server_authenticated));
+            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(Box::new(
+                Self::on_server_authenticated,
+            ));
         }
 
         NetworkServer::listen(self.max_connections);
@@ -170,18 +176,36 @@ impl NetworkManager {
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
-        NetworkServerStatic::connected_event().insert(EventHandlerType::OnConnectedEvent, Box::new(Self::on_server_connect_internal));
+        NetworkServerStatic::connected_event().insert(
+            EventHandlerType::OnConnectedEvent,
+            Box::new(Self::on_server_connect_internal),
+        );
         // 添加断开连接事件
-        NetworkServerStatic::connected_event().insert(EventHandlerType::OnDisconnectedEvent, Box::new(Self::on_server_disconnect));
+        NetworkServerStatic::connected_event().insert(
+            EventHandlerType::OnDisconnectedEvent,
+            Box::new(Self::on_server_disconnect),
+        );
         // 添加错误事件
-        NetworkServerStatic::connected_event().insert(EventHandlerType::OnErrorEvent, Box::new(Self::on_server_error));
+        NetworkServerStatic::connected_event().insert(
+            EventHandlerType::OnErrorEvent,
+            Box::new(Self::on_server_error),
+        );
         // 添加异常事件
-        NetworkServerStatic::connected_event().insert(EventHandlerType::OnTransportExceptionEvent, Box::new(Self::on_server_transport_exception));
+        NetworkServerStatic::connected_event().insert(
+            EventHandlerType::OnTransportExceptionEvent,
+            Box::new(Self::on_server_transport_exception),
+        );
 
         // 添加 AddPlayerMessage 消息处理
-        NetworkServer::register_handler::<AddPlayerMessage>(Box::new(Self::on_server_add_player_internal), true);
+        NetworkServer::register_handler::<AddPlayerMessage>(
+            Box::new(Self::on_server_add_player_internal),
+            true,
+        );
         // 添加 ReadyMessage 消息处理
-        NetworkServer::replace_handler::<ReadyMessage>(Box::new(Self::on_server_ready_message_internal), true);
+        NetworkServer::replace_handler::<ReadyMessage>(
+            Box::new(Self::on_server_ready_message_internal),
+            true,
+        );
     }
 
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError) {
@@ -202,7 +226,11 @@ impl NetworkManager {
         // 如果 场景名称不为空 且 场景名称不等于 NetworkManager 的 offline_scene
         if network_scene_name != "" && network_scene_name != offline_scene {
             // 创建 SceneMessage 消息
-            let mut scene_message = SceneMessage::new(network_scene_name.to_string(), SceneOperation::Normal, false);
+            let mut scene_message = SceneMessage::new(
+                network_scene_name.to_string(),
+                SceneOperation::Normal,
+                false,
+            );
             // 发送 SceneMessage 消息
             conn.send_network_message(&mut scene_message, TransportChannel::Reliable);
         }
@@ -210,7 +238,11 @@ impl NetworkManager {
         Self::on_server_connect(conn);
     }
 
-    fn on_server_ready_message_internal(conn_id: u64, _reader: &mut NetworkReader, _channel: TransportChannel) {
+    fn on_server_ready_message_internal(
+        conn_id: u64,
+        _reader: &mut NetworkReader,
+        _channel: TransportChannel,
+    ) {
         Self::on_server_ready(conn_id)
     }
 
@@ -218,10 +250,13 @@ impl NetworkManager {
         NetworkServer::set_client_ready(conn_id);
     }
 
-    fn on_server_add_player_internal(conn_id: u64, _reader: &mut NetworkReader, _channel: TransportChannel) {
+    fn on_server_add_player_internal(
+        conn_id: u64,
+        _reader: &mut NetworkReader,
+        _channel: TransportChannel,
+    ) {
         // 获取 NetworkManagerTrait 的单例
         let network_manager = NetworkManagerStatic::get_network_manager_singleton();
-
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
         if network_manager.auto_create_player() && network_manager.player_obj().prefab == "" {
@@ -232,8 +267,12 @@ impl NetworkManager {
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
         if network_manager.auto_create_player() {
             // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
-            if let Some(asset_id) = BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str()) {
-                if let None = BackendDataStatic::get_backend_data().get_network_identity_data_by_asset_id(asset_id) {
+            if let Some(asset_id) = BackendDataStatic::get_backend_data()
+                .get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str())
+            {
+                if let None = BackendDataStatic::get_backend_data()
+                    .get_network_identity_data_by_asset_id(asset_id)
+                {
                     error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
                     return;
                 }
@@ -241,9 +280,25 @@ impl NetworkManager {
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 false
-        if let Some(connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
-            if connection.net_id() != 0 {
-                error!("There is already a player for this connection.");
+        match NetworkServerStatic::network_connections().try_get(&conn_id) {
+            TryResult::Present(coon) => {
+                if coon.net_id() != 0 {
+                    error!("There is already a player for this connection.");
+                    return;
+                }
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Failed to on_server_add_player_internal for coon {} because of absent",
+                    conn_id
+                ));
+                return;
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Failed to on_server_add_player_internal for coon {} because of locked",
+                    conn_id
+                ));
                 return;
             }
         }
@@ -282,7 +337,9 @@ impl NetworkManager {
             return;
         }
 
-        if let Some(ref mut authenticator) = NetworkManagerStatic::get_network_manager_singleton().authenticator() {
+        if let Some(ref mut authenticator) =
+            NetworkManagerStatic::get_network_manager_singleton().authenticator()
+        {
             authenticator.on_stop_server();
         }
 
@@ -311,8 +368,10 @@ pub trait NetworkManagerTrait {
     fn player_spawn_method(&self) -> &PlayerSpawnMethod;
     fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod);
     fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting;
-    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
-    where
+    fn on_server_connect_internal(
+        conn: &mut NetworkConnectionToClient,
+        transport_error: TransportError,
+    ) where
         Self: Sized;
     fn on_server_connect(conn: &mut NetworkConnectionToClient)
     where
@@ -349,7 +408,9 @@ pub trait NetworkManagerTrait {
             return START_POSITIONS.read().unwrap()[index as usize].clone();
         }
         let index = NetworkManagerStatic::get_start_positions_index();
-        NetworkManagerStatic::set_start_positions_index(index + 1 % START_POSITIONS.read().unwrap().len());
+        NetworkManagerStatic::set_start_positions_index(
+            index + 1 % START_POSITIONS.read().unwrap().len(),
+        );
         START_POSITIONS.read().unwrap()[index].clone()
     }
     fn on_server_add_player(&mut self, conn_id: u64) {
@@ -426,8 +487,10 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     // OnServerConnectInternal
-    fn on_server_connect_internal(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
-    where
+    fn on_server_connect_internal(
+        conn: &mut NetworkConnectionToClient,
+        _transport_error: TransportError,
+    ) where
         Self: Sized,
     {
         // 获取 NetworkManagerTrait 的单例
@@ -450,7 +513,6 @@ impl NetworkManagerTrait for NetworkManager {
     {
         NetworkServer::destroy_player_for_connection(conn);
     }
-
 
     fn awake() {
         let backend_data = BackendDataStatic::get_backend_data();
@@ -477,7 +539,8 @@ impl NetworkManagerTrait for NetworkManager {
             offline_scene_load_delay: 0.0,
             network_address: network_manager_setting.network_address.clone(),
             max_connections: network_manager_setting.max_connections,
-            disconnect_inactive_connections: network_manager_setting.disconnect_inactive_connections,
+            disconnect_inactive_connections: network_manager_setting
+                .disconnect_inactive_connections,
             disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
             authenticator: None,
             player_obj: GameObject::new(network_manager_setting.player_prefab.clone()),
@@ -488,7 +551,9 @@ impl NetworkManagerTrait for NetworkManager {
             evaluation_method: ConnectionQualityMethod::Simple,
             evaluation_interval: network_manager_setting.evaluation_interval,
             time_interpolation_gui: network_manager_setting.time_interpolation_gui,
-            snapshot_interpolation_settings: network_manager_setting.snapshot_interpolation_setting.clone(),
+            snapshot_interpolation_settings: network_manager_setting
+                .snapshot_interpolation_setting
+                .clone(),
         };
 
         NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));
