@@ -960,23 +960,28 @@ impl NetworkServer {
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
         if let Some(mut identity) = player.get_identity() {
-            if let Some(mut connection) =
-                NetworkServerStatic::network_connections().get_mut(&conn_id)
-            {
-                if connection.net_id() != 0 {
-                    warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
+            match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+                TryResult::Present(mut connection) => {
+                    if connection.net_id() != 0 {
+                        warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
+                        return false;
+                    }
+                    // 设置连接的 NetworkIdentity
+                    connection.set_net_id(identity.net_id());
+                    // 修改 NetworkIdentity 的 client_owner
+                    identity.set_client_owner(conn_id);
+                }
+                TryResult::Absent => {
+                    warn!(format!(
+                        "AddPlayer: connectionId {} not found in connections",
+                        conn_id
+                    ));
                     return false;
                 }
-                // 设置连接的 NetworkIdentity
-                connection.set_net_id(identity.net_id());
-                // 修改 NetworkIdentity 的 client_owner
-                identity.set_client_owner(conn_id);
-            } else {
-                warn!(format!(
-                    "AddPlayer: connectionId {} not found in connections",
-                    conn_id
-                ));
-                return false;
+                TryResult::Locked => {
+                    error!(format!("AddPlayer: connectionId {} is locked", conn_id));
+                    return false;
+                }
             }
             Self::set_client_ready(conn_id);
             Self::respawn(identity);
@@ -1075,10 +1080,24 @@ impl NetworkServer {
             Self::spawn(identity, conn_id);
         } else {
             // 找到连接
-            if let Some(mut connection) =
-                NetworkServerStatic::network_connections().get_mut(&identity.connection_to_client())
+            match NetworkServerStatic::network_connections()
+                .try_get_mut(&identity.connection_to_client())
             {
-                Self::send_spawn_message(&mut identity, &mut connection);
+                TryResult::Present(mut connection) => {
+                    Self::send_spawn_message(&mut identity, &mut connection);
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "Server.Respawn: connectionId {} not found in connections",
+                        identity.connection_to_client()
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Server.Respawn: connectionId {} is locked",
+                        identity.connection_to_client()
+                    ));
+                }
             }
         }
     }
