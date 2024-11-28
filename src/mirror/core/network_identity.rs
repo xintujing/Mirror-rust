@@ -3,6 +3,7 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
+use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
 use crate::mirror::core::network_server::NetworkServerStatic;
@@ -11,6 +12,7 @@ use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
 use atomic::Atomic;
 use dashmap::mapref::one::RefMut;
+use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::default::Default;
@@ -106,14 +108,27 @@ impl NetworkIdentity {
         self.net_id
     }
     pub fn set_net_id(&mut self, net_id: u32) {
+        // 设置 net_id
         self.net_id = net_id;
+        // 设置所有的 component 的 net_id
         for component in self.network_behaviours.iter_mut() {
             component.set_net_id(self.net_id);
         }
-        if let Some(mut conn) =
-            NetworkServerStatic::network_connections().get_mut(&self.conn_to_client)
-        {
-            conn.set_net_id(self.net_id);
+        // 设置 connection_to_client 的 net_id
+        match NetworkServerStatic::network_connections().try_get_mut(&self.conn_to_client) {
+            TryResult::Present(mut conn) => {
+                conn.set_net_id(self.net_id);
+            }
+            TryResult::Absent => {
+                error!(
+                    "Failed to set net id on connection to client because connection is absent."
+                );
+            }
+            TryResult::Locked => {
+                error!(
+                    "Failed to set net id on connection to client because connection is locked."
+                );
+            }
         }
     }
     pub fn is_null(&self) -> bool {
@@ -134,10 +149,16 @@ impl NetworkIdentity {
             component.set_connection_to_client(self.conn_to_client);
         }
         // 添加到conn的owned_objects
-        if let Some(mut conn) =
-            NetworkServerStatic::network_connections().get_mut(&self.conn_to_client)
-        {
-            conn.add_owned_object(self.net_id);
+        match NetworkServerStatic::network_connections().try_get_mut(&self.conn_to_client) {
+            TryResult::Present(mut conn) => {
+                conn.add_owned_object(self.net_id);
+            }
+            TryResult::Absent => {
+                error!("Failed to set connection to client because connection is absent.");
+            }
+            TryResult::Locked => {
+                error!("Failed to set connection to client because connection is locked.");
+            }
         }
     }
     pub fn game_object(&self) -> &GameObject {
@@ -243,8 +264,7 @@ impl NetworkIdentity {
     fn server_dirty_masks(&mut self, initial_state: bool) -> (u64, u64) {
         let mut owner_mask: u64 = 0;
         let mut observers_mask: u64 = 0;
-        for i in 0..self.network_behaviours.len() {
-            let component = &mut self.network_behaviours[i];
+        for (i, component) in self.network_behaviours.iter_mut().enumerate() {
             let nth_bit = 1 << i;
             let dirty = component.is_dirty();
 
@@ -282,9 +302,7 @@ impl NetworkIdentity {
         }
 
         if (owner_mask | observers_mask) != 0 {
-            for i in 0..self.network_behaviours.len() {
-                let component = &mut self.network_behaviours[i];
-
+            for (i, component) in self.network_behaviours.iter_mut().enumerate() {
                 let owner_dirty = Self::is_dirty(owner_mask, i as u8);
                 let observers_dirty = Self::is_dirty(observers_mask, i as u8);
 
@@ -314,9 +332,8 @@ impl NetworkIdentity {
 
         let mask = reader.decompress_var_uint();
 
-        for i in 0..self.network_behaviours.len() {
+        for (i, component) in self.network_behaviours.iter_mut().enumerate() {
             if Self::is_dirty(mask, i as u8) {
-                let component = &mut self.network_behaviours[i];
                 if *component.sync_direction() == SyncDirection::ClientToServer {
                     NetworkReaderPool::get_return(|reader| {
                         if !component.deserialize(reader, false) {
@@ -390,9 +407,17 @@ impl NetworkIdentity {
         // 添加观察者
         self.observers.push(conn_id);
 
-        if let Some(mut conn) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
-            // 添加到观察者
-            conn.add_to_observing(self);
+        // 添加到观察者
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut conn) => {
+                conn.add_to_observing(self);
+            }
+            TryResult::Absent => {
+                error!("Failed to add observer because connection is absent.");
+            }
+            TryResult::Locked => {
+                error!("Failed to add observer because connection is locked.");
+            }
         }
     }
     fn clear_all_components_dirty_bits(&mut self) {
