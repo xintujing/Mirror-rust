@@ -127,7 +127,7 @@ impl NetworkIdentity {
         self.conn_to_client
     }
     pub fn set_connection_to_client(&mut self, conn_id: u64) {
-        // 如果已经有了conn_id
+        // 设置 conn_id
         self.conn_to_client = conn_id;
         // 设置所有的component的conn_id
         for component in self.network_behaviours.iter_mut() {
