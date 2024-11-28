@@ -1178,8 +1178,22 @@ impl NetworkServer {
     }
     // 设置客户端准备就绪
     pub fn set_client_ready(conn_id: u64) {
-        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
-            connection.set_ready(true);
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut connection) => {
+                connection.set_ready(true);
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.SetClientReady: connectionId {} not found in connections",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.SetClientReady: connectionId {} is locked",
+                    conn_id
+                ));
+            }
         }
         // 为连接生成观察者
         Self::spawn_observers_for_connection(conn_id);
@@ -1187,15 +1201,30 @@ impl NetworkServer {
     // 为连接生成观察者
     fn spawn_observers_for_connection(conn_id: u64) {
         // 发送 ObjectSpawnStartedMessage 消息
-        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
-            if !connection.is_ready() {
-                return;
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut connection) => {
+                if !connection.is_ready() {
+                    return;
+                }
+                connection.send_network_message(
+                    &mut ObjectSpawnStartedMessage::default(),
+                    TransportChannel::Reliable,
+                );
             }
-            connection.send_network_message(
-                &mut ObjectSpawnStartedMessage::default(),
-                TransportChannel::Reliable,
-            );
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.SpawnObserversForConnection: connectionId {} not found in connections",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.SpawnObserversForConnection: connectionId {} is locked",
+                    conn_id
+                ));
+            }
         }
+
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
         NetworkServerStatic::spawned_network_identities()
@@ -1212,11 +1241,25 @@ impl NetworkServer {
             });
 
         // 发送 ObjectSpawnFinishedMessage 消息
-        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&conn_id) {
-            connection.send_network_message(
-                &mut ObjectSpawnFinishedMessage::default(),
-                TransportChannel::Reliable,
-            );
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut connection) => {
+                connection.send_network_message(
+                    &mut ObjectSpawnFinishedMessage::default(),
+                    TransportChannel::Reliable,
+                );
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.SpawnObserversForConnection: connectionId {} not found in connections",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.SpawnObserversForConnection: connectionId {} is locked",
+                    conn_id
+                ));
+            }
         }
     }
 
@@ -1228,31 +1271,48 @@ impl NetworkServer {
     ) {
         let message = CommandMessage::deserialize(reader);
 
-        if let Some(connection) = NetworkServerStatic::network_connections().get_mut(&connection_id)
-        {
-            // connection 没有准备好
-            if !connection.is_ready() {
-                // 如果 channel 是 Reliable
-                if channel == TransportChannel::Reliable {
-                    // 如果 SPAWNED 中有 message.net_id
-                    if let Some(identity) =
-                        NetworkServerStatic::spawned_network_identities().get(&message.net_id)
-                    {
-                        // 如果 message.component_index 小于 net_identity.network_behaviours.len()
-                        if (message.component_index as usize) < identity.network_behaviours.len() {
-                            // 如果 message.function_hash 在 RemoteProcedureCalls 中
-                            if let Some(method_name) =
-                                RemoteProcedureCalls::get_function_method_name(
-                                    message.function_hash,
-                                )
+        match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+            TryResult::Present(connection) => {
+                // connection 没有准备好
+                if !connection.is_ready() {
+                    // 如果 channel 是 Reliable
+                    if channel == TransportChannel::Reliable {
+                        // 如果 SPAWNED 中有 message.net_id
+                        if let Some(identity) =
+                            NetworkServerStatic::spawned_network_identities().get(&message.net_id)
+                        {
+                            // 如果 message.component_index 小于 net_identity.network_behaviours.len()
+                            if (message.component_index as usize)
+                                < identity.network_behaviours.len()
                             {
-                                warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
-                                return;
+                                // 如果 message.function_hash 在 RemoteProcedureCalls 中
+                                if let Some(method_name) =
+                                    RemoteProcedureCalls::get_function_method_name(
+                                        message.function_hash,
+                                    )
+                                {
+                                    warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
+                                    return;
+                                }
                             }
                         }
+                        warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
                     }
-                    warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
+                    return;
                 }
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.HandleCommand: connectionId {} not found in connections",
+                    connection_id
+                ));
+                return;
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.HandleCommand: connectionId {} is locked",
+                    connection_id
+                ));
                 return;
             }
         }

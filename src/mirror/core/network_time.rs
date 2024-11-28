@@ -1,14 +1,17 @@
 use crate::mirror::core::messages::{NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
+use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::transport::TransportChannel;
 use atomic::Atomic;
+use dashmap::mapref::one::RefMut;
+use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use std::time::Instant;
-use tklog::warn;
+use tklog::{error, warn};
 
 lazy_static! {
     // 全局启动时间锚点
@@ -19,8 +22,6 @@ lazy_static! {
     static ref _RTT: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE));
     static ref _PREDICTION_ERROR_UNADJUSTED: RwLock<ExponentialMovingAverage> = RwLock::new(ExponentialMovingAverage::new(NetworkTime::PREDICTION_ERROR_WINDOW_SIZE));
 }
-
-
 
 pub struct NetworkTime;
 
@@ -89,28 +90,52 @@ impl NetworkTime {
             *rtt = ExponentialMovingAverage::new(Self::PING_WINDOW_SIZE);
         }
         if let Ok(mut prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.write() {
-            *prediction_error_unadjusted = ExponentialMovingAverage::new(Self::PREDICTION_ERROR_WINDOW_SIZE);
+            *prediction_error_unadjusted =
+                ExponentialMovingAverage::new(Self::PREDICTION_ERROR_WINDOW_SIZE);
         }
         Self::set_ping_interval(Self::DEFAULT_PING_INTERVAL);
         Self::set_last_ping_time(0.0);
     }
 
     #[allow(dead_code)]
-    pub fn on_server_ping(connection_id: u64, un_batch: &mut NetworkReader, channel: TransportChannel) {
+    pub fn on_server_ping(
+        connection_id: u64,
+        un_batch: &mut NetworkReader,
+        channel: TransportChannel,
+    ) {
         let _ = channel;
         let message = NetworkPingMessage::deserialize(un_batch);
         let local_time = Self::local_time();
         let unadjusted_error = local_time - message.local_time;
         let adjusted_error = local_time - message.predicted_time_adjusted;
         // new prediction error
-        let mut pong_message = NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
-        if let Some(mut connection) = NetworkServerStatic::network_connections().get_mut(&connection_id) {
-            // send pong message
-            connection.send_network_message(&mut pong_message, TransportChannel::Reliable);
+        let mut pong_message =
+            NetworkPongMessage::new(message.local_time, unadjusted_error, adjusted_error);
+        match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+            TryResult::Present(mut connection) => {
+                // send pong message
+                connection.send_network_message(&mut pong_message, TransportChannel::Reliable);
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "NetworkTime::on_server_ping() failed to get connection: {}",
+                    connection_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "NetworkTime::on_server_ping() failed to get connection: {}",
+                    connection_id
+                ));
+            }
         }
     }
 
-    pub fn on_server_pong(_connection_id: u64, un_batch: &mut NetworkReader, _channel: TransportChannel) {
+    pub fn on_server_pong(
+        _connection_id: u64,
+        un_batch: &mut NetworkReader,
+        _channel: TransportChannel,
+    ) {
         let message = NetworkPongMessage::deserialize(un_batch);
         if message.local_time > Self::local_time() {
             return;
