@@ -1075,28 +1075,31 @@ impl NetworkServer {
     }
 
     fn respawn(mut identity: NetworkIdentity) {
-        if identity.net_id() == 0 {
-            let conn_id = identity.connection_to_client();
-            Self::spawn(identity, conn_id);
-        } else {
-            // 找到连接
-            match NetworkServerStatic::network_connections()
-                .try_get_mut(&identity.connection_to_client())
-            {
-                TryResult::Present(mut connection) => {
-                    Self::send_spawn_message(&mut identity, &mut connection);
-                }
-                TryResult::Absent => {
-                    error!(format!(
-                        "Server.Respawn: connectionId {} not found in connections",
-                        identity.connection_to_client()
-                    ));
-                }
-                TryResult::Locked => {
-                    error!(format!(
-                        "Server.Respawn: connectionId {} is locked",
-                        identity.connection_to_client()
-                    ));
+        match identity.net_id() {
+            0 => {
+                let conn_id = identity.connection_to_client();
+                Self::spawn(identity, conn_id);
+            }
+            _ => {
+                // 找到连接
+                match NetworkServerStatic::network_connections()
+                    .try_get_mut(&identity.connection_to_client())
+                {
+                    TryResult::Present(mut connection) => {
+                        Self::send_spawn_message(&mut identity, &mut connection);
+                    }
+                    TryResult::Absent => {
+                        error!(format!(
+                            "Server.Respawn: connectionId {} not found in connections",
+                            identity.connection_to_client()
+                        ));
+                    }
+                    TryResult::Locked => {
+                        error!(format!(
+                            "Server.Respawn: connectionId {} is locked",
+                            identity.connection_to_client()
+                        ));
+                    }
                 }
             }
         }
