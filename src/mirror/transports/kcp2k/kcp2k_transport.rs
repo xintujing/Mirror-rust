@@ -70,14 +70,12 @@ impl Kcp2kTransport {
                 tcb.data = cb.data.to_vec();
                 tcb.channel = Self::from_kcp2k_channel(cb.channel);
                 tcb.error = Self::from_kcp2k_error_code(cb.error_code);
-                match self.transport.transport_cb_fn.try_read() {
-                    Ok(transport_cb_fn) => {
-                        if let Some(func) = transport_cb_fn.as_ref() {
-                            func(tcb);
-                        }
+                match self.transport.transport_cb_fn.as_ref() {
+                    None => {
+                        error!("Kcp2kTransport recv_data error: transport_cb_fn is None");
                     }
-                    Err(e) => {
-                        error!(format!("Kcp2kTransport recv_data error: {:?}", e));
+                    Some(transport_cb_fn) => {
+                        transport_cb_fn(tcb);
                     }
                 }
             }
@@ -142,9 +140,12 @@ impl TransportTrait for Kcp2kTransport {
                 tcb.error = Self::from_kcp2k_error_code(e);
             }
         }
-        if let Ok(transport_cb_fn) = self.transport.transport_cb_fn.read() {
-            if let Some(func) = transport_cb_fn.as_ref() {
-                func(tcb);
+        match self.transport.transport_cb_fn.as_ref() {
+            None => {
+                error!("Kcp2kTransport server_send error: transport_cb_fn is None");
+            }
+            Some(transport_cb_fn) => {
+                transport_cb_fn(tcb);
             }
         }
     }
@@ -179,10 +180,8 @@ impl TransportTrait for Kcp2kTransport {
 
     fn shutdown(&mut self) {}
 
-    fn set_transport_cb_fn(&self, func: TransportFunc) {
-        if let Ok(mut transport_cb_fn) = self.transport.transport_cb_fn.write() {
-            *transport_cb_fn = Some(func);
-        }
+    fn set_transport_cb_fn(&mut self, func: TransportFunc) {
+        self.transport.transport_cb_fn.replace(func);
     }
 
     fn get_max_packet_size(&self, channel: TransportChannel) -> usize {

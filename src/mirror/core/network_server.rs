@@ -1235,14 +1235,15 @@ impl NetworkServer {
 
     // 处理 TransportError 消息
     fn on_transport_error(connection_id: u64, transport_error: TransportError) {
-        if let Some(mut connection) =
-            NetworkServerStatic::network_connections().get_mut(&connection_id)
-        {
-            if let Some(on_error_event) =
-                NetworkServerStatic::connected_event().get(&EventHandlerType::OnErrorEvent)
-            {
-                on_error_event(&mut connection, transport_error);
+        match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+            TryResult::Present(mut connection) => {
+                if let Some(on_error_event) =
+                    NetworkServerStatic::connected_event().get(&EventHandlerType::OnErrorEvent)
+                {
+                    on_error_event(&mut connection, transport_error);
+                }
             }
+            _ => {}
         }
     }
 
@@ -1260,18 +1261,7 @@ impl NetworkServer {
                     on_exception_event(&mut connection, transport_error);
                 }
             }
-            TryResult::Absent => {
-                error!(format!(
-                    "Server.HandleTransportException: connectionId: {} not found.",
-                    connection_id
-                ));
-            }
-            TryResult::Locked => {
-                error!(format!(
-                    "Server.HandleTransportException: connectionId: {} is locked.",
-                    connection_id
-                ));
-            }
+            _ => {}
         }
     }
 

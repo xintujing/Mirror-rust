@@ -57,9 +57,9 @@ impl Default for TransportCallback {
     }
 }
 pub type TransportFunc = Box<dyn Fn(TransportCallback)>;
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct Transport {
-    pub transport_cb_fn: Arc<RwLock<Option<TransportFunc>>>,
+    pub transport_cb_fn: Option<TransportFunc>,
 }
 impl Transport {
     pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
@@ -94,7 +94,7 @@ pub trait TransportTrait {
     fn server_late_update(&mut self);
     fn server_stop(&mut self);
     fn shutdown(&mut self);
-    fn set_transport_cb_fn(&self, func: TransportFunc);
+    fn set_transport_cb_fn(&mut self, func: TransportFunc);
     fn get_max_packet_size(&self, channel: TransportChannel) -> usize;
     fn get_batcher_threshold(&self, channel: TransportChannel) -> usize {
         self.get_max_packet_size(channel)

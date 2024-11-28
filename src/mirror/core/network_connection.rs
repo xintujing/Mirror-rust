@@ -5,7 +5,7 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::tools::logger::warn;
 use crate::mirror::core::transport::{Transport, TransportChannel};
-use tklog::error;
+use tklog::{debug, error};
 
 pub struct NetworkConnection {
     id: u64,
@@ -198,6 +198,7 @@ impl NetworkConnectionTrait for NetworkConnection {
                 self.send_to_transport(writer.to_bytes(), TransportChannel::Unreliable);
                 writer.reset();
             }
+
         });
     }
 
