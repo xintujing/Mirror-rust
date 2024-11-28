@@ -745,8 +745,8 @@ impl NetworkServer {
     }
 
     pub fn destroy_player_for_connection(conn: &mut NetworkConnectionToClient) {
-        conn.destroy_owned_objects();
         conn.remove_from_observings_observers();
+        conn.destroy_owned_objects();
         conn.set_net_id(0);
     }
 
