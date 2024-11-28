@@ -483,8 +483,8 @@ impl NetworkServer {
     }
 
     pub fn hide_for_connection(
-        identity: &mut NetworkIdentity,
         conn: &mut NetworkConnectionToClient,
+        identity: &mut NetworkIdentity,
     ) {
         if conn.is_ready() {
             let mut message = ObjectHideMessage::new(identity.net_id());

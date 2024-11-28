@@ -243,7 +243,7 @@ impl NetworkConnectionToClient {
     pub fn remove_from_observing(&mut self, identity: &mut NetworkIdentity, is_destroyed: bool) {
         self.observing.retain(|net_id| *net_id != identity.net_id());
         if !is_destroyed {
-            NetworkServer::hide_for_connection(identity, self);
+            NetworkServer::hide_for_connection(self, identity);
         }
     }
 }
