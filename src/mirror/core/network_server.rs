@@ -23,7 +23,7 @@ use crate::mirror::core::transport::{
 };
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
-use dashmap::mapref::one::RefMut;
+use dashmap::mapref::one::{Ref, RefMut};
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
@@ -432,27 +432,42 @@ impl NetworkServer {
 
     // SerializeForConnection
     fn serialize_for_connection(net_id: u32, conn_id: u64) -> Option<EntityStateMessage> {
-        if let Some(mut identity) =
-            NetworkServerStatic::spawned_network_identities().get_mut(&net_id)
-        {
-            let owned = identity.connection_to_client() == conn_id;
-            let net_id = identity.net_id();
-            let serialization =
-                identity.get_server_serialization_at_tick(NetworkTime::frame_count());
-            if owned {
-                if serialization.owner_writer.get_position() > 0 {
-                    return Some(EntityStateMessage::new(
-                        net_id,
-                        serialization.owner_writer.to_bytes(),
-                    ));
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+            TryResult::Present(mut identity) => {
+                let owned = identity.connection_to_client() == conn_id;
+                let net_id = identity.net_id();
+                let serialization =
+                    identity.get_server_serialization_at_tick(NetworkTime::frame_count());
+                match owned {
+                    true => {
+                        if serialization.owner_writer.get_position() > 0 {
+                            return Some(EntityStateMessage::new(
+                                net_id,
+                                serialization.owner_writer.to_bytes(),
+                            ));
+                        }
+                    }
+                    false => {
+                        if serialization.observers_writer.get_position() > 0 {
+                            return Some(EntityStateMessage::new(
+                                net_id,
+                                serialization.observers_writer.to_bytes(),
+                            ));
+                        }
+                    }
                 }
-            } else {
-                if serialization.observers_writer.get_position() > 0 {
-                    return Some(EntityStateMessage::new(
-                        net_id,
-                        serialization.observers_writer.to_bytes(),
-                    ));
-                }
+            }
+            TryResult::Absent => {
+                warn!(format!(
+                    "Server.SerializeForConnection: netId {} not found in spawned.",
+                    net_id
+                ));
+            }
+            TryResult::Locked => {
+                warn!(format!(
+                    "Server.SerializeForConnection: netId {} is locked.",
+                    net_id
+                ));
             }
         }
         None
@@ -1278,22 +1293,38 @@ impl NetworkServer {
                     // 如果 channel 是 Reliable
                     if channel == TransportChannel::Reliable {
                         // 如果 SPAWNED 中有 message.net_id
-                        if let Some(identity) =
-                            NetworkServerStatic::spawned_network_identities().get(&message.net_id)
+                        match NetworkServerStatic::spawned_network_identities()
+                            .try_get(&message.net_id)
                         {
-                            // 如果 message.component_index 小于 net_identity.network_behaviours.len()
-                            if (message.component_index as usize)
-                                < identity.network_behaviours.len()
-                            {
-                                // 如果 message.function_hash 在 RemoteProcedureCalls 中
-                                if let Some(method_name) =
-                                    RemoteProcedureCalls::get_function_method_name(
-                                        message.function_hash,
-                                    )
+                            TryResult::Present(identity) => {
+                                // 如果 message.component_index 小于 net_identity.network_behaviours.len()
+                                if (message.component_index as usize)
+                                    < identity.network_behaviours.len()
                                 {
-                                    warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
-                                    return;
+                                    // 如果 message.function_hash 在 RemoteProcedureCalls 中
+                                    if let Some(method_name) =
+                                        RemoteProcedureCalls::get_function_method_name(
+                                            message.function_hash,
+                                        )
+                                    {
+                                        warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
+                                        return;
+                                    }
                                 }
+                            }
+                            TryResult::Absent => {
+                                error!(format!(
+                                    "Server.HandleCommand: connectionId {} not found in connections",
+                                    connection_id
+                                ));
+                                return;
+                            }
+                            TryResult::Locked => {
+                                error!(format!(
+                                    "Server.HandleCommand: connectionId {} is locked",
+                                    connection_id
+                                ));
+                                return;
                             }
                         }
                         warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
@@ -1317,52 +1348,60 @@ impl NetworkServer {
             }
         }
 
-        if let Some(mut identity) =
-            NetworkServerStatic::spawned_network_identities().get_mut(&message.net_id)
-        {
-            // 是否需要权限
-            let requires_authority =
-                RemoteProcedureCalls::command_requires_authority(message.function_hash);
-            // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
-            if requires_authority && identity.connection_to_client() != connection_id {
-                // Attempt to identify the component and method to narrow down the cause of the error.
-                if identity.network_behaviours.len() > message.component_index as usize {
-                    if let Some(method_name) =
-                        RemoteProcedureCalls::get_function_method_name(message.function_hash)
-                    {
-                        warn!(format!("Command {} received for {} [netId={}] component [index={}] without authority", method_name, identity.net_id(), message.net_id,  message.component_index));
-                        return;
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&message.net_id) {
+            TryResult::Present(mut identity) => {
+                // 是否需要权限
+                let requires_authority =
+                    RemoteProcedureCalls::command_requires_authority(message.function_hash);
+                // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
+                if requires_authority && identity.connection_to_client() != connection_id {
+                    // Attempt to identify the component and method to narrow down the cause of the error.
+                    if identity.network_behaviours.len() > message.component_index as usize {
+                        if let Some(method_name) =
+                            RemoteProcedureCalls::get_function_method_name(message.function_hash)
+                        {
+                            warn!(format!("Command {} received for {} [netId={}] component [index={}] without authority", method_name, identity.net_id(), message.net_id,  message.component_index));
+                            return;
+                        }
                     }
+                    warn!(format!(
+                        "Command received for {} [netId={}] without authority",
+                        identity.net_id(),
+                        message.net_id
+                    ));
+                    return;
                 }
-                warn!(format!(
-                    "Command received for {} [netId={}] without authority",
-                    identity.net_id(),
+
+                NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
+                    identity.handle_remote_call(
+                        message.component_index,
+                        message.function_hash,
+                        RemoteCallType::Command,
+                        reader,
+                        connection_id,
+                    );
+                });
+            }
+            TryResult::Absent => {
+                // over reliable channel, commands should always come after spawn.
+                // over unreliable, they might come in before the object was spawned.
+                // for example, NetworkTransform.
+                // let's not spam the console for unreliable out-of-order messages.
+                if channel == TransportChannel::Reliable {
+                    warn!(format!(
+                        "Spawned object not found when handling Command message netId={}",
+                        message.net_id
+                    ));
+                }
+                return;
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.HandleCommand: netId {} is locked",
                     message.net_id
                 ));
                 return;
             }
-
-            NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
-                identity.handle_remote_call(
-                    message.component_index,
-                    message.function_hash,
-                    RemoteCallType::Command,
-                    reader,
-                    connection_id,
-                );
-            });
-        } else {
-            // over reliable channel, commands should always come after spawn.
-            // over unreliable, they might come in before the object was spawned.
-            // for example, NetworkTransform.
-            // let's not spam the console for unreliable out-of-order messages.
-            if channel == TransportChannel::Reliable {
-                warn!(format!(
-                    "Spawned object not found when handling Command message netId={}",
-                    message.net_id
-                ));
-            }
-            return;
         }
     }
 
@@ -1373,33 +1412,45 @@ impl NetworkServer {
         _channel: TransportChannel,
     ) {
         let message = EntityStateMessage::deserialize(reader);
-        if let Some(mut identity) =
-            NetworkServerStatic::spawned_network_identities().get_mut(&message.net_id)
-        {
-            if identity.connection_to_client() == connection_id {
-                NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
-                    if !identity.deserialize_server(reader) {
-                        if NetworkServerStatic::exceptions_disconnect() {
-                            error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
-                            if let Some(mut connection) =
-                                NETWORK_CONNECTIONS.get_mut(&connection_id)
-                            {
-                                connection.disconnect();
-                            }
-                        } else {
-                            warn!(format!(
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&message.net_id) {
+            TryResult::Present(mut identity) => {
+                if identity.connection_to_client() == connection_id {
+                    NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
+                        if !identity.deserialize_server(reader) {
+                            if NetworkServerStatic::exceptions_disconnect() {
+                                error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
+                                if let Some(mut connection) =
+                                    NETWORK_CONNECTIONS.get_mut(&connection_id)
+                                {
+                                    connection.disconnect();
+                                }
+                            } else {
+                                warn!(format!(
                                 "Server failed to deserialize client state for {} with netId={}",
                                 identity.connection_to_client(),
                                 identity.net_id()
                             ));
+                            }
                         }
-                    }
-                });
-            } else {
+                    });
+                } else {
+                    warn!(format!(
+                        "EntityStateMessage from {} for {} without authority.",
+                        connection_id,
+                        identity.net_id()
+                    ));
+                }
+            }
+            TryResult::Absent => {
                 warn!(format!(
-                    "EntityStateMessage from {} for {} without authority.",
-                    connection_id,
-                    identity.net_id()
+                    "EntityStateMessage for netId={} not found in spawned.",
+                    message.net_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.HandleEntityState: netId {} is locked",
+                    message.net_id
                 ));
             }
         }
