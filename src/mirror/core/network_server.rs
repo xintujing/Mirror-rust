@@ -23,6 +23,7 @@ use crate::mirror::core::transport::{
 };
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
+use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
@@ -778,44 +779,71 @@ impl NetworkServer {
 
         match options {
             RemovePlayerOptions::KeepActive => {
-                if let Some(mut identity) =
-                    NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id())
+                match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id())
                 {
-                    identity.set_connection_to_client(0);
-                    conn.owned().retain(|id| *id != identity.net_id());
-                    Self::send_change_owner_message(&mut identity, conn);
-                } else {
-                    error!(format!(
-                        "Server.RemovePlayer: netId {} not found in spawned.",
-                        conn.net_id()
-                    ));
-                    return;
+                    TryResult::Present(mut identity) => {
+                        identity.set_connection_to_client(0);
+                        conn.owned().retain(|id| *id != identity.net_id());
+                        Self::send_change_owner_message(&mut identity, conn);
+                    }
+                    TryResult::Absent => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} not found in spawned.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
+                    TryResult::Locked => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} is locked.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
                 }
             }
             RemovePlayerOptions::UnSpawn => {
-                if let Some(mut identity) =
-                    NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id())
+                match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id())
                 {
-                    Self::un_spawn(conn, &mut identity);
-                } else {
-                    error!(format!(
-                        "Server.RemovePlayer: netId {} not found in spawned.",
-                        conn.net_id()
-                    ));
-                    return;
+                    TryResult::Present(mut identity) => {
+                        Self::un_spawn(conn, &mut identity);
+                    }
+                    TryResult::Absent => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} not found in spawned.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
+                    TryResult::Locked => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} is locked.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
                 }
             }
             RemovePlayerOptions::Destroy => {
-                if let Some(mut identity) =
-                    NetworkServerStatic::spawned_network_identities().get_mut(&conn.net_id())
+                match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id())
                 {
-                    Self::destroy(conn, &mut identity);
-                } else {
-                    error!(format!(
-                        "Server.RemovePlayer: netId {} not found in spawned.",
-                        conn.net_id()
-                    ));
-                    return;
+                    TryResult::Present(mut identity) => {
+                        Self::destroy(conn, &mut identity);
+                    }
+                    TryResult::Absent => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} not found in spawned.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
+                    TryResult::Locked => {
+                        error!(format!(
+                            "Server.RemovePlayer: netId {} is locked.",
+                            conn.net_id()
+                        ));
+                        return;
+                    }
                 }
             }
         }
