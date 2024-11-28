@@ -309,9 +309,9 @@ impl NetworkManager {
     pub fn register_start_position(mut start: Transform) {
         // 在生成 五个随机位置
         for _ in 0..5 {
-            let x = rand::random::<f32>() * 10.0;
+            let x = rand::random::<f32>() * 8.0;
             let y = 0.5;
-            let z = rand::random::<f32>() * 10.0;
+            let z = rand::random::<f32>() * 8.0;
             let v3 = Vector3::new(x, y, z);
             start.position = v3;
             start.local_position = v3;
