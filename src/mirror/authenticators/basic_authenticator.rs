@@ -52,13 +52,13 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
                         }
                         TryResult::Absent => {
                             error!(format!(
-                                "Failed to clear observers because connection {} is absent.",
+                                "Failed because connection {} is absent.",
                                 connection_id
                             ));
                         }
                         TryResult::Locked => {
                             error!(format!(
-                                "Failed to clear observers because connection {} is locked.",
+                                "Failed because connection {} is locked.",
                                 connection_id
                             ));
                         }

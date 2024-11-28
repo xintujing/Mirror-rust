@@ -21,6 +21,7 @@ use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::CompressTrait;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
@@ -61,15 +62,27 @@ impl NetworkTransformUnreliable {
                 return;
             }
 
-            if let Some(conn) =
-                NetworkServerStatic::network_connections().get(&self.connection_to_client())
-            {
-                let (from, to, t) = SnapshotInterpolation::step_interpolation(
-                    &mut self.network_transform_base.server_snapshots,
-                    conn.remote_timeline,
-                );
-                let computed = TransformSnapshot::transform_snapshot(from, to, t);
-                self.apply(computed, to);
+            match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
+                TryResult::Present(mut conn) => {
+                    let (from, to, t) = SnapshotInterpolation::step_interpolation(
+                        &mut self.network_transform_base.server_snapshots,
+                        conn.remote_timeline,
+                    );
+                    let computed = TransformSnapshot::transform_snapshot(from, to, t);
+                    self.apply(computed, to);
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "Failed because connection {} is absent.",
+                        self.connection_to_client()
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Failed because connection {} is locked.",
+                        &self.connection_to_client()
+                    ));
+                }
             }
         }
     }
