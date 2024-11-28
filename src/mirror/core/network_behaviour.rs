@@ -459,16 +459,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
                     }
                 }
                 TryResult::Absent => {
-                    error!(format!(
-                        "Failed because connection {} is absent.",
-                        self.connection_to_client()
-                    ));
+                    error!(format!("Failed because connection {} is absent.", observer));
                 }
                 TryResult::Locked => {
-                    error!(format!(
-                        "Failed because connection {} is locked.",
-                        &self.connection_to_client()
-                    ));
+                    error!(format!("Failed because connection {} is locked.", observer));
                 }
             },
         );
@@ -485,12 +479,18 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
         for observer in self.observers().iter() {
-            if let Some(mut conn_to_client) =
-                NetworkServerStatic::network_connections().get_mut(&observer)
-            {
-                let is_owner = conn_to_client.connection_id() == self.connection_to_client();
-                if (!is_owner || include_owner) && conn_to_client.is_ready() {
-                    conn_to_client.send_network_message(&mut entity_message, channel);
+            match NetworkServerStatic::network_connections().try_get_mut(observer) {
+                TryResult::Present(mut conn_to_client) => {
+                    let is_owner = conn_to_client.connection_id() == self.connection_to_client();
+                    if (!is_owner || include_owner) && conn_to_client.is_ready() {
+                        conn_to_client.send_network_message(&mut entity_message, channel);
+                    }
+                }
+                TryResult::Absent => {
+                    error!(format!("Failed because connection {} is absent.", observer));
+                }
+                TryResult::Locked => {
+                    error!(format!("Failed because connection {} is locked.", observer));
                 }
             }
         }

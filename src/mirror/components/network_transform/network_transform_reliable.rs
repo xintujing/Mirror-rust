@@ -1,8 +1,13 @@
-use crate::mirror::components::network_transform::network_transform_base::{CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait};
+use crate::mirror::components::network_transform::network_transform_base::{
+    CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait,
+};
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
+use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
@@ -12,6 +17,8 @@ use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::{Compress, CompressTrait};
 use crate::mirror::core::tools::delta_compression::DeltaCompression;
+use dashmap::mapref::one::Ref;
+use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
 use std::any::Any;
@@ -19,6 +26,7 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::mem::take;
 use std::sync::Once;
+use tklog::error;
 
 #[derive(Debug)]
 pub struct NetworkTransformReliable {
@@ -31,7 +39,6 @@ pub struct NetworkTransformReliable {
     scale_precision: f32,
     compress_rotation: bool,
     // NetworkTransformReliableSetting end
-
     send_interval_counter: u32,
     last_send_interval_time: f64,
     last_snapshot: TransformSnapshot,
@@ -46,16 +53,35 @@ impl NetworkTransformReliable {
 
     // UpdateServer()
     fn update_server(&mut self) {
-        if self.sync_direction() == &SyncDirection::ClientToServer && self.connection_to_client() != 0 {
+        if self.sync_direction() == &SyncDirection::ClientToServer
+            && self.connection_to_client() != 0
+        {
             if self.network_transform_base.server_snapshots.len() == 0 {
                 return;
             }
 
-            if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
-                let (from, to, t) = SnapshotInterpolation::step_interpolation(&mut self.network_transform_base.server_snapshots, conn.remote_timeline);
-                let computed = TransformSnapshot::transform_snapshot(from, to, t);
-                self.apply(computed, to);
-            } else {}
+            match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
+                TryResult::Present(conn) => {
+                    let (from, to, t) = SnapshotInterpolation::step_interpolation(
+                        &mut self.network_transform_base.server_snapshots,
+                        conn.remote_timeline,
+                    );
+                    let computed = TransformSnapshot::transform_snapshot(from, to, t);
+                    self.apply(computed, to);
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "connection not found: {}",
+                        self.connection_to_client()
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "connection locked: {}",
+                        self.connection_to_client()
+                    ));
+                }
+            }
         }
     }
 
@@ -66,9 +92,16 @@ impl NetworkTransformReliable {
         let current_rotation = UnitQuaternion::from_quaternion(current.rotation);
         // 计算角度差异
         let angle = last_rotation.angle_to(&current_rotation);
-        Self::quantized_changed(self.last_snapshot.position, current.position, self.position_precision) ||
-            angle > self.rotation_sensitivity ||
-            Self::quantized_changed(self.last_snapshot.scale, current.scale, self.scale_precision)
+        Self::quantized_changed(
+            self.last_snapshot.position,
+            current.position,
+            self.position_precision,
+        ) || angle > self.rotation_sensitivity
+            || Self::quantized_changed(
+                self.last_snapshot.scale,
+                current.scale,
+                self.scale_precision,
+            )
     }
 
     fn quantized_changed(u: Vector3<f32>, v: Vector3<f32>, precision: f32) -> bool {
@@ -83,24 +116,38 @@ impl NetworkTransformReliable {
             self.send_interval_counter = 0;
         }
 
-        if AccurateInterval::elapsed(NetworkTime::local_time(), NetworkServerStatic::send_interval() as f64, &mut self.last_send_interval_time) {
+        if AccurateInterval::elapsed(
+            NetworkTime::local_time(),
+            NetworkServerStatic::send_interval() as f64,
+            &mut self.last_send_interval_time,
+        ) {
             self.send_interval_counter += 1;
         }
     }
 
     // OnClientToServerSync()
-    fn on_client_to_server_sync(&mut self, position: Vector3<f32>, rotation: Quaternion<f32>, scale: Vector3<f32>) {
+    fn on_client_to_server_sync(
+        &mut self,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+        scale: Vector3<f32>,
+    ) {
         if self.sync_direction() != &SyncDirection::ClientToServer {
             return;
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) = NetworkServerStatic::network_connections().get(&self.connection_to_client()) {
-            if self.network_transform_base.server_snapshots.len() >= conn.snapshot_buffer_size_limit as usize {
+        if let Some(conn) =
+            NetworkServerStatic::network_connections().get(&self.connection_to_client())
+        {
+            if self.network_transform_base.server_snapshots.len()
+                >= conn.snapshot_buffer_size_limit as usize
+            {
                 return;
             }
             timestamp = conn.remote_time_stamp();
-        } else {}
+        } else {
+        }
 
         // TODO need 去确实是否需要
         // if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::get_static_send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
@@ -115,15 +162,29 @@ impl NetworkTransformReliable {
         // }
 
         let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
-        self.add_snapshot(&mut server_snapshots, timestamp + self.network_transform_base.time_stamp_adjustment + self.network_transform_base.offset, Some(position), Some(rotation), Some(scale));
+        self.add_snapshot(
+            &mut server_snapshots,
+            timestamp
+                + self.network_transform_base.time_stamp_adjustment
+                + self.network_transform_base.offset,
+            Some(position),
+            Some(rotation),
+            Some(scale),
+        );
         self.network_transform_base.server_snapshots = server_snapshots;
     }
 
-    fn needs_correction(snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>, remote_timestamp: f64, buffer_time: f64, tolerance_multiplier: f64) -> bool {
-        snapshots.len() == 1 && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time >= buffer_time * tolerance_multiplier
+    fn needs_correction(
+        snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
+        remote_timestamp: f64,
+        buffer_time: f64,
+        tolerance_multiplier: f64,
+    ) -> bool {
+        snapshots.len() == 1
+            && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time
+                >= buffer_time * tolerance_multiplier
     }
 }
-
 
 impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn new(game_object: GameObject, network_behaviour_component: &NetworkBehaviourComponent) -> Self
@@ -132,11 +193,24 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     {
         Self::call_register_delegate();
         Self {
-            network_transform_base: NetworkTransformBase::new(game_object, network_behaviour_component.network_transform_base_setting, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
-            only_sync_on_change_correction_multiplier: network_behaviour_component.network_transform_reliable_setting.only_sync_on_change_correction_multiplier,
-            rotation_sensitivity: network_behaviour_component.network_transform_reliable_setting.rotation_sensitivity,
-            position_precision: network_behaviour_component.network_transform_reliable_setting.position_precision,
-            scale_precision: network_behaviour_component.network_transform_reliable_setting.scale_precision,
+            network_transform_base: NetworkTransformBase::new(
+                game_object,
+                network_behaviour_component.network_transform_base_setting,
+                network_behaviour_component.network_behaviour_setting,
+                network_behaviour_component.index,
+            ),
+            only_sync_on_change_correction_multiplier: network_behaviour_component
+                .network_transform_reliable_setting
+                .only_sync_on_change_correction_multiplier,
+            rotation_sensitivity: network_behaviour_component
+                .network_transform_reliable_setting
+                .rotation_sensitivity,
+            position_precision: network_behaviour_component
+                .network_transform_reliable_setting
+                .position_precision,
+            scale_precision: network_behaviour_component
+                .network_transform_reliable_setting
+                .scale_precision,
             compress_rotation: true,
             send_interval_counter: 0,
             last_send_interval_time: f64::MIN,
@@ -151,7 +225,8 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn register_delegate()
     where
         Self: Sized,
-    {}
+    {
+    }
 
     fn get_once() -> &'static Once
     where
@@ -202,19 +277,27 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {
-        self.network_transform_base.network_behaviour.sync_var_dirty_bits
+        self.network_transform_base
+            .network_behaviour
+            .sync_var_dirty_bits
     }
 
     fn __set_sync_var_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.sync_var_dirty_bits = value
+        self.network_transform_base
+            .network_behaviour
+            .sync_var_dirty_bits = value
     }
 
     fn sync_object_dirty_bits(&self) -> u64 {
-        self.network_transform_base.network_behaviour.sync_object_dirty_bits
+        self.network_transform_base
+            .network_behaviour
+            .sync_object_dirty_bits
     }
 
     fn __set_sync_object_dirty_bits(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.sync_object_dirty_bits = value
+        self.network_transform_base
+            .network_behaviour
+            .sync_object_dirty_bits = value
     }
 
     fn net_id(&self) -> u32 {
@@ -226,11 +309,15 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn connection_to_client(&self) -> u64 {
-        self.network_transform_base.network_behaviour.connection_to_client
+        self.network_transform_base
+            .network_behaviour
+            .connection_to_client
     }
 
     fn set_connection_to_client(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.connection_to_client = value
+        self.network_transform_base
+            .network_behaviour
+            .connection_to_client = value
     }
 
     fn observers(&self) -> &Vec<u64> {
@@ -258,13 +345,16 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn sync_var_hook_guard(&self) -> u64 {
-        self.network_transform_base.network_behaviour.sync_var_hook_guard
+        self.network_transform_base
+            .network_behaviour
+            .sync_var_hook_guard
     }
 
     fn __set_sync_var_hook_guard(&mut self, value: u64) {
-        self.network_transform_base.network_behaviour.sync_var_hook_guard = value
+        self.network_transform_base
+            .network_behaviour
+            .sync_var_hook_guard = value
     }
-
 
     fn is_dirty(&self) -> bool {
         self.network_transform_base.network_behaviour.is_dirty()
@@ -295,8 +385,15 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             }
         } else {
             if self.sync_position() {
-                let (_, quantized) = Compress::vector3float_to_vector3long(snapshot.position, self.position_precision);
-                DeltaCompression::compress_vector3long(writer, self.last_serialized_position, quantized);
+                let (_, quantized) = Compress::vector3float_to_vector3long(
+                    snapshot.position,
+                    self.position_precision,
+                );
+                DeltaCompression::compress_vector3long(
+                    writer,
+                    self.last_serialized_position,
+                    quantized,
+                );
             }
             if self.sync_rotation() {
                 if self.compress_rotation {
@@ -306,15 +403,25 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 }
             }
             if self.sync_scale() {
-                let (_, quantized) = Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision);
-                DeltaCompression::compress_vector3long(writer, self.last_serialized_scale, quantized);
+                let (_, quantized) =
+                    Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision);
+                DeltaCompression::compress_vector3long(
+                    writer,
+                    self.last_serialized_scale,
+                    quantized,
+                );
             }
             // save serialized as 'last' for next delta compression
             if self.sync_position() {
-                self.last_serialized_position = Compress::vector3float_to_vector3long(snapshot.position, self.position_precision).1;
+                self.last_serialized_position = Compress::vector3float_to_vector3long(
+                    snapshot.position,
+                    self.position_precision,
+                )
+                .1;
             }
             if self.sync_scale() {
-                self.last_serialized_scale = Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision).1;
+                self.last_serialized_scale =
+                    Compress::vector3float_to_vector3long(snapshot.scale, self.scale_precision).1;
             }
             // set 'last'
             self.last_snapshot = snapshot;
@@ -344,8 +451,12 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             }
         } else {
             if self.sync_position() {
-                let quantized = DeltaCompression::decompress_vector3long(reader, self.last_deserialized_position);
-                position = Compress::vector3long_to_vector3float(quantized, self.position_precision);
+                let quantized = DeltaCompression::decompress_vector3long(
+                    reader,
+                    self.last_deserialized_position,
+                );
+                position =
+                    Compress::vector3long_to_vector3float(quantized, self.position_precision);
             }
             if self.sync_rotation() {
                 if self.compress_rotation {
@@ -356,7 +467,8 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                 }
             }
             if self.sync_scale() {
-                let quantized = DeltaCompression::decompress_vector3long(reader, self.last_deserialized_scale);
+                let quantized =
+                    DeltaCompression::decompress_vector3long(reader, self.last_deserialized_scale);
                 scale = Compress::vector3long_to_vector3float(quantized, self.scale_precision);
             }
         }
@@ -364,10 +476,12 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.on_client_to_server_sync(position, rotation, scale);
 
         if self.sync_position() {
-            (_, self.last_deserialized_position) = Compress::vector3float_to_vector3long(position, self.position_precision);
+            (_, self.last_deserialized_position) =
+                Compress::vector3float_to_vector3long(position, self.position_precision);
         }
         if self.sync_scale() {
-            (_, self.last_deserialized_scale) = Compress::vector3float_to_vector3long(scale, self.scale_precision);
+            (_, self.last_deserialized_scale) =
+                Compress::vector3float_to_vector3long(scale, self.scale_precision);
         }
         true
     }
@@ -378,7 +492,9 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.update_server();
     }
     fn late_update(&mut self) {
-        if self.send_interval_counter == self.network_transform_base.send_interval_multiplier && (!self.network_transform_base.only_sync_on_change || self.changed(self.construct())) {
+        if self.send_interval_counter == self.network_transform_base.send_interval_multiplier
+            && (!self.network_transform_base.only_sync_on_change || self.changed(self.construct()))
+        {
             self.set_dirty()
         }
         self.u_check_last_send_time();
