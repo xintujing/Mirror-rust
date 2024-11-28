@@ -28,7 +28,7 @@ use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
-use std::sync::RwLock;
+use std::sync::{LockResult, RwLock, TryLockResult};
 use tklog::{debug, error, warn};
 
 pub enum RemovePlayerOptions {
@@ -334,11 +334,27 @@ impl NetworkServer {
     // 网络早期更新
     pub fn network_early_update() {
         if NetworkServerStatic::active() {
-            if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
-                early_update_duration.begin();
+            match EARLY_UPDATE_DURATION.try_write() {
+                Ok(mut early_update_duration) => {
+                    early_update_duration.begin();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_early_update() failed to get EARLY_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
-            if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
-                full_update_duration.begin();
+            match FULL_UPDATE_DURATION.try_write() {
+                Ok(mut full_update_duration) => {
+                    full_update_duration.begin();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_early_update() failed to get FULL_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
         }
 
@@ -352,8 +368,16 @@ impl NetworkServer {
         });
 
         if NetworkServerStatic::active() {
-            if let Ok(mut early_update_duration) = EARLY_UPDATE_DURATION.write() {
-                early_update_duration.end();
+            match EARLY_UPDATE_DURATION.try_write() {
+                Ok(mut early_update_duration) => {
+                    early_update_duration.end();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_early_update() failed to get EARLY_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
         }
     }
@@ -361,8 +385,16 @@ impl NetworkServer {
     // 网络更新
     pub fn network_late_update() {
         if NetworkServerStatic::active() {
-            if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
-                late_update_duration.begin();
+            match LATE_UPDATE_DURATION.try_write() {
+                Ok(mut late_update_duration) => {
+                    late_update_duration.begin();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_late_update() failed to get LATE_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
             Self::broadcast();
         }
@@ -386,11 +418,27 @@ impl NetworkServer {
                 NetworkServerStatic::set_actual_tick_rate_counter(0);
             }
 
-            if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
-                late_update_duration.end();
+            match LATE_UPDATE_DURATION.try_write() {
+                Ok(mut late_update_duration) => {
+                    late_update_duration.end();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_late_update() failed to get LATE_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
-            if let Ok(mut full_update_duration) = FULL_UPDATE_DURATION.write() {
-                full_update_duration.end();
+            match FULL_UPDATE_DURATION.try_write() {
+                Ok(mut full_update_duration) => {
+                    full_update_duration.end();
+                }
+                Err(e) => {
+                    warn!(format!(
+                        "Server.network_late_update() failed to get FULL_UPDATE_DURATION: {:?}",
+                        e
+                    ));
+                }
             }
         }
     }
