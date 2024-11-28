@@ -137,16 +137,27 @@ impl NetworkTransformReliable {
         }
 
         let mut timestamp = 0f64;
-        if let Some(conn) =
-            NetworkServerStatic::network_connections().get(&self.connection_to_client())
-        {
-            if self.network_transform_base.server_snapshots.len()
-                >= conn.snapshot_buffer_size_limit as usize
-            {
-                return;
+        match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
+            TryResult::Present(conn) => {
+                if self.network_transform_base.server_snapshots.len()
+                    >= conn.snapshot_buffer_size_limit as usize
+                {
+                    return;
+                }
+                timestamp = conn.remote_time_stamp();
             }
-            timestamp = conn.remote_time_stamp();
-        } else {
+            TryResult::Absent => {
+                error!(format!(
+                    "connection not found: {}",
+                    self.connection_to_client()
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "connection locked: {}",
+                    self.connection_to_client()
+                ));
+            }
         }
 
         // TODO need 去确实是否需要
