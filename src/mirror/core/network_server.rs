@@ -267,7 +267,7 @@ impl NetworkServer {
         }
 
         //Make sure connections are cleared in case any old connections references to exist from previous sessions
-        NETWORK_CONNECTIONS.clear();
+        NetworkServerStatic::network_connections().clear();
 
         // TODO: if (aoi != null) aoi.reset_state();
 
@@ -590,7 +590,7 @@ impl NetworkServer {
             return;
         }
 
-        if NETWORK_CONNECTIONS.contains_key(&connection_id) {
+        if NetworkServerStatic::network_connections().contains_key(&connection_id) {
             error!(format!(
                 "Server.HandleConnect: connectionId {} already exists.",
                 connection_id
@@ -623,29 +623,37 @@ impl NetworkServer {
         if let Ok(mut transport_data_un_batcher) =
             NetworkServerStatic::transport_data_un_batcher().write()
         {
-            // 如果没有找到连接
-            if NETWORK_CONNECTIONS.get(&connection_id).is_none() {
-                error!(format!(
-                    "Server.HandleData: Unknown connectionId: {}",
-                    connection_id
-                ));
-                return;
-            }
-
-            // 如果有连接
-            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-                // 添加数据到 transport_data_un_batcher
-                if !transport_data_un_batcher.add_batch_with_bytes(data) {
-                    if NetworkServerStatic::exceptions_disconnect() {
-                        error!(format!(
+            match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+                // 如果有连接
+                TryResult::Present(mut connection) => {
+                    // 添加数据到 transport_data_un_batcher
+                    if !transport_data_un_batcher.add_batch_with_bytes(data) {
+                        if NetworkServerStatic::exceptions_disconnect() {
+                            error!(format!(
                             "Server.HandleData: connectionId: {} failed to add un_batch. Disconnecting.",
                             connection_id
                         ));
-                        connection.disconnect();
+                            connection.disconnect();
+                            return;
+                        }
+                        warn!(format!(
+                            "Server.HandleData: connectionId: {} failed to add un_batch.",
+                            connection_id
+                        ));
                         return;
                     }
-                    warn!(format!(
-                        "Server.HandleData: connectionId: {} failed to add un_batch.",
+                }
+                // 如果没有找到连接
+                TryResult::Absent => {
+                    error!(format!(
+                        "Server.HandleData: connectionId: {} not found.",
+                        connection_id
+                    ));
+                    return;
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Server.HandleData: connectionId: {} is locked.",
                         connection_id
                     ));
                     return;
@@ -670,19 +678,49 @@ impl NetworkServer {
                         // 如果消息长度大于 NetworkMessages::ID_SIZE
                         true => {
                             // 更新远程时间戳
-                            if let Some(mut connection) =
-                                NETWORK_CONNECTIONS.get_mut(&connection_id)
+                            match NetworkServerStatic::network_connections()
+                                .try_get_mut(&connection_id)
                             {
-                                connection.set_remote_time_stamp(remote_time_stamp);
+                                TryResult::Present(mut connection) => {
+                                    connection.set_remote_time_stamp(remote_time_stamp);
+                                }
+                                TryResult::Absent => {
+                                    error!(format!(
+                                        "Server.HandleData: connectionId: {} not found.",
+                                        connection_id
+                                    ));
+                                    return;
+                                }
+                                TryResult::Locked => {
+                                    error!(format!(
+                                        "Server.HandleData: connectionId: {} is locked.",
+                                        connection_id
+                                    ));
+                                    return;
+                                }
                             }
                             // 处理消息
                             if !Self::unpack_and_invoke(connection_id, reader, channel) {
                                 if NetworkServerStatic::exceptions_disconnect() {
                                     error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
-                                    if let Some(mut connection) =
-                                        NETWORK_CONNECTIONS.get_mut(&connection_id)
+                                    match NetworkServerStatic::network_connections()
+                                        .try_get_mut(&connection_id)
                                     {
-                                        connection.disconnect();
+                                        TryResult::Present(mut connection) => {
+                                            connection.disconnect();
+                                        }
+                                        TryResult::Absent => {
+                                            error!(format!(
+                                                "Server.HandleData: connectionId: {} not found.",
+                                                connection_id
+                                            ));
+                                        }
+                                        TryResult::Locked => {
+                                            error!(format!(
+                                                "Server.HandleData: connectionId: {} is locked.",
+                                                connection_id
+                                            ));
+                                        }
                                     }
                                 } else {
                                     warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
@@ -694,10 +732,24 @@ impl NetworkServer {
                         false => {
                             if NetworkServerStatic::exceptions_disconnect() {
                                 error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
-                                if let Some(mut connection) =
-                                    NETWORK_CONNECTIONS.get_mut(&connection_id)
+                                match NetworkServerStatic::network_connections()
+                                    .try_get_mut(&connection_id)
                                 {
-                                    connection.disconnect();
+                                    TryResult::Present(mut connection) => {
+                                        connection.disconnect();
+                                    }
+                                    TryResult::Absent => {
+                                        error!(format!(
+                                            "Server.HandleData: connectionId: {} not found.",
+                                            connection_id
+                                        ));
+                                    }
+                                    TryResult::Locked => {
+                                        error!(format!(
+                                            "Server.HandleData: connectionId: {} is locked.",
+                                            connection_id
+                                        ));
+                                    }
                                 }
                             } else {
                                 warn!(format!(
@@ -731,8 +783,22 @@ impl NetworkServer {
         // 如果消息id在 NETWORK_MESSAGE_HANDLERS 中
         if let Some(handler) = NETWORK_MESSAGE_HANDLERS.get(&message_id) {
             (handler.func)(connection_id, reader, channel);
-            if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-                connection.set_last_message_time(NetworkTime::local_time());
+            match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+                TryResult::Present(mut connection) => {
+                    connection.set_last_message_time(NetworkTime::local_time());
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "Server.HandleData: connectionId: {} not found.",
+                        connection_id
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "Server.HandleData: connectionId: {} is locked.",
+                        connection_id
+                    ));
+                }
             }
             return true;
         }
@@ -1139,11 +1205,25 @@ impl NetworkServer {
             "Server.HandleTransportException: connectionId: {}, error: {:?}",
             connection_id, transport_error
         ));
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            if let Some(on_exception_event) = NetworkServerStatic::connected_event()
-                .get(&EventHandlerType::OnTransportExceptionEvent)
-            {
-                on_exception_event(&mut connection, transport_error);
+        match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+            TryResult::Present(mut connection) => {
+                if let Some(on_exception_event) = NetworkServerStatic::connected_event()
+                    .get(&EventHandlerType::OnTransportExceptionEvent)
+                {
+                    on_exception_event(&mut connection, transport_error);
+                }
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.HandleTransportException: connectionId: {} not found.",
+                    connection_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.HandleTransportException: connectionId: {} is locked.",
+                    connection_id
+                ));
             }
         }
     }
@@ -1419,10 +1499,24 @@ impl NetworkServer {
                         if !identity.deserialize_server(reader) {
                             if NetworkServerStatic::exceptions_disconnect() {
                                 error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
-                                if let Some(mut connection) =
-                                    NETWORK_CONNECTIONS.get_mut(&connection_id)
+                                match NetworkServerStatic::network_connections()
+                                    .try_get_mut(&connection_id)
                                 {
-                                    connection.disconnect();
+                                    TryResult::Present(mut connection) => {
+                                        connection.disconnect();
+                                    }
+                                    TryResult::Absent => {
+                                        error!(format!(
+                                            "Server.HandleEntityState: connectionId {} not found.",
+                                            connection_id
+                                        ));
+                                    }
+                                    TryResult::Locked => {
+                                        error!(format!(
+                                            "Server.HandleEntityState: connectionId {} is locked.",
+                                            connection_id
+                                        ));
+                                    }
                                 }
                             } else {
                                 warn!(format!(
@@ -1462,10 +1556,24 @@ impl NetworkServer {
         _reader: &mut NetworkReader,
         _channel: TransportChannel,
     ) {
-        if let Some(mut connection) = NETWORK_CONNECTIONS.get_mut(&connection_id) {
-            let snapshot =
-                TimeSnapshot::new(connection.remote_time_stamp(), NetworkTime::local_time());
-            connection.on_time_snapshot(snapshot);
+        match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
+            TryResult::Present(mut connection) => {
+                let snapshot =
+                    TimeSnapshot::new(connection.remote_time_stamp(), NetworkTime::local_time());
+                connection.on_time_snapshot(snapshot);
+            }
+            TryResult::Absent => {
+                error!(format!(
+                    "Server.HandleTimeSnapshot: connectionId {} not found.",
+                    connection_id
+                ));
+            }
+            TryResult::Locked => {
+                error!(format!(
+                    "Server.HandleTimeSnapshot: connectionId {} is locked.",
+                    connection_id
+                ));
+            }
         }
     }
 
