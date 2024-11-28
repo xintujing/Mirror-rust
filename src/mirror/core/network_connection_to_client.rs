@@ -9,8 +9,11 @@ use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
 use crate::mirror::core::snapshot_interpolation::time_snapshot::TimeSnapshot;
 use crate::mirror::core::transport::{Transport, TransportChannel};
+use dashmap::mapref::one::RefMut;
+use dashmap::try_result::TryResult;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
+use tklog::error;
 
 pub struct NetworkConnectionToClient {
     network_connection: NetworkConnection,
@@ -188,10 +191,22 @@ impl NetworkConnectionToClient {
     pub fn remove_from_observings_observers(&mut self) {
         let conn_id = self.connection_id();
         for net_id in self.observing.iter_mut() {
-            if let Some(mut identity) =
-                NetworkServerStatic::spawned_network_identities().get_mut(net_id)
-            {
-                identity.remove_observer(conn_id);
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
+                TryResult::Present(mut identity) => {
+                    identity.remove_observer(conn_id);
+                }
+                TryResult::Absent => {
+                    error!(format!(
+                        "RemoveFromObservingsObservers: identity not found for net_id: {}",
+                        net_id
+                    ));
+                }
+                TryResult::Locked => {
+                    error!(format!(
+                        "RemoveFromObservingsObservers: identity is locked for net_id: {}",
+                        net_id
+                    ));
+                }
             }
         }
         self.observing.clear();
@@ -210,18 +225,30 @@ impl NetworkConnectionToClient {
                 // 记录当前的scene_id 避免 remove_player_for_connection 内再次 get_mut(&net_id) 造成死锁
                 let mut scene_id = 0;
                 // 如果找到了对应的identity
-                if let Some(mut identity) =
-                    NetworkServerStatic::spawned_network_identities().get_mut(owned_net_id)
-                {
-                    match identity.scene_id {
-                        // 如果scene_id为0，直接销毁
-                        0 => {
-                            NetworkServer::destroy(self, &mut identity);
+                match NetworkServerStatic::spawned_network_identities().try_get_mut(owned_net_id) {
+                    TryResult::Present(mut identity) => {
+                        match identity.scene_id {
+                            // 如果scene_id为0，直接销毁
+                            0 => {
+                                NetworkServer::destroy(self, &mut identity);
+                            }
+                            // 如果scene_id不为0，记录scene_id
+                            _ => {
+                                scene_id = identity.scene_id;
+                            }
                         }
-                        // 如果scene_id不为0，记录scene_id
-                        _ => {
-                            scene_id = identity.scene_id;
-                        }
+                    }
+                    TryResult::Absent => {
+                        error!(format!(
+                            "DestroyOwnedObjects: identity not found for net_id: {}",
+                            owned_net_id
+                        ));
+                    }
+                    TryResult::Locked => {
+                        error!(format!(
+                            "DestroyOwnedObjects: identity is locked for net_id: {}",
+                            owned_net_id
+                        ));
                     }
                 }
                 // 如果scene_id不为0，移除player
