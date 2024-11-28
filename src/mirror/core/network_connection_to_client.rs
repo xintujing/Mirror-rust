@@ -179,9 +179,9 @@ impl NetworkConnectionToClient {
             SnapshotInterpolation::step_interpolation(&mut self.snapshots, self.remote_timeline);
         }
     }
-    pub fn add_to_observing(&mut self, network_identity: &mut NetworkIdentity) {
-        self.observing.push(network_identity.net_id());
-        NetworkServer::show_for_connection(network_identity, self);
+    pub fn add_to_observing(&mut self, identity: &mut NetworkIdentity) {
+        self.observing.push(identity.net_id());
+        NetworkServer::show_for_connection(identity, self);
     }
 
     // void RemoveFromObservingsObservers()
