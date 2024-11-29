@@ -1,16 +1,47 @@
-#[allow(dead_code)]
-pub fn info(args: &str) {
-    println!("{}", args);
+#[macro_export]
+macro_rules! log_info {
+    ($($arg:tt)*) => {
+        {
+            tklog::info!($($arg)*);
+        }
+    };
 }
-#[allow(dead_code)]
-pub fn error(args: &str) {
-    eprintln!("{}", args);
+
+#[macro_export]
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        {
+            tklog::error!($($arg)*);
+        }
+    };
 }
-#[allow(dead_code)]
-pub fn warn(args: &str) {
-    println!("{}", args);
+
+#[macro_export]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        {
+            tklog::warn!($($arg)*);
+        }
+    };
 }
-#[allow(dead_code)]
-pub fn debug(args: &str) {
-    println!("{}", args);
+
+#[macro_export]
+macro_rules! log_debug {
+    ($($arg:tt)*) => {
+        {
+            tklog::debug!($($arg)*);
+        }
+    };
+}
+
+// test
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_logger() {
+        log_info!("This is an info message");
+        log_error!("This is an error message");
+        log_warn!("This is a warn message");
+        log_debug!("This is a debug message");
+    }
 }

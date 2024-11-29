@@ -1,9 +1,9 @@
+use crate::log_warn;
 use crate::mirror::core::batching::batcher::Batcher;
 use crate::mirror::core::messages::{NetworkMessageTrait, NetworkPingMessage};
 use crate::mirror::core::network_messages::NetworkMessages;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
-use crate::mirror::core::tools::logger::warn;
 use crate::mirror::core::transport::{Transport, TransportChannel};
 use tklog::error;
 
@@ -40,7 +40,7 @@ pub trait NetworkConnectionTrait {
     fn set_owned(&mut self, owned: Vec<u32>);
     fn send_network_message<T>(&mut self, message: &mut T, channel: TransportChannel)
     where
-        T: NetworkMessageTrait  + Send,
+        T: NetworkMessageTrait + Send,
     {
         NetworkWriterPool::get_return(|writer| {
             message.serialize(writer);
@@ -86,14 +86,14 @@ impl NetworkConnectionTrait for NetworkConnection {
         let ts = NetworkTime::local_time();
         let reliable_batcher_threshold = match Transport::get_active_transport() {
             None => {
-                warn("get threshold failed");
+                log_warn!("get threshold failed");
                 1500
             }
             Some(active_transport) => active_transport.get_batcher_threshold(TransportChannel::Reliable)
         };
         let unreliable_batcher_threshold = match Transport::get_active_transport() {
             None => {
-                warn("get threshold failed");
+                log_warn!("get threshold failed");
                 1500
             }
             Some(active_transport) => active_transport.get_batcher_threshold(TransportChannel::Unreliable)
@@ -198,7 +198,6 @@ impl NetworkConnectionTrait for NetworkConnection {
                 self.send_to_transport(writer.to_bytes(), TransportChannel::Unreliable);
                 writer.reset();
             }
-
         });
     }
 
