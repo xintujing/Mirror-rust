@@ -163,9 +163,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_vector2(&mut self) -> Vector2<f32> {
-        let x = self.read_float();
-        let y = self.read_float();
-        Vector2::new(x, y)
+        self.read_blittable::<Vector2<f32>>()
     }
 
     fn read_vector2_nullable(&mut self) -> Option<Vector2<f32>> {
@@ -178,10 +176,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_vector3(&mut self) -> Vector3<f32> {
-        let x = self.read_float();
-        let y = self.read_float();
-        let z = self.read_float();
-        Vector3::new(x, y, z)
+        self.read_blittable::<Vector3<f32>>()
     }
 
     fn read_vector3_nullable(&mut self) -> Option<Vector3<f32>> {
@@ -194,11 +189,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_vector4(&mut self) -> Vector4<f32> {
-        let x = self.read_float();
-        let y = self.read_float();
-        let z = self.read_float();
-        let w = self.read_float();
-        Vector4::new(x, y, z, w)
+        self.read_blittable::<Vector4<f32>>()
     }
 
     fn read_vector4_nullable(&mut self) -> Option<Vector4<f32>> {
@@ -211,11 +202,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_quaternion(&mut self) -> Quaternion<f32> {
-        let x = self.read_float();
-        let y = self.read_float();
-        let z = self.read_float();
-        let w = self.read_float();
-        Quaternion::new(w, x, y, z)
+        self.read_blittable::<Quaternion<f32>>()
     }
 
     fn read_quaternion_nullable(&mut self) -> Option<Quaternion<f32>> {
