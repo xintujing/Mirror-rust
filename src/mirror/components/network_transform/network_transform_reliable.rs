@@ -7,7 +7,6 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
@@ -17,7 +16,6 @@ use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::{Compress, CompressTrait};
 use crate::mirror::core::tools::delta_compression::DeltaCompression;
-use dashmap::mapref::one::Ref;
 use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;

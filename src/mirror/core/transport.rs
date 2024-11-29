@@ -1,5 +1,4 @@
 use std::fmt::Debug;
-use std::sync::{Arc, RwLock};
 
 static mut ACTIVE_TRANSPORT: Option<Box<dyn TransportTrait>> = None;
 

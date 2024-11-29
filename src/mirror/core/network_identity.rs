@@ -3,7 +3,6 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
 use crate::mirror::core::network_server::NetworkServerStatic;

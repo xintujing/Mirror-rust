@@ -1,4 +1,3 @@
-use crate::mirror::core::tools::logger::debug;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
@@ -11,8 +10,7 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use std::process::exit;
-use std::sync::TryLockResult;
-use tklog::{debug, error};
+use tklog::error;
 
 pub struct Kcp2kTransport {
     pub transport: Transport,

@@ -12,7 +12,6 @@ use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use atomic::Atomic;
-use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use nalgebra::Vector3;

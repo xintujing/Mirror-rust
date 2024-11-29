@@ -23,13 +23,12 @@ use crate::mirror::core::transport::{
 };
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
-use dashmap::mapref::one::{Ref, RefMut};
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
-use std::sync::{LockResult, RwLock, TryLockResult};
-use tklog::{debug, error, warn};
+use std::sync::RwLock;
+use tklog::{error, warn};
 
 pub enum RemovePlayerOptions {
     // <summary>Player Object remains active on server and clients. Only ownership is removed</summary>

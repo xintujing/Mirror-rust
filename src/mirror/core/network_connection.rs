@@ -5,7 +5,7 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::tools::logger::warn;
 use crate::mirror::core::transport::{Transport, TransportChannel};
-use tklog::{debug, error};
+use tklog::error;
 
 pub struct NetworkConnection {
     id: u64,
