@@ -106,7 +106,7 @@ impl NetworkReader {
         if let Some(reader_fn) = T::get_reader() {
             reader_fn(self)
         } else {
-            log_trace!("No reader found for type");
+            panic!("No reader found for type");
         }
     }
 }
