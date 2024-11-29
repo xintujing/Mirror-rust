@@ -16,6 +16,7 @@ use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use nalgebra::Vector3;
+use rand::Rng;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 use tklog::{error, info, warn};
@@ -309,9 +310,9 @@ impl NetworkManager {
     pub fn register_start_position(mut start: Transform) {
         // 在生成 五个随机位置
         for _ in 0..5 {
-            let x = rand::random::<f32>() * 8.0;
+            let x = rand::rng().random_range(-8.0..8.0);
             let y = 0.5;
-            let z = rand::random::<f32>() * 8.0;
+            let z = rand::rng().random_range(-8.0..8.0);
             let v3 = Vector3::new(x, y, z);
             start.position = v3;
             start.local_position = v3;
