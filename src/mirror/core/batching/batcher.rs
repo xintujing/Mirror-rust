@@ -1,8 +1,8 @@
+use crate::log_warn;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::tools::compress::Compress;
 use std::collections::VecDeque;
-use tklog::warn;
 
 pub struct Batcher {
     threshold: usize,
@@ -78,7 +78,7 @@ impl Batcher {
 
     fn copy_and_return_batcher(batcher: NetworkWriter, writer: &mut NetworkWriter) {
         if writer.get_position() != 0 {
-            warn!("Writer must be empty");
+            log_warn!("Writer must be empty");
             writer.reset();
         }
         let segment = batcher.to_array_segment();

@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
@@ -12,7 +13,6 @@ use crate::mirror::core::transport::{Transport, TransportChannel};
 use dashmap::try_result::TryResult;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
-use tklog::error;
 
 pub struct NetworkConnectionToClient {
     network_connection: NetworkConnection,
@@ -195,13 +195,13 @@ impl NetworkConnectionToClient {
                     identity.remove_observer(conn_id);
                 }
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "RemoveFromObservingsObservers: identity not found for net_id: {}",
                         net_id
                     ));
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "RemoveFromObservingsObservers: identity is locked for net_id: {}",
                         net_id
                     ));
@@ -238,13 +238,13 @@ impl NetworkConnectionToClient {
                         }
                     }
                     TryResult::Absent => {
-                        error!(format!(
+                        log_error!(format!(
                             "DestroyOwnedObjects: identity not found for net_id: {}",
                             owned_net_id
                         ));
                     }
                     TryResult::Locked => {
-                        error!(format!(
+                        log_error!(format!(
                             "DestroyOwnedObjects: identity is locked for net_id: {}",
                             owned_net_id
                         ));

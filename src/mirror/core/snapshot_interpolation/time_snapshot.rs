@@ -1,7 +1,7 @@
+use crate::log_warn;
 use crate::mirror::core::snapshot_interpolation::snapshot::Snapshot;
-use tklog::warn;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd,Copy)]
+#[derive(Debug, Clone, PartialEq, PartialOrd, Copy)]
 pub struct TimeSnapshot {
     pub remote_time: f64,
     pub local_time: f64,
@@ -22,7 +22,7 @@ impl Ord for TimeSnapshot {
         if let Some(ordering) = self.remote_time.partial_cmp(&other.remote_time) {
             ordering
         } else {
-            warn!("TimeSnapshot::cmp() failed to compare remote_time");
+            log_warn!("TimeSnapshot::cmp() failed to compare remote_time");
             std::cmp::Ordering::Equal
         }
     }

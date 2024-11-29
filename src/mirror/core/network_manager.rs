@@ -11,6 +11,7 @@ use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
+use crate::{log_debug, log_error, log_warn};
 use atomic::Atomic;
 use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
@@ -18,7 +19,6 @@ use nalgebra::Vector3;
 use rand::Rng;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
-use tklog::{error, info, warn};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 
@@ -56,7 +56,7 @@ impl NetworkManagerStatic {
         if let Ok(name) = NETWORK_SCENE_NAME.try_read() {
             return *name;
         }
-        error!("Network scene name is not set or locked.");
+        log_error!("Network scene name is not set or locked.");
         ""
     }
 
@@ -64,7 +64,7 @@ impl NetworkManagerStatic {
         if let Ok(mut scene_name) = NETWORK_SCENE_NAME.try_write() {
             *scene_name = name;
         } else {
-            error!("Network scene name is locked and cannot be set.");
+            log_error!("Network scene name is locked and cannot be set.");
         }
     }
 
@@ -122,7 +122,7 @@ impl NetworkManager {
         }
         if self.dont_destroy_on_load {
             if NetworkManagerStatic::network_manager_singleton_exists() {
-                warn!("NetworkManager already exists in the scene. Deleting the new one.");
+                log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;
             }
         }
@@ -135,7 +135,7 @@ impl NetworkManager {
 
     pub fn start_server(&mut self) {
         if NetworkServerStatic::active() {
-            warn!("Server already started.");
+            log_warn!("Server already started.");
             return;
         }
 
@@ -260,7 +260,7 @@ impl NetworkManager {
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
         if network_manager.auto_create_player() && network_manager.player_obj().prefab == "" {
-            error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
@@ -273,7 +273,7 @@ impl NetworkManager {
                 if let None = BackendDataStatic::get_backend_data()
                     .get_network_identity_data_by_asset_id(asset_id)
                 {
-                    error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
+                    log_error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
                     return;
                 }
             }
@@ -283,19 +283,19 @@ impl NetworkManager {
         match NetworkServerStatic::network_connections().try_get(&conn_id) {
             TryResult::Present(coon) => {
                 if coon.net_id() != 0 {
-                    error!("There is already a player for this connection.");
+                    log_error!("There is already a player for this connection.");
                     return;
                 }
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Failed to on_server_add_player_internal for coon {} because of absent",
                     conn_id
                 ));
                 return;
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Failed to on_server_add_player_internal for coon {} because of locked",
                     conn_id
                 ));
@@ -333,7 +333,7 @@ impl NetworkManager {
 
     fn stop_server(&mut self) {
         if !NetworkServerStatic::active() {
-            warn!("Server already stopped.");
+            log_warn!("Server already stopped.");
             return;
         }
 
@@ -417,7 +417,7 @@ pub trait NetworkManagerTrait {
         let mut player_obj = self.player_obj().clone();
 
         if player_obj.is_null() {
-            error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
@@ -571,17 +571,17 @@ impl NetworkManagerTrait for NetworkManager {
         self.max_connections = self.max_connections.max(0);
 
         if !self.player_obj.is_null() && !self.player_obj.is_has_component() {
-            error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
+            log_error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
         }
 
         if !self.player_obj.is_null() && self.spawn_prefabs.contains(&self.player_obj) {
-            warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
+            log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
             self.spawn_prefabs.retain(|x| x != &self.player_obj);
         }
     }
 
     fn reset(&mut self) {
-        info!("NetworkManager reset");
+        log_debug!("NetworkManager reset");
     }
 
     fn start(&mut self) {

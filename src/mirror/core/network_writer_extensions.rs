@@ -1,8 +1,8 @@
+use crate::log_error;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait, Writeable};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
-use tklog::error;
 
 pub struct NetworkWriterExtensions;
 
@@ -11,7 +11,7 @@ impl NetworkWriterExtensions {
         let bytes = value.as_ref().as_bytes();
         let length = bytes.len();
         if length > NetworkWriter::MAX_STRING_LENGTH - writer.get_position() {
-            error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.get_position());
+            log_error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.get_position());
         }
         writer.write_blittable(1 + length as u16);
         writer.write_array_segment_all(bytes);

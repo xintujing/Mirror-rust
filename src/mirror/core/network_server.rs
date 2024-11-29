@@ -21,6 +21,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
+use crate::{log_error, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
@@ -28,7 +29,6 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
-use tklog::{error, warn};
 
 pub enum RemovePlayerOptions {
     // <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
@@ -338,7 +338,7 @@ impl NetworkServer {
                     early_update_duration.begin();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_early_update() failed to get EARLY_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -349,7 +349,7 @@ impl NetworkServer {
                     full_update_duration.begin();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_early_update() failed to get FULL_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -372,7 +372,7 @@ impl NetworkServer {
                     early_update_duration.end();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_early_update() failed to get EARLY_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -389,7 +389,7 @@ impl NetworkServer {
                     late_update_duration.begin();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_late_update() failed to get LATE_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -422,7 +422,7 @@ impl NetworkServer {
                     late_update_duration.end();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_late_update() failed to get LATE_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -433,7 +433,7 @@ impl NetworkServer {
                     full_update_duration.end();
                 }
                 Err(e) => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Server.network_late_update() failed to get FULL_UPDATE_DURATION: {:?}",
                         e
                     ));
@@ -471,7 +471,7 @@ impl NetworkServer {
                     conn.send_network_message(&mut message, TransportChannel::Reliable);
                 }
             } else {
-                warn!(format!("Server.broadcast_to_connection: identity is null. Removing from observing list. connectionId: {}, netId: {}", conn.connection_id(), net_id));
+                log_warn!(format!("Server.broadcast_to_connection: identity is null. Removing from observing list. connectionId: {}, netId: {}", conn.connection_id(), net_id));
                 conn.observing.retain(|id| id != net_id);
             }
         }
@@ -505,13 +505,13 @@ impl NetworkServer {
                 }
             }
             TryResult::Absent => {
-                warn!(format!(
+                log_warn!(format!(
                     "Server.SerializeForConnection: netId {} not found in spawned.",
                     net_id
                 ));
             }
             TryResult::Locked => {
-                warn!(format!(
+                log_warn!(format!(
                     "Server.SerializeForConnection: netId {} is locked.",
                     net_id
                 ));
@@ -524,7 +524,7 @@ impl NetworkServer {
         if NetworkServerStatic::disconnect_inactive_connections()
             && !connection.is_alive(NetworkServerStatic::disconnect_inactive_timeout() as f64)
         {
-            warn!(format!(
+            log_warn!(format!(
                 "Server.DisconnectIfInactive: connectionId: {} is inactive. Disconnecting.",
                 connection.connection_id()
             ));
@@ -630,7 +630,7 @@ impl NetworkServer {
     // 处理 TransportConnected 消息
     fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
-            error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
+            log_error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
             if let Some(transport) = Transport::get_active_transport() {
                 transport.server_disconnect(connection_id);
             }
@@ -638,7 +638,7 @@ impl NetworkServer {
         }
 
         if NetworkServerStatic::network_connections().contains_key(&connection_id) {
-            error!(format!(
+            log_error!(format!(
                 "Server.HandleConnect: connectionId {} already exists.",
                 connection_id
             ));
@@ -650,7 +650,7 @@ impl NetworkServer {
 
         if NetworkServerStatic::network_connections_size() >= NetworkServerStatic::max_connections()
         {
-            error!(format!(
+            log_error!(format!(
                 "Server.HandleConnect: max_connections reached: {}. Disconnecting connectionId: {}",
                 NetworkServerStatic::max_connections(),
                 connection_id
@@ -676,14 +676,14 @@ impl NetworkServer {
                     // 添加数据到 transport_data_un_batcher
                     if !transport_data_un_batcher.add_batch_with_bytes(data) {
                         if NetworkServerStatic::exceptions_disconnect() {
-                            error!(format!(
+                            log_error!(format!(
                             "Server.HandleData: connectionId: {} failed to add un_batch. Disconnecting.",
                             connection_id
                         ));
                             connection.disconnect();
                             return;
                         }
-                        warn!(format!(
+                        log_warn!(format!(
                             "Server.HandleData: connectionId: {} failed to add un_batch.",
                             connection_id
                         ));
@@ -692,14 +692,14 @@ impl NetworkServer {
                 }
                 // 如果没有找到连接
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "Server.HandleData: connectionId: {} not found.",
                         connection_id
                     ));
                     return;
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "Server.HandleData: connectionId: {} is locked.",
                         connection_id
                     ));
@@ -709,7 +709,7 @@ impl NetworkServer {
 
             // 如果正在加载场景
             if NetworkServerStatic::is_loading_scene() {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleData: connectionId: {} is loading scene. Ignoring message.",
                     connection_id
                 ));
@@ -732,14 +732,14 @@ impl NetworkServer {
                                     connection.set_remote_time_stamp(remote_time_stamp);
                                 }
                                 TryResult::Absent => {
-                                    error!(format!(
+                                    log_error!(format!(
                                         "Server.HandleData: connectionId: {} not found.",
                                         connection_id
                                     ));
                                     return;
                                 }
                                 TryResult::Locked => {
-                                    error!(format!(
+                                    log_error!(format!(
                                         "Server.HandleData: connectionId: {} is locked.",
                                         connection_id
                                     ));
@@ -749,7 +749,7 @@ impl NetworkServer {
                             // 处理消息
                             if !Self::unpack_and_invoke(connection_id, reader, channel) {
                                 if NetworkServerStatic::exceptions_disconnect() {
-                                    error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
+                                    log_error!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message. Disconnecting.", connection_id));
                                     match NetworkServerStatic::network_connections()
                                         .try_get_mut(&connection_id)
                                     {
@@ -757,20 +757,20 @@ impl NetworkServer {
                                             connection.disconnect();
                                         }
                                         TryResult::Absent => {
-                                            error!(format!(
+                                            log_error!(format!(
                                                 "Server.HandleData: connectionId: {} not found.",
                                                 connection_id
                                             ));
                                         }
                                         TryResult::Locked => {
-                                            error!(format!(
+                                            log_error!(format!(
                                                 "Server.HandleData: connectionId: {} is locked.",
                                                 connection_id
                                             ));
                                         }
                                     }
                                 } else {
-                                    warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
+                                    log_warn!(format!("Server.HandleData: connectionId: {} failed to unpack and invoke message.", connection_id));
                                 }
                                 return;
                             }
@@ -778,7 +778,7 @@ impl NetworkServer {
                         // 如果消息长度小于 NetworkMessages::ID_SIZE
                         false => {
                             if NetworkServerStatic::exceptions_disconnect() {
-                                error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
+                                log_error!(format!("Server.HandleData: connectionId: {} message too small. Disconnecting.", connection_id));
                                 match NetworkServerStatic::network_connections()
                                     .try_get_mut(&connection_id)
                                 {
@@ -786,20 +786,20 @@ impl NetworkServer {
                                         connection.disconnect();
                                     }
                                     TryResult::Absent => {
-                                        error!(format!(
+                                        log_error!(format!(
                                             "Server.HandleData: connectionId: {} not found.",
                                             connection_id
                                         ));
                                     }
                                     TryResult::Locked => {
-                                        error!(format!(
+                                        log_error!(format!(
                                             "Server.HandleData: connectionId: {} is locked.",
                                             connection_id
                                         ));
                                     }
                                 }
                             } else {
-                                warn!(format!(
+                                log_warn!(format!(
                                     "Server.HandleData: connectionId: {} message too small.",
                                     connection_id
                                 ));
@@ -811,7 +811,7 @@ impl NetworkServer {
             }
 
             if transport_data_un_batcher.batches_count() > 0 {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleData: connectionId: {} unprocessed batches: {}",
                     connection_id,
                     transport_data_un_batcher.batches_count()
@@ -835,13 +835,13 @@ impl NetworkServer {
                     connection.set_last_message_time(NetworkTime::local_time());
                 }
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "Server.HandleData: connectionId: {} not found.",
                         connection_id
                     ));
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "Server.HandleData: connectionId: {} is locked.",
                         connection_id
                     ));
@@ -849,7 +849,7 @@ impl NetworkServer {
             }
             return true;
         }
-        warn!(format!(
+        log_warn!(format!(
             "Server.HandleData: connectionId: {} unknown message id: {}",
             connection_id, message_id
         ));
@@ -882,12 +882,12 @@ impl NetworkServer {
 
     pub fn destroy(conn: &mut NetworkConnectionToClient, identity: &mut NetworkIdentity) {
         if !NetworkServerStatic::active() {
-            error!("Server.Destroy: NetworkServer is not active. Cannot destroy objects without an active server.");
+            log_error!("Server.Destroy: NetworkServer is not active. Cannot destroy objects without an active server.");
             return;
         }
 
         if identity.game_object().is_null() {
-            warn!("Server.Destroy: game object is null.");
+            log_warn!("Server.Destroy: game object is null.");
             return;
         }
 
@@ -917,14 +917,14 @@ impl NetworkServer {
                         Self::send_change_owner_message(&mut identity, conn);
                     }
                     TryResult::Absent => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} not found in spawned.",
                             conn.net_id()
                         ));
                         return;
                     }
                     TryResult::Locked => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} is locked.",
                             conn.net_id()
                         ));
@@ -939,14 +939,14 @@ impl NetworkServer {
                         Self::un_spawn(conn, &mut identity);
                     }
                     TryResult::Absent => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} not found in spawned.",
                             conn.net_id()
                         ));
                         return;
                     }
                     TryResult::Locked => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} is locked.",
                             conn.net_id()
                         ));
@@ -961,14 +961,14 @@ impl NetworkServer {
                         Self::destroy(conn, &mut identity);
                     }
                     TryResult::Absent => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} not found in spawned.",
                             conn.net_id()
                         ));
                         return;
                     }
                     TryResult::Locked => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.RemovePlayer: netId {} is locked.",
                             conn.net_id()
                         ));
@@ -1017,14 +1017,14 @@ impl NetworkServer {
         reset_state: bool,
     ) {
         if !NetworkServerStatic::active() {
-            error!("UnSpawn: NetworkServer is not active. Cannot un_spawn objects without an active server.".to_string());
+            log_error!("UnSpawn: NetworkServer is not active. Cannot un_spawn objects without an active server.".to_string());
             return;
         }
 
         // TODO aoi
 
         if identity.game_object().is_null() {
-            warn!("UnSpawn: game object is null.".to_string());
+            log_warn!("UnSpawn: game object is null.".to_string());
             return;
         }
 
@@ -1063,7 +1063,7 @@ impl NetworkServer {
 
             let max = NetworkMessages::max_message_size(channel);
             if writer.get_position() > max {
-                warn!("Server.SendToObservers: message is too large to send. Consider using a higher channel or splitting the message into smaller parts.");
+                log_warn!("Server.SendToObservers: message is too large to send. Consider using a higher channel or splitting the message into smaller parts.");
                 return;
             }
 
@@ -1076,7 +1076,7 @@ impl NetworkServer {
                         conn.send(segment, channel);
                     }
                     TryResult::Locked => {
-                        error!("Server.SendToObservers: connection is locked.");
+                        log_error!("Server.SendToObservers: connection is locked.");
                     }
                 }
             }
@@ -1090,7 +1090,7 @@ impl NetworkServer {
             match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
                 TryResult::Present(mut connection) => {
                     if connection.net_id() != 0 {
-                        warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
+                        log_warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
                         return false;
                     }
                     // 设置连接的 NetworkIdentity
@@ -1099,14 +1099,14 @@ impl NetworkServer {
                     identity.set_client_owner(conn_id);
                 }
                 TryResult::Absent => {
-                    warn!(format!(
+                    log_warn!(format!(
                         "AddPlayer: connectionId {} not found in connections",
                         conn_id
                     ));
                     return false;
                 }
                 TryResult::Locked => {
-                    error!(format!("AddPlayer: connectionId {} is locked", conn_id));
+                    log_error!(format!("AddPlayer: connectionId {} is locked", conn_id));
                     return false;
                 }
             }
@@ -1114,7 +1114,7 @@ impl NetworkServer {
             Self::respawn(identity);
             return true;
         }
-        warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
+        log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
         false
     }
 
@@ -1125,7 +1125,7 @@ impl NetworkServer {
     // SpawnObject(
     fn spawn_object(mut identity: NetworkIdentity, conn_id: u64) {
         if !NetworkServerStatic::active() {
-            error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object()));
+            log_error!(format!("SpawnObject for {:?}, NetworkServer is not active. Cannot spawn objects without an active server.", identity.game_object()));
             return;
         }
 
@@ -1134,7 +1134,7 @@ impl NetworkServer {
         }
 
         if NetworkServerStatic::spawned_network_identities().contains_key(&identity.net_id()) {
-            warn!(format!(
+            log_warn!(format!(
                 "SpawnObject for {:?}, netId {} already exists. Use UnSpawnObject first.",
                 identity.game_object(),
                 identity.net_id()
@@ -1216,13 +1216,13 @@ impl NetworkServer {
                         Self::send_spawn_message(&mut identity, &mut connection);
                     }
                     TryResult::Absent => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.Respawn: connectionId {} not found in connections",
                             identity.connection_to_client()
                         ));
                     }
                     TryResult::Locked => {
-                        error!(format!(
+                        log_error!(format!(
                             "Server.Respawn: connectionId {} is locked",
                             identity.connection_to_client()
                         ));
@@ -1248,7 +1248,7 @@ impl NetworkServer {
 
     // 处理 ServerTransportException 消息
     fn on_transport_exception(connection_id: u64, transport_error: TransportError) {
-        warn!(format!(
+        log_warn!(format!(
             "Server.HandleTransportException: connectionId: {}, error: {:?}",
             connection_id, transport_error
         ));
@@ -1272,7 +1272,7 @@ impl NetworkServer {
         {
             on_connected_event(&mut conn, TransportError::None);
         } else {
-            warn!("OnConnectedEvent is null");
+            log_warn!("OnConnectedEvent is null");
         }
         // 添加连接 到 NETWORK_CONNECTIONS
         NetworkServerStatic::add_network_connection(conn);
@@ -1314,13 +1314,13 @@ impl NetworkServer {
                 connection.set_ready(true);
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SetClientReady: connectionId {} not found in connections",
                     conn_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SetClientReady: connectionId {} is locked",
                     conn_id
                 ));
@@ -1343,13 +1343,13 @@ impl NetworkServer {
                 );
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SpawnObserversForConnection: connectionId {} not found in connections",
                     conn_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SpawnObserversForConnection: connectionId {} is locked",
                     conn_id
                 ));
@@ -1380,13 +1380,13 @@ impl NetworkServer {
                 );
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SpawnObserversForConnection: connectionId {} not found in connections",
                     conn_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.SpawnObserversForConnection: connectionId {} is locked",
                     conn_id
                 ));
@@ -1423,40 +1423,40 @@ impl NetworkServer {
                                             message.function_hash,
                                         )
                                     {
-                                        warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
+                                        log_warn!(format!("Command {} received for {} [netId={}] component  [index={}] when client not ready.\nThis may be ignored if client intentionally set NotReady.", method_name, identity.net_id(), message.net_id, message.component_index));
                                         return;
                                     }
                                 }
                             }
                             TryResult::Absent => {
-                                error!(format!(
+                                log_error!(format!(
                                     "Server.HandleCommand: connectionId {} not found in connections",
                                     connection_id
                                 ));
                                 return;
                             }
                             TryResult::Locked => {
-                                error!(format!(
+                                log_error!(format!(
                                     "Server.HandleCommand: connectionId {} is locked",
                                     connection_id
                                 ));
                                 return;
                             }
                         }
-                        warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
+                        log_warn!("Command received while client is not ready. This may be ignored if client intentionally set NotReady.".to_string());
                     }
                     return;
                 }
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleCommand: connectionId {} not found in connections",
                     connection_id
                 ));
                 return;
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleCommand: connectionId {} is locked",
                     connection_id
                 ));
@@ -1471,16 +1471,16 @@ impl NetworkServer {
                     RemoteProcedureCalls::command_requires_authority(message.function_hash);
                 // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
                 if requires_authority && identity.connection_to_client() != connection_id {
-                    // Attempt to identify the component and method to narrow down the cause of the error.
+                    // Attempt to identify the component and method to narrow down the cause of the log_error.
                     if identity.network_behaviours.len() > message.component_index as usize {
                         if let Some(method_name) =
                             RemoteProcedureCalls::get_function_method_name(message.function_hash)
                         {
-                            warn!(format!("Command {} received for {} [netId={}] component [index={}] without authority", method_name, identity.net_id(), message.net_id,  message.component_index));
+                            log_warn!(format!("Command {} received for {} [netId={}] component [index={}] without authority", method_name, identity.net_id(), message.net_id,  message.component_index));
                             return;
                         }
                     }
-                    warn!(format!(
+                    log_warn!(format!(
                         "Command received for {} [netId={}] without authority",
                         identity.net_id(),
                         message.net_id
@@ -1504,7 +1504,7 @@ impl NetworkServer {
                 // for example, NetworkTransform.
                 // let's not spam the console for unreliable out-of-order messages.
                 if channel == TransportChannel::Reliable {
-                    warn!(format!(
+                    log_warn!(format!(
                         "Spawned object not found when handling Command message netId={}",
                         message.net_id
                     ));
@@ -1512,7 +1512,7 @@ impl NetworkServer {
                 return;
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleCommand: netId {} is locked",
                     message.net_id
                 ));
@@ -1534,7 +1534,7 @@ impl NetworkServer {
                     NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
                         if !identity.deserialize_server(reader) {
                             if NetworkServerStatic::exceptions_disconnect() {
-                                error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
+                                log_error!(format!("Server failed to deserialize client state for {} with netId={}, Disconnecting.", identity.connection_to_client(), identity.net_id()));
                                 match NetworkServerStatic::network_connections()
                                     .try_get_mut(&connection_id)
                                 {
@@ -1542,20 +1542,20 @@ impl NetworkServer {
                                         connection.disconnect();
                                     }
                                     TryResult::Absent => {
-                                        error!(format!(
+                                        log_error!(format!(
                                             "Server.HandleEntityState: connectionId {} not found.",
                                             connection_id
                                         ));
                                     }
                                     TryResult::Locked => {
-                                        error!(format!(
+                                        log_error!(format!(
                                             "Server.HandleEntityState: connectionId {} is locked.",
                                             connection_id
                                         ));
                                     }
                                 }
                             } else {
-                                warn!(format!(
+                                log_warn!(format!(
                                 "Server failed to deserialize client state for {} with netId={}",
                                 identity.connection_to_client(),
                                 identity.net_id()
@@ -1564,7 +1564,7 @@ impl NetworkServer {
                         }
                     });
                 } else {
-                    warn!(format!(
+                    log_warn!(format!(
                         "EntityStateMessage from {} for {} without authority.",
                         connection_id,
                         identity.net_id()
@@ -1572,13 +1572,13 @@ impl NetworkServer {
                 }
             }
             TryResult::Absent => {
-                warn!(format!(
+                log_warn!(format!(
                     "EntityStateMessage for netId={} not found in spawned.",
                     message.net_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleEntityState: netId {} is locked",
                     message.net_id
                 ));
@@ -1599,13 +1599,13 @@ impl NetworkServer {
                 connection.on_time_snapshot(snapshot);
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleTimeSnapshot: connectionId {} not found.",
                     connection_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Server.HandleTimeSnapshot: connectionId {} is locked.",
                     connection_id
                 ));
@@ -1623,7 +1623,7 @@ impl NetworkServer {
         let hash_code = T::get_hash_code();
 
         if NETWORK_MESSAGE_HANDLERS.contains_key(&hash_code) {
-            warn!(format!("NetworkServer.RegisterHandler replacing handler for id={}. If replacement is intentional, use ReplaceHandler instead to avoid this warning.", hash_code));
+            log_warn!(format!("NetworkServer.RegisterHandler replacing handler for id={}. If replacement is intentional, use ReplaceHandler instead to avoid this log_warning.", hash_code));
             return;
         }
         NETWORK_MESSAGE_HANDLERS.insert(

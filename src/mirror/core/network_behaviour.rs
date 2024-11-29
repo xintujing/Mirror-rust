@@ -14,13 +14,13 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use crate::{log_error, log_warn};
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::{error, warn};
 
 type NetworkBehaviourFactoryType = Box<
     dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync,
@@ -45,7 +45,7 @@ impl NetworkBehaviourFactory {
             Some(factory) => Some(factory(game_object, component)),
             // 如果不存在则创建 NetworkCommonBehaviour
             None => {
-                error!("Using NetworkCommonBehaviour creat ", component.sub_class);
+                log_error!("Using NetworkCommonBehaviour creat ", component.sub_class);
                 Some(Box::new(NetworkCommonBehaviour::new(
                     game_object,
                     component,
@@ -368,7 +368,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         let size = reader.get_position() - chunk_start;
         let size_hash = size as u8 & 0xFF;
         if size_hash != safety {
-            warn!(format!(
+            log_warn!(format!(
                 "Deserialize failed. Size mismatch. Expected: {}, Received: {}",
                 size_hash, safety
             ));
@@ -438,7 +438,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         include_owner: bool,
     ) {
         if !NetworkServerStatic::active() {
-            error!(format!(
+            log_error!(format!(
                 "RPC Function {} called without an active server.",
                 function_full_name
             ));
@@ -459,10 +459,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
                     }
                 }
                 TryResult::Absent => {
-                    error!(format!("Failed because connection {} is absent.", observer));
+                    log_error!(format!("Failed because connection {} is absent.", observer));
                 }
                 TryResult::Locked => {
-                    error!(format!("Failed because connection {} is locked.", observer));
+                    log_error!(format!("Failed because connection {} is locked.", observer));
                 }
             },
         );
@@ -474,7 +474,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
         include_owner: bool,
     ) {
         if !NetworkServerStatic::active() {
-            error!("EntityStateMessage called without an active server.");
+            log_error!("EntityStateMessage called without an active server.");
             return;
         }
         let mut entity_message = EntityStateMessage::new(self.net_id(), writer.to_bytes());
@@ -487,10 +487,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
                     }
                 }
                 TryResult::Absent => {
-                    error!(format!("Failed because connection {} is absent.", observer));
+                    log_error!(format!("Failed because connection {} is absent.", observer));
                 }
                 TryResult::Locked => {
-                    error!(format!("Failed because connection {} is locked.", observer));
+                    log_error!(format!("Failed because connection {} is locked.", observer));
                 }
             }
         }

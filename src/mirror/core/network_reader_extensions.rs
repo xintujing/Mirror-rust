@@ -1,8 +1,8 @@
+use crate::log_warn;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait, Readable};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
-use tklog::warn;
 
 pub struct NetworkReaderExtensions;
 impl NetworkReaderExtensions {
@@ -12,7 +12,7 @@ impl NetworkReaderExtensions {
         if let Ok(string) = String::from_utf8(bytes) {
             string
         } else {
-            warn!("NetworkReaderExtensions::read_string() failed to convert bytes to string");
+            log_warn!("NetworkReaderExtensions::read_string() failed to convert bytes to string");
             String::new()
         }
     }

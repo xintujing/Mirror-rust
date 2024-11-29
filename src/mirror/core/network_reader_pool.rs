@@ -1,8 +1,8 @@
+use crate::log_warn;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::tools::pool::Pool;
 use lazy_static::lazy_static;
 use std::sync::{Arc, Mutex};
-use tklog::warn;
 
 lazy_static! {
     static ref NETWORK_READER_POOL: Arc<Mutex<Pool<NetworkReader>>> = Arc::new(Mutex::new(Pool::new(|| NetworkReader::new_with_bytes(Vec::new()), 1000)));
@@ -14,7 +14,7 @@ impl NetworkReaderPool {
         if let Ok(pool) = NETWORK_READER_POOL.lock() {
             pool.count()
         } else {
-            warn!("NetworkReaderPool::count() failed to lock NETWORK_READER_POOL");
+            log_warn!("NetworkReaderPool::count() failed to lock NETWORK_READER_POOL");
             0
         }
     }
@@ -25,7 +25,7 @@ impl NetworkReaderPool {
             reader.reset();
             reader
         } else {
-            warn!("NetworkReaderPool::get() failed to lock NETWORK_READER_POOL");
+            log_warn!("NetworkReaderPool::get() failed to lock NETWORK_READER_POOL");
             NetworkReader::new_with_bytes(Vec::new())
         }
     }
@@ -46,7 +46,7 @@ impl NetworkReaderPool {
             reader.set_bytes(bytes);
             reader
         } else {
-            warn!("NetworkReaderPool::get_with_bytes() failed to lock NETWORK_READER_POOL");
+            log_warn!("NetworkReaderPool::get_with_bytes() failed to lock NETWORK_READER_POOL");
             NetworkReader::new_with_bytes(bytes)
         }
     }
@@ -67,7 +67,7 @@ impl NetworkReaderPool {
             reader.set_array_segment(array_segment);
             reader
         } else {
-            warn!("NetworkReaderPool::get_with_array_segment() failed to lock NETWORK_READER_POOL");
+            log_warn!("NetworkReaderPool::get_with_array_segment() failed to lock NETWORK_READER_POOL");
             NetworkReader::new_with_bytes(array_segment.to_vec())
         }
     }
@@ -86,7 +86,7 @@ impl NetworkReaderPool {
             reader.reset();
             pool.return_(reader);
         } else {
-            warn!("NetworkReaderPool::return_() failed to lock NETWORK_READER_POOL");
+            log_warn!("NetworkReaderPool::return_() failed to lock NETWORK_READER_POOL");
         }
     }
 }

@@ -1,8 +1,8 @@
+use crate::{log_error, log_warn};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
 use std::{fmt, ptr};
-use tklog::{error, warn};
 
 #[derive(Debug)]
 pub struct NetworkWriter {
@@ -14,7 +14,7 @@ impl NetworkWriter {
     // the limit of ushort is so we can write string size prefix as only 2 bytes.
     // -1 so we can still encode 'null' into it too.
     pub const MAX_STRING_LENGTH: usize = u16::MAX as usize - 1;
-    // create writer immediately with it's own buffer so no one can mess with it and so that we can resize it.
+    // create writer immediately with its own buffer so no one can mess with it and so that we can resize it.
     // note: BinaryWriter allocates too much, so we only use a MemoryStream
     // => 1500 bytes by default because on average, most packets will be <= MTU
     pub const DEFAULT_CAPACITY: usize = 1500;
@@ -45,14 +45,14 @@ impl NetworkWriter {
     }
     pub fn position_sub(&mut self, value: usize) {
         if value > self.position {
-            warn!("Cannot seek before the beginning of the buffer");
+            log_warn!("Cannot seek before the beginning of the buffer");
             return;
         }
         self.position -= value;
     }
     pub fn position_add(&mut self, value: usize) {
         if self.position + value > self.capacity() {
-            warn!("Cannot seek past the end of the buffer");
+            log_warn!("Cannot seek past the end of the buffer");
             return;
         }
         self.position += value;
@@ -121,7 +121,7 @@ impl NetworkWriter {
         if let Some(write_fn) = T::get_writer() {
             write_fn(self, value);
         } else {
-            error!("No writer found for type {}", std::any::type_name::<T>());
+            log_error!("No writer found for type {}", std::any::type_name::<T>());
         }
     }
 }

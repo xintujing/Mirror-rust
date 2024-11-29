@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
@@ -10,7 +11,6 @@ use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use std::process::exit;
-use tklog::error;
 
 pub struct Kcp2kTransport {
     pub transport: Transport,
@@ -70,7 +70,7 @@ impl Kcp2kTransport {
                 tcb.error = Self::from_kcp2k_error_code(cb.error_code);
                 match self.transport.transport_cb_fn.as_ref() {
                     None => {
-                        error!("Kcp2kTransport recv_data error: transport_cb_fn is None");
+                        log_error!("Kcp2kTransport recv_data error: transport_cb_fn is None");
                     }
                     Some(transport_cb_fn) => {
                         transport_cb_fn(tcb);
@@ -113,7 +113,7 @@ impl TransportTrait for Kcp2kTransport {
                 self.server_active = true;
             }
             Err(err) => {
-                error!(format!("Kcp2kTransport awake error: {:?}", err));
+                log_error!(format!("Kcp2kTransport awake error: {:?}", err));
                 exit(1)
             }
         }
@@ -140,7 +140,7 @@ impl TransportTrait for Kcp2kTransport {
         }
         match self.transport.transport_cb_fn.as_ref() {
             None => {
-                error!("Kcp2kTransport server_send error: transport_cb_fn is None");
+                log_error!("Kcp2kTransport server_send error: transport_cb_fn is None");
             }
             Some(transport_cb_fn) => {
                 transport_cb_fn(tcb);

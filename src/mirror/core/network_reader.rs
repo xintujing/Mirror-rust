@@ -1,8 +1,8 @@
+use crate::log_warn;
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
 use std::fmt;
-use tklog::warn;
 
 pub struct NetworkReader {
     data: Vec<u8>,
@@ -59,7 +59,7 @@ impl NetworkReader {
     pub fn read_blittable<T>(&mut self) -> T {
         let size = size_of::<T>();
         if self.remaining() < size {
-            warn!("Not enough data to read");
+            log_warn!("Not enough data to read");
             self.position = self.data.len();
             return unsafe { std::mem::zeroed() };
         }
@@ -80,7 +80,7 @@ impl NetworkReader {
     }
     pub fn read_bytes(&mut self, count: usize) -> Vec<u8> {
         if self.remaining() < count {
-            warn!("Not enough data to read");
+            log_warn!("Not enough data to read");
             return Vec::new();
         }
         let value = self.data[self.position..self.position + count].to_vec();
@@ -92,7 +92,7 @@ impl NetworkReader {
     }
     pub fn read_array_segment(&mut self, count: usize) -> &[u8] {
         if self.remaining() < count {
-            warn!("Not enough data to read");
+            log_warn!("Not enough data to read");
             return &[];
         }
         let value = &self.data[self.position..self.position + count];

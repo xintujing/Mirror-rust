@@ -1,11 +1,10 @@
-use crate::log_warn;
 use crate::mirror::core::batching::batcher::Batcher;
 use crate::mirror::core::messages::{NetworkMessageTrait, NetworkPingMessage};
 use crate::mirror::core::network_messages::NetworkMessages;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::transport::{Transport, TransportChannel};
-use tklog::error;
+use crate::{log_error, log_warn};
 
 pub struct NetworkConnection {
     id: u64,
@@ -46,7 +45,7 @@ pub trait NetworkConnectionTrait {
             message.serialize(writer);
             let max = NetworkMessages::max_message_size(channel);
             if writer.get_position() > max {
-                error!("Message too large to send: ", writer.get_position());
+                log_error!("Message too large to send: ", writer.get_position());
                 return;
             }
             // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);

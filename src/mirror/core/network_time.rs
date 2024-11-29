@@ -3,13 +3,13 @@ use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::transport::TransportChannel;
+use crate::{log_error, log_warn};
 use atomic::Atomic;
 use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 use std::time::Instant;
-use tklog::{error, warn};
 
 lazy_static! {
     // 全局启动时间锚点
@@ -41,7 +41,7 @@ impl NetworkTime {
         if let Ok(start_instant) = START_INSTANT.read() {
             start_instant.elapsed().as_secs_f64()
         } else {
-            warn!("NetworkTime::local_time() failed to get start_instant");
+            log_warn!("NetworkTime::local_time() failed to get start_instant");
             Instant::now().elapsed().as_secs_f64()
         }
     }
@@ -56,7 +56,7 @@ impl NetworkTime {
         if let Ok(prediction_error_unadjusted) = _PREDICTION_ERROR_UNADJUSTED.read() {
             prediction_error_unadjusted.value
         } else {
-            warn!("NetworkTime::prediction_error_unadjusted() failed to get prediction_error_unadjusted");
+            log_warn!("NetworkTime::prediction_error_unadjusted() failed to get prediction_error_unadjusted");
             0.0
         }
     }
@@ -66,7 +66,7 @@ impl NetworkTime {
         if let Ok(rtt) = _RTT.read() {
             rtt.value
         } else {
-            warn!("NetworkTime::rtt() failed to get rtt");
+            log_warn!("NetworkTime::rtt() failed to get rtt");
             0.0
         }
     }
@@ -76,7 +76,7 @@ impl NetworkTime {
         if let Ok(rtt) = _RTT.read() {
             rtt.variance
         } else {
-            warn!("NetworkTime::rtt_variance() failed to get rtt");
+            log_warn!("NetworkTime::rtt_variance() failed to get rtt");
             0.0
         }
     }
@@ -115,13 +115,13 @@ impl NetworkTime {
                 connection.send_network_message(&mut pong_message, TransportChannel::Reliable);
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "NetworkTime::on_server_ping() failed to get connection: {}",
                     connection_id
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "NetworkTime::on_server_ping() failed to get connection: {}",
                     connection_id
                 ));
@@ -142,7 +142,7 @@ impl NetworkTime {
         if let Ok(mut rtt) = _RTT.write() {
             rtt.add(new_rtt);
         } else {
-            warn!("NetworkTime::on_server_pong() failed to get rtt");
+            log_warn!("NetworkTime::on_server_pong() failed to get rtt");
         }
     }
 
@@ -151,7 +151,7 @@ impl NetworkTime {
         if let Ok(start_instant) = START_INSTANT.read() {
             *start_instant
         } else {
-            warn!("NetworkTime::get_static_instant() failed to get start_instant");
+            log_warn!("NetworkTime::get_static_instant() failed to get start_instant");
             Instant::now()
         }
     }
@@ -161,7 +161,7 @@ impl NetworkTime {
         if let Ok(mut start_instant) = START_INSTANT.write() {
             *start_instant = instant;
         } else {
-            warn!("NetworkTime::set_static_instant() failed to get start_instant");
+            log_warn!("NetworkTime::set_static_instant() failed to get start_instant");
         }
     }
 

@@ -1,9 +1,9 @@
+use crate::log_warn;
 use crate::mirror::core::batching::batcher::Batcher;
 use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::transport::{Transport, TransportChannel};
-use tklog::warn;
 
 pub struct NetworkMessages;
 
@@ -19,7 +19,7 @@ impl NetworkMessages {
             let transport_max_size = transport.get_max_packet_size(channel);
             transport_max_size - NetworkMessages::ID_SIZE - Batcher::max_message_overhead(transport_max_size)
         } else {
-            warn!("NetworkMessages::max_content_size() failed to get active transport");
+            log_warn!("NetworkMessages::max_content_size() failed to get active transport");
             1500
         }
     }

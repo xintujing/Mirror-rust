@@ -1,6 +1,6 @@
+use crate::log_error;
 use nalgebra::{Quaternion, Vector3, Vector4};
 use std::f32::consts::FRAC_1_SQRT_2;
-use tklog::error;
 
 pub trait CompressTrait {
     fn compress(&self) -> u32;
@@ -163,7 +163,7 @@ impl Compress {
 
     fn float_to_long(value: f32, precision: f32) -> (bool, i64) {
         if precision == 0.0 {
-            error!("precision cannot be 0");
+            log_error!("precision cannot be 0");
         }
         let quantized = (value / precision) as i64;
         (true, quantized)
@@ -171,7 +171,7 @@ impl Compress {
 
     fn long_to_float(value: i64, precision: f32) -> f32 {
         if precision == 0.0 {
-            error!("precision cannot be 0");
+            log_error!("precision cannot be 0");
         }
         value as f32 * precision
     }

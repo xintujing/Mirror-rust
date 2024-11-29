@@ -1,3 +1,4 @@
+use crate::log_debug;
 use crate::mirror::authenticators::basic_authenticator::BasicAuthenticator;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
@@ -8,7 +9,6 @@ use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::transport::TransportTrait;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 use std::time::{Duration, Instant};
-use tklog::debug;
 
 pub struct NetworkLoop;
 
@@ -33,7 +33,7 @@ impl NetworkLoop {
         network_manager_singleton.start();
 
         NetworkServerStatic::for_each_network_message_handler(|item| {
-            debug!(format!(
+            log_debug!(format!(
                 "message hash: {} require_authentication: {}",
                 item.key(),
                 item.require_authentication
@@ -41,7 +41,7 @@ impl NetworkLoop {
         });
 
         NetworkServerStatic::for_each_network_connection(|item| {
-            debug!(format!(
+            log_debug!(format!(
                 "connection hash: {} address: {}",
                 item.key(),
                 item.address

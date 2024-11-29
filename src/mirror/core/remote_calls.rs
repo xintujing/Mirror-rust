@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::NetworkReader;
@@ -7,7 +8,6 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::any::TypeId;
 use std::fmt::Debug;
-use tklog::error;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum RemoteCallType {
@@ -16,7 +16,7 @@ pub enum RemoteCallType {
 }
 
 pub type RemoteCallDelegate =
-    Box<dyn Fn(&mut NetworkIdentity, u8, u16, &mut NetworkReader, u64) + Send + Sync>;
+Box<dyn Fn(&mut NetworkIdentity, u8, u16, &mut NetworkReader, u64) + Send + Sync>;
 
 pub struct Invoker {
     pub type_id: TypeId,
@@ -48,9 +48,9 @@ impl Invoker {
         self.type_id == type_id
             && self.call_type == remote_call_type
             && std::ptr::addr_eq(
-                self.function.as_ref() as *const _,
-                invoke_function.as_ref() as *const _,
-            )
+            self.function.as_ref() as *const _,
+            invoke_function.as_ref() as *const _,
+        )
     }
 }
 
@@ -71,7 +71,7 @@ impl RemoteProcedureCalls {
             if old_invoker.are_equal(type_id, remote_call_type, func) {
                 return true;
             }
-            error!("Delegate already exists for hash: {}", func_hash);
+            log_error!("Delegate already exists for hash: {}", func_hash);
         }
         false
     }

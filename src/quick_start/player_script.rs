@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
@@ -15,7 +16,6 @@ use nalgebra::Vector4;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::error;
 
 #[derive(Debug)]
 pub struct PlayerScript {
@@ -34,7 +34,7 @@ impl PlayerScript {
         conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
@@ -68,7 +68,7 @@ impl PlayerScript {
         conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
@@ -99,7 +99,7 @@ impl PlayerScript {
         conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)

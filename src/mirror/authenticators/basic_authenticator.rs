@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
@@ -7,7 +8,6 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::transport::TransportChannel;
 use dashmap::try_result::TryResult;
 use std::any::Any;
-use tklog::error;
 
 pub struct BasicAuthenticator {
     username: String,
@@ -49,13 +49,13 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
                             Self::server_accept(&mut conn);
                         }
                         TryResult::Absent => {
-                            error!(format!(
+                            log_error!(format!(
                                 "Failed because connection {} is absent.",
                                 connection_id
                             ));
                         }
                         TryResult::Locked => {
-                            error!(format!(
+                            log_error!(format!(
                                 "Failed because connection {} is locked.",
                                 connection_id
                             ));
@@ -74,13 +74,13 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
                             Self::server_reject(&mut conn);
                         }
                         TryResult::Absent => {
-                            error!(format!(
+                            log_error!(format!(
                                 "Failed to clear observers because connection {} is absent.",
                                 connection_id
                             ));
                         }
                         TryResult::Locked => {
-                            error!(format!(
+                            log_error!(format!(
                                 "Failed to clear observers because connection {} is locked.",
                                 connection_id
                             ));

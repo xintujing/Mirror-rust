@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -16,7 +17,6 @@ use dashmap::DashMap;
 use lazy_static::lazy_static;
 use std::default::Default;
 use std::sync::atomic::Ordering;
-use tklog::error;
 
 lazy_static! {
     static ref NEXT_NETWORK_ID: Atomic<u32> = Atomic::new(1);
@@ -119,12 +119,12 @@ impl NetworkIdentity {
                 conn.set_net_id(self.net_id);
             }
             TryResult::Absent => {
-                error!(
+                log_error!(
                     "Failed to set net id on connection to client because connection is absent."
                 );
             }
             TryResult::Locked => {
-                error!(
+                log_error!(
                     "Failed to set net id on connection to client because connection is locked."
                 );
             }
@@ -153,10 +153,10 @@ impl NetworkIdentity {
                 conn.add_owned_object(self.net_id);
             }
             TryResult::Absent => {
-                error!("Failed to set connection to client because connection is absent.");
+                log_error!("Failed to set connection to client because connection is absent.");
             }
             TryResult::Locked => {
-                error!("Failed to set connection to client because connection is locked.");
+                log_error!("Failed to set connection to client because connection is locked.");
             }
         }
     }
@@ -179,7 +179,7 @@ impl NetworkIdentity {
         conn_id: u64,
     ) {
         if component_index as usize >= self.network_behaviours.len() {
-            error!("Component index out of bounds: ", component_index);
+            log_error!("Component index out of bounds: ", component_index);
             return;
         }
 
@@ -192,7 +192,7 @@ impl NetworkIdentity {
             reader,
             conn_id,
         ) {
-            error!(
+            log_error!(
                 "Failed to invoke remote call for function hash: ",
                 function_hash
             );
@@ -226,7 +226,7 @@ impl NetworkIdentity {
     pub fn awake(&mut self) {
         self.initialize_network_behaviours();
         if self.has_spawned {
-            error!("NetworkIdentity has already spawned.");
+            log_error!("NetworkIdentity has already spawned.");
             self.spawned_from_instantiate = true;
         }
         self.has_spawned = true;
@@ -245,9 +245,9 @@ impl NetworkIdentity {
     }
     pub fn validate_components(&self) {
         if self.network_behaviours.len() == 0 {
-            error!("NetworkIdentity has no components.");
+            log_error!("NetworkIdentity has no components.");
         } else if self.network_behaviours.len() > 64 {
-            error!("NetworkIdentity has too many components. Max is 64.");
+            log_error!("NetworkIdentity has too many components. Max is 64.");
         }
     }
     pub fn on_start_server(&mut self) {
@@ -373,13 +373,13 @@ impl NetworkIdentity {
                     conn.remove_from_observing(self, true);
                 }
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "Failed to clear observers because connection {} is absent.",
                         conn_id
                     ));
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "Failed to clear observers because connection {} is locked.",
                         conn_id
                     ));
@@ -426,10 +426,10 @@ impl NetworkIdentity {
                 conn.add_to_observing(self);
             }
             TryResult::Absent => {
-                error!("Failed to add observer because connection is absent.");
+                log_error!("Failed to add observer because connection is absent.");
             }
             TryResult::Locked => {
-                error!("Failed to add observer because connection is locked.");
+                log_error!("Failed to add observer because connection is locked.");
             }
         }
     }
