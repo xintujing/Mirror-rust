@@ -13,11 +13,11 @@ use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
+use crate::{log_debug, log_error};
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
-use tklog::{debug, error};
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
@@ -111,7 +111,7 @@ impl NetworkCommonBehaviour {
         conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
@@ -132,7 +132,7 @@ impl NetworkCommonBehaviour {
         if let Some(method_data) =
             BackendDataStatic::get_backend_data().get_method_data_by_hash_code(func_hash)
         {
-            debug!(format!(
+            log_debug!(format!(
                 "sub_class: {}, fn: {} - {}",
                 self.sub_class,
                 func_hash,
@@ -159,7 +159,7 @@ impl NetworkCommonBehaviour {
                 }
             });
         } else {
-            error!("Method not found by hash code: {}", func_hash);
+            log_error!("Method not found by hash code: {}", func_hash);
         }
     }
 }
@@ -195,7 +195,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     where
         Self: Sized,
     {
-        debug!("Registering delegate for ", Self::COMPONENT_TAG);
+        log_debug!("Registering delegate for ", Self::COMPONENT_TAG);
         RemoteProcedureCalls::register_command_delegate::<Self>(
             Self::INVOKE_USER_CODE_CMD,
             Box::new(Self::invoke_user_code_cmd_common_update_sync_var),

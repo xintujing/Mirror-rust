@@ -1,6 +1,6 @@
+use crate::log_warn;
 use crate::mirror::core::snapshot_interpolation::snapshot::Snapshot;
 use nalgebra::{Quaternion, Vector3};
-use tklog::warn;
 
 #[derive(Clone, Debug, PartialEq, Copy)]
 pub struct TransformSnapshot {
@@ -41,15 +41,13 @@ impl TransformSnapshot {
     }
 }
 
-impl Eq for TransformSnapshot {
-
-}
+impl Eq for TransformSnapshot {}
 impl Ord for TransformSnapshot {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if let Some(ordering) = self.remote_time.partial_cmp(&other.remote_time) {
             ordering
         } else {
-            warn!("TransformSnapshot::cmp() failed to compare remote_time");
+            log_warn!("TransformSnapshot::cmp() failed to compare remote_time");
             std::cmp::Ordering::Equal
         }
     }

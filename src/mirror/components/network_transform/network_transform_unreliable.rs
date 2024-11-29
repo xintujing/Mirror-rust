@@ -21,6 +21,7 @@ use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::CompressTrait;
 use crate::mirror::core::transport::TransportChannel;
+use crate::{log_debug, log_error};
 use dashmap::try_result::TryResult;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use ordered_float::OrderedFloat;
@@ -28,7 +29,6 @@ use std::any::Any;
 use std::collections::BTreeMap;
 use std::mem::take;
 use std::sync::Once;
-use tklog::{debug, error};
 
 #[derive(Debug)]
 pub struct NetworkTransformUnreliable {
@@ -72,13 +72,13 @@ impl NetworkTransformUnreliable {
                     self.apply(computed, to);
                 }
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "Failed because connection {} is absent.",
                         self.connection_to_client()
                     ));
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "Failed because connection {} is locked.",
                         &self.connection_to_client()
                     ));
@@ -259,7 +259,7 @@ impl NetworkTransformUnreliable {
         _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
@@ -296,7 +296,7 @@ impl NetworkTransformUnreliable {
         _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         NetworkBehaviour::early_invoke(identity, component_index)
@@ -346,7 +346,7 @@ impl NetworkTransformUnreliable {
         _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
-            error!("Command CmdClientToServerSync called on client.");
+            log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         let sync_data = SyncData::deserialize(reader);
@@ -394,13 +394,13 @@ impl NetworkTransformUnreliable {
                 timestamp = conn.remote_time_stamp();
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Failed because connection {} is absent.",
                     self.connection_to_client()
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Failed because connection {} is locked.",
                     &self.connection_to_client()
                 ));
@@ -443,13 +443,13 @@ impl NetworkTransformUnreliable {
                 timestamp = conn.remote_time_stamp();
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "Failed because connection {} is absent.",
                     self.connection_to_client()
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "Failed because connection {} is locked.",
                     &self.connection_to_client()
                 ));
@@ -668,19 +668,19 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     where
         Self: Sized,
     {
-        debug!("Registering delegate for NetworkTransformUnreliable");
+        log_debug!("Registering delegate for NetworkTransformUnreliable");
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
             Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1),
-            true
+            true,
         );
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
             Box::new(NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1),
-            true
+            true,
         );
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)

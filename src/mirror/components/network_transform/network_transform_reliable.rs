@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::components::network_transform::network_transform_base::{
     CoordinateSpace, NetworkTransformBase, NetworkTransformBaseTrait,
 };
@@ -24,7 +25,6 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::mem::take;
 use std::sync::Once;
-use tklog::error;
 
 #[derive(Debug)]
 pub struct NetworkTransformReliable {
@@ -68,13 +68,13 @@ impl NetworkTransformReliable {
                     self.apply(computed, to);
                 }
                 TryResult::Absent => {
-                    error!(format!(
+                    log_error!(format!(
                         "connection not found: {}",
                         self.connection_to_client()
                     ));
                 }
                 TryResult::Locked => {
-                    error!(format!(
+                    log_error!(format!(
                         "connection locked: {}",
                         self.connection_to_client()
                     ));
@@ -96,10 +96,10 @@ impl NetworkTransformReliable {
             self.position_precision,
         ) || angle > self.rotation_sensitivity
             || Self::quantized_changed(
-                self.last_snapshot.scale,
-                current.scale,
-                self.scale_precision,
-            )
+            self.last_snapshot.scale,
+            current.scale,
+            self.scale_precision,
+        )
     }
 
     fn quantized_changed(u: Vector3<f32>, v: Vector3<f32>, precision: f32) -> bool {
@@ -145,13 +145,13 @@ impl NetworkTransformReliable {
                 timestamp = conn.remote_time_stamp();
             }
             TryResult::Absent => {
-                error!(format!(
+                log_error!(format!(
                     "connection not found: {}",
                     self.connection_to_client()
                 ));
             }
             TryResult::Locked => {
-                error!(format!(
+                log_error!(format!(
                     "connection locked: {}",
                     self.connection_to_client()
                 ));
@@ -191,7 +191,7 @@ impl NetworkTransformReliable {
     ) -> bool {
         snapshots.len() == 1
             && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time
-                >= buffer_time * tolerance_multiplier
+            >= buffer_time * tolerance_multiplier
     }
 }
 
@@ -234,8 +234,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn register_delegate()
     where
         Self: Sized,
-    {
-    }
+    {}
 
     fn get_once() -> &'static Once
     where
@@ -426,7 +425,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                     snapshot.position,
                     self.position_precision,
                 )
-                .1;
+                    .1;
             }
             if self.sync_scale() {
                 self.last_serialized_scale =
