@@ -447,7 +447,7 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
-        self.authenticator = Some(authenticator);
+        self.authenticator.replace(authenticator);
     }
 
     fn offline_scene(&self) -> &'static str {
