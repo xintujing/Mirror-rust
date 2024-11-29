@@ -144,7 +144,7 @@ impl SyncDirection {
         match value {
             0 => SyncDirection::ServerToClient,
             1 => SyncDirection::ClientToServer,
-            _ => panic!("Invalid SyncDirection value"),
+            _ => SyncDirection::ServerToClient,
         }
     }
 }

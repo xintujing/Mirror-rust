@@ -1,5 +1,5 @@
-use crate::log_warn;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait, Readable};
+use crate::{log_trace, log_warn};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
@@ -264,7 +264,8 @@ impl NetworkReaderTrait for NetworkReader {
         if a0 == 255 {
             return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40) + (a7 << 48) + (a8 << 56);
         }
-        panic!("DecompressVarUInt failure: {}", a0);
+        log_trace!("DecompressVarUInt failure: {}", a0);
+        0
     }
 }
 

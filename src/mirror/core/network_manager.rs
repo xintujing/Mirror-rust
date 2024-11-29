@@ -128,7 +128,7 @@ impl NetworkManager {
         }
 
         if !Transport::active_transport_exists() {
-            panic!("No transport found in the scene. Add a transport component to the scene.");
+            panic!("No transport found, Add a transport component.");
         }
         true
     }

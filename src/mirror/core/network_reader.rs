@@ -1,4 +1,4 @@
-use crate::log_warn;
+use crate::{log_trace, log_warn};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
@@ -106,7 +106,7 @@ impl NetworkReader {
         if let Some(reader_fn) = T::get_reader() {
             reader_fn(self)
         } else {
-            panic!("No reader found for type");
+            log_trace!("No reader found for type");
         }
     }
 }
