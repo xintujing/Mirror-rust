@@ -13,7 +13,6 @@ dependencies = [
  "half",
  "kcp2k_rust",
  "lazy_static",
- "log",
  "nalgebra",
  "ordered-float",
  "rand 0.9.0-beta.0",
