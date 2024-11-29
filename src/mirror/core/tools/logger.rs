@@ -34,6 +34,24 @@ macro_rules! log_debug {
     };
 }
 
+#[macro_export]
+macro_rules! log_trace {
+    ($($arg:tt)*) => {
+        {
+            tklog::trace!($($arg)*);
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! log_fatal {
+    ($($arg:tt)*) => {
+        {
+            tklog::fatal!($($arg)*);
+        }
+    };
+}
+
 // test
 #[cfg(test)]
 mod tests {
@@ -43,5 +61,7 @@ mod tests {
         log_error!("This is an error message");
         log_warn!("This is a warn message");
         log_debug!("This is a debug message");
+        log_trace!("This is a trace message");
+        log_fatal!("This is a fatal message");
     }
 }
