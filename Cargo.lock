@@ -1073,9 +1073,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tklog"
-version = "0.2.4"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20a82360cb0a76b97ece9425cb916ab10bbf7c6d767743efc94e4e2adfb7d5d7"
+checksum = "101a571d48a17e01d4bd4dac97617c217eb2856a0acadce46462729c31290cf4"
 dependencies = [
  "chrono",
  "crossbeam-channel",
