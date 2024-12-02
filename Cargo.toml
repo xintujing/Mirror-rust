@@ -19,6 +19,7 @@ half = "2.4.1"
 rand = "0.9.0-beta.0"
 ordered-float = "4.5.0"
 signal-hook = "0.3.17"
+# 0.13.4 之后的版本会导致 serde_json 无法正确解析
 config = "0.13.4"
 notify = "7.0.0"
 
