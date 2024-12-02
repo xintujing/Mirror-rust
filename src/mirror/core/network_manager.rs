@@ -25,7 +25,7 @@ static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = Non
 lazy_static! {
     static ref START_POSITIONS: Arc<RwLock<Vec<Transform>>> = Arc::new(RwLock::new(Vec::new()));
     static ref START_POSITIONS_INDEX: Atomic<usize> = Atomic::new(0);
-    static ref NETWORK_SCENE_NAME: RwLock<&'static str> = RwLock::new("");
+    static ref NETWORK_SCENE_NAME: RwLock<String> = RwLock::new("".to_string());
 }
 
 // NetworkManagerStatic
@@ -52,17 +52,17 @@ impl NetworkManagerStatic {
         }
     }
 
-    pub fn get_network_scene_name() -> &'static str {
+    pub fn get_network_scene_name() -> String {
         if let Ok(name) = NETWORK_SCENE_NAME.try_read() {
-            return *name;
+            return name.to_string();
         }
         log_error!("Network scene name is not set or locked.");
-        ""
+        "".to_string()
     }
 
-    pub fn set_network_scene_name(name: &'static str) {
+    pub fn set_network_scene_name(name: String) {
         if let Ok(mut scene_name) = NETWORK_SCENE_NAME.try_write() {
-            *scene_name = name;
+            *scene_name = name
         } else {
             log_error!("Network scene name is locked and cannot be set.");
         }
@@ -97,8 +97,8 @@ pub struct NetworkManager {
     pub dont_destroy_on_load: bool,
     pub editor_auto_start: bool,
     pub send_rate: u32,
-    offline_scene: &'static str,
-    pub online_scene: &'static str,
+    offline_scene: String,
+    pub online_scene: String,
     pub offline_scene_load_delay: f32,
     pub network_address: String,
     pub max_connections: usize,
@@ -351,7 +351,7 @@ impl NetworkManager {
 
         NetworkManagerStatic::set_start_positions_index(0);
 
-        NetworkManagerStatic::set_network_scene_name("");
+        NetworkManagerStatic::set_network_scene_name("".to_string());
     }
 }
 
@@ -359,7 +359,7 @@ pub trait NetworkManagerTrait {
     // 字段 get  set
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
-    fn offline_scene(&self) -> &'static str;
+    fn offline_scene(&self) -> &str;
     fn set_offline_scene(&mut self, scene_name: &'static str);
     fn auto_create_player(&self) -> bool;
     fn set_auto_create_player(&mut self, auto_create_player: bool);
@@ -450,12 +450,12 @@ impl NetworkManagerTrait for NetworkManager {
         self.authenticator.replace(authenticator);
     }
 
-    fn offline_scene(&self) -> &'static str {
-        self.offline_scene
+    fn offline_scene(&self) -> &str {
+        self.offline_scene.as_str()
     }
 
     fn set_offline_scene(&mut self, scene_name: &'static str) {
-        self.offline_scene = scene_name;
+        self.offline_scene = scene_name.to_string();
     }
 
     fn auto_create_player(&self) -> bool {
@@ -522,7 +522,7 @@ impl NetworkManagerTrait for NetworkManager {
 
         NetworkBehaviourFactory::register_network_behaviour_factory();
 
-        let network_manager_setting = &backend_data.network_manager_settings[0];
+        let network_manager_setting = backend_data.network_manager_settings[0].clone();
 
         let mut spawn_prefabs = Vec::new();
         for spawn_prefab in &network_manager_setting.spawn_prefabs {
@@ -534,8 +534,8 @@ impl NetworkManagerTrait for NetworkManager {
             dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
             editor_auto_start: network_manager_setting.editor_auto_start,
             send_rate: network_manager_setting.send_rate,
-            offline_scene: network_manager_setting.offline_scene.as_str(),
-            online_scene: network_manager_setting.online_scene.as_str(),
+            offline_scene: network_manager_setting.offline_scene,
+            online_scene: network_manager_setting.online_scene,
             offline_scene_load_delay: 0.0,
             network_address: network_manager_setting.network_address.clone(),
             max_connections: network_manager_setting.max_connections,
@@ -590,7 +590,7 @@ impl NetworkManagerTrait for NetworkManager {
         }
         self.apply_configuration();
 
-        NetworkManagerStatic::set_network_scene_name(self.online_scene);
+        NetworkManagerStatic::set_network_scene_name(self.online_scene.to_string());
 
         // TODO SceneManager.sceneLoaded += OnSceneLoaded;
 
@@ -617,7 +617,7 @@ mod tests {
 
     #[test]
     fn test_network_manager() {
-        NetworkManagerStatic::set_network_scene_name("test");
+        NetworkManagerStatic::set_network_scene_name("test".to_string());
         println!("{}", NetworkManagerStatic::get_network_scene_name());
     }
 }

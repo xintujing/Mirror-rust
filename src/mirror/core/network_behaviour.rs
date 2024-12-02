@@ -431,7 +431,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn send_rpc_internal(
         &self,
-        function_full_name: &'static str,
+        function_full_name: &str,
         function_hash_code: i32,
         writer: &NetworkWriter,
         channel: TransportChannel,

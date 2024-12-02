@@ -1,28 +1,116 @@
+use crate::{log_error, log_info, stop_signal};
+use config::{Config, ConfigBuilder};
 use lazy_static::lazy_static;
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
+use std::path::Path;
+use std::sync::mpsc::channel;
+use std::sync::{Arc, OnceLock, RwLock};
+use std::thread;
+use std::thread::sleep;
+use std::time::Duration;
 
 lazy_static! {
-    static ref BACKEND_DATA_FILE: &'static str = "tobackend.json";
-    static ref BACKEND_DATA: BackendData = BackendDataStatic::import("tobackend.json");
+    static ref BACKEND_DATA_DIR: String = "tobackend".to_string();
+    static ref BACKEND_DATA_FILE: String = "tobackend.json".to_string();
 }
 
 pub struct BackendDataStatic;
 
 impl BackendDataStatic {
-    pub fn import(path: &'static str) -> BackendData {
-        // 读取 JSON 文件内容
-        if let Ok(data) = std::fs::read_to_string(path) {
-            // 将 JSON 文件内容反序列化为 Data 结构体
-            if let Ok(backend_data) = serde_json::from_str::<BackendData>(&data) {
-                return backend_data;
+    pub fn tobackend() -> &'static RwLock<Config> {
+        static BACKEND_DATA: OnceLock<RwLock<Config>> = OnceLock::new();
+        BACKEND_DATA.get_or_init(|| {
+            // 判断目录是否存在
+            if !Path::new(BACKEND_DATA_DIR.as_str()).exists() {
+                std::fs::create_dir(BACKEND_DATA_DIR.as_str()).unwrap();
+            }
+
+            // 判断文件是否存在
+            if !Path::new(format!("{}/{}", BACKEND_DATA_DIR.as_str(), BACKEND_DATA_FILE.as_str()).as_str()).exists() {
+                std::fs::write(
+                    format!("{}/{}", BACKEND_DATA_DIR.as_str(), BACKEND_DATA_FILE.as_str()).as_str(),
+                    "{}",
+                )
+                    .unwrap();
+            }
+
+            thread::spawn(|| {
+                Self::watch();
+            });
+
+            let backend_data = Config::builder()
+                .add_source(config::File::with_name(format!(
+                    "{}/{}",
+                    BACKEND_DATA_DIR.as_str(),
+                    BACKEND_DATA_FILE.as_str()
+                ).as_str()))
+                .build()
+                .unwrap();
+            RwLock::new(backend_data)
+        })
+    }
+    pub fn watch() {
+        // Create a channel to receive the events.
+        let (tx, rx) = channel();
+
+        // Automatically select the best implementation for your platform.
+        // You can also access each implementation directly e.g. INotifyWatcher.
+        let mut watcher: RecommendedWatcher = Watcher::new(
+            tx,
+            notify::Config::default().with_poll_interval(Duration::from_secs(2)),
+        )
+            .unwrap();
+
+        // Add a path to be watched. All files and directories at that path and
+        // below will be monitored for changes.
+        watcher
+            .watch(
+                Path::new(BACKEND_DATA_FILE.as_str()),
+                RecursiveMode::NonRecursive,
+            )
+            .unwrap_or_else(|_| {});
+
+        // This is a simple loop, but you may want to use more complex logic here,
+        // for example to handle I/O.
+        while let Ok(event) = rx.recv() {
+            if *stop_signal() {
+                break;
+            }
+            match event {
+                Ok(Event {
+                       kind: notify::event::EventKind::Modify(_),
+                       ..
+                   }) => {
+                    log_info!(format!("{} has been modified", BACKEND_DATA_FILE.as_str()));
+                    match Config::builder()
+                        .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
+                        .build()
+                    {
+                        Ok(backend_data) => {
+                            *Self::tobackend().write().unwrap() = backend_data;
+                        }
+                        Err(e) => {
+                            log_error!(format!("watch error: {:?}", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    log_error!(format!("watch error: {:?}", e));
+                }
+                _ => {}
             }
         }
-        panic!("Failed to import BackData");
     }
 
-    pub fn get_backend_data() -> &'static BackendData {
-        &BACKEND_DATA
+    pub fn get_backend_data() -> BackendData {
+        Self::tobackend()
+            .read()
+            .unwrap()
+            .clone()
+            .try_deserialize()
+            .unwrap_or(BackendData::default())
     }
 }
 
@@ -115,7 +203,6 @@ pub struct NetworkTransformBaseSetting {
     pub timeline_offset: bool,
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub struct NetworkTransformReliableSetting {
     #[serde(rename = "onlySyncOnChangeCorrectionMultiplier")]
@@ -160,7 +247,6 @@ pub struct NetworkBehaviourComponent {
     #[serde(rename = "networkTransformUnreliableSetting")]
     pub network_transform_unreliable_setting: NetworkTransformUnreliableSetting,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SnapshotInterpolationSetting {
@@ -249,7 +335,7 @@ pub struct NetworkIdentityData {
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BackendData {
     #[serde(rename = "methods")]
     pub methods: Vec<MethodData>,
@@ -267,19 +353,19 @@ pub struct BackendData {
 #[allow(dead_code)]
 impl BackendData {
     #[allow(dead_code)]
-    pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<&MethodData> {
-        for method_data in &self.methods {
+    pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<MethodData> {
+        for method_data in self.methods.iter() {
             if method_data.hash_code == hash_code {
-                return Some(method_data);
+                return Some(method_data.clone());
             }
         }
         None
     }
     #[allow(dead_code)]
-    pub fn get_method_data_by_method_name(&self, method_name: &str) -> Option<&MethodData> {
-        for method_data in &self.methods {
+    pub fn get_method_data_by_method_name(&self, method_name: &str) -> Option<MethodData> {
+        for method_data in self.methods.iter() {
             if method_data.name == method_name {
-                return Some(method_data);
+                return Some(method_data.clone());
             }
         }
         None
@@ -301,54 +387,74 @@ impl BackendData {
         hash_codes
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data_by_asset_id(&self, asset_id: u32) -> Option<&NetworkIdentityData> {
+    pub fn get_network_identity_data_by_asset_id(
+        &self,
+        asset_id: u32,
+    ) -> Option<NetworkIdentityData> {
         if asset_id == 0 {
             return None;
         }
-        for network_identity_data in &self.network_identities {
+        for network_identity_data in self.network_identities.iter() {
             if network_identity_data.asset_id == asset_id {
-                return Some(network_identity_data);
+                return Some(network_identity_data.clone());
             }
         }
         None
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data_by_scene_id(&self, scene_id: u64) -> Option<&NetworkIdentityData> {
+    pub fn get_network_identity_data_by_scene_id(
+        &self,
+        scene_id: u64,
+    ) -> Option<NetworkIdentityData> {
         if scene_id == 0 {
             return None;
         }
-        for network_identity_data in &self.network_identities {
+        for network_identity_data in self.network_identities.iter() {
             if network_identity_data.scene_id == scene_id {
-                return Some(network_identity_data);
+                return Some(network_identity_data.clone());
             }
         }
         None
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data_network_behaviour_components_by_asset_id(&self, asset_id: u32) -> Vec<&NetworkBehaviourComponent> {
+    pub fn get_network_identity_data_network_behaviour_components_by_asset_id(
+        &self,
+        asset_id: u32,
+    ) -> Vec<NetworkBehaviourComponent> {
         if asset_id == 0 {
             return Vec::new();
         }
         let mut network_behaviour_components = Vec::new();
         if let Some(network_identity_data) = self.get_network_identity_data_by_asset_id(asset_id) {
-            network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
+            network_behaviour_components = network_identity_data
+                .network_behaviour_components
+                .iter()
+                .map(|v| v.value.clone())
+                .collect();
         }
         network_behaviour_components
     }
     #[allow(dead_code)]
-    pub fn get_network_identity_data_network_behaviour_components_by_scene_id(&self, scene_id: u64) -> Vec<&NetworkBehaviourComponent> {
+    pub fn get_network_identity_data_network_behaviour_components_by_scene_id(
+        &self,
+        scene_id: u64,
+    ) -> Vec<NetworkBehaviourComponent> {
         if scene_id == 0 {
             return Vec::new();
         }
         let mut network_behaviour_components = Vec::new();
         if let Some(network_identity_data) = self.get_network_identity_data_by_scene_id(scene_id) {
-            network_behaviour_components = network_identity_data.network_behaviour_components.iter().map(|v| &v.value).collect();
+            network_behaviour_components = network_identity_data
+                .network_behaviour_components
+                .iter()
+                .map(|v| v.value.clone())
+                .collect();
         }
         network_behaviour_components
     }
     #[allow(dead_code)]
     pub fn get_scene_id_by_scene_name(&self, scene_name: &str) -> Option<u64> {
-        for scene_id in &self.scene_ids {
+        for scene_id in self.scene_ids.iter() {
             if scene_id.key == scene_name {
                 return Some(scene_id.value);
             }
@@ -356,7 +462,7 @@ impl BackendData {
         None
     }
     pub fn get_asset_id_by_asset_name(&self, asset_name: &str) -> Option<u32> {
-        for asset in &self.assets {
+        for asset in self.assets.iter() {
             if asset.value == asset_name {
                 return Some(asset.key);
             }
@@ -364,13 +470,13 @@ impl BackendData {
         None
     }
 
-    pub fn get_sync_var_data_s_by_sub_class(&self, sub_class: &str) -> Vec<&SyncVarData> {
+    pub fn get_sync_var_data_s_by_sub_class(&self, sub_class: &str) -> Vec<SyncVarData> {
         let mut sync_var_data_s = Vec::new();
         let mut seen_full_names = HashSet::new();
-        for sync_var_data in &self.sync_vars {
+        for sync_var_data in self.sync_vars.iter() {
             if sync_var_data.sub_class == sub_class {
                 if seen_full_names.insert(sync_var_data.full_name.clone()) {
-                    sync_var_data_s.push(sync_var_data);
+                    sync_var_data_s.push(sync_var_data.clone());
                 }
             }
         }
@@ -380,16 +486,17 @@ impl BackendData {
 
 #[cfg(test)]
 mod tests {
-    use crate::mirror::core::tools::stable_hash::StableHash;
     use super::*;
+    use crate::mirror::core::tools::stable_hash::StableHash;
 
     #[test]
     fn test_import_data() {
-        let backend_data = BackendDataStatic::import("tobackend.json");
+        let backend_data = BackendDataStatic::get_backend_data();
 
         println!("{:?}", backend_data.get_rpc_hash_code_s(42311));
 
-        let vec = backend_data.get_network_identity_data_network_behaviour_components_by_asset_id(3541431626);
+        let vec = backend_data
+            .get_network_identity_data_network_behaviour_components_by_asset_id(3541431626);
         for v in vec {
             println!("{:?}", v);
         }
@@ -398,11 +505,17 @@ mod tests {
             println!("{:?}", x);
         }
 
-        println!("{:?}", backend_data.get_network_identity_data_by_asset_id(0));
+        println!(
+            "{:?}",
+            backend_data.get_network_identity_data_by_asset_id(0)
+        );
 
         println!("{:?}", backend_data.network_manager_settings);
 
-        let method_data = backend_data.get_method_data_by_hash_code("System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)".get_fn_stable_hash_code());
+        let method_data = backend_data.get_method_data_by_hash_code(
+            "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)"
+                .get_fn_stable_hash_code(),
+        );
         println!("{:?}", method_data);
     }
 }

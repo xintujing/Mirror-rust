@@ -216,7 +216,7 @@ impl NetworkIdentity {
         {
             if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(
                 self.game_object.clone(),
-                component,
+                &component,
             ) {
                 self.network_behaviours.push(network_behaviour);
             }

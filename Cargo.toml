@@ -19,6 +19,8 @@ half = "2.4.1"
 rand = "0.9.0-beta.0"
 ordered-float = "4.5.0"
 signal-hook = "0.3.17"
+config = "0.13.4"
+notify = "7.0.0"
 
 [profile.dev]
 opt-level = 0      # 优化级别
