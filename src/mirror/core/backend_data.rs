@@ -2,6 +2,7 @@ use crate::mirror::core::network_loop::NetworkLoop;
 use crate::{log_error, log_info, stop_signal};
 use config::{Config, ConfigBuilder};
 use lazy_static::lazy_static;
+use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -61,7 +62,7 @@ impl BackendDataStatic {
         // You can also access each implementation directly e.g. INotifyWatcher.
         let mut watcher: RecommendedWatcher = Watcher::new(
             tx,
-            notify::Config::default().with_poll_interval(Duration::from_secs(2)),
+            notify::Config::default().with_poll_interval(Duration::from_secs(3)),
         )
             .unwrap();
 
@@ -82,7 +83,7 @@ impl BackendDataStatic {
             }
             match event {
                 Ok(Event {
-                       kind: notify::event::EventKind::Modify(_),
+                       kind: notify::event::EventKind::Modify(ModifyKind::Data(DataChange::Content)),
                        ..
                    }) => {
                     log_info!(format!("{} has been modified", BACKEND_DATA_FILE.as_str()));
