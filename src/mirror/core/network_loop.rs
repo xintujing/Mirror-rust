@@ -7,7 +7,7 @@ use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::transport::TransportTrait;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
-use crate::{log_debug, log_info};
+use crate::{log_debug, log_info, stop_signal};
 use signal_hook::iterator::Signals;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -109,24 +109,6 @@ impl NetworkLoop {
     fn on_destroy() {}
 
     pub fn run() {
-        // 创建一个通道来通知主任务退出
-        let (tx, rx) = crossbeam_channel::unbounded();
-
-        // 启动一个线程来监听终止信号
-        let mut signals =
-            Signals::new(&[signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM])
-                .expect("Failed to register signal handler");
-
-        let signal_tx = tx.clone();
-        thread::spawn(move || {
-            for sig in signals.forever() {
-                println!("\nSignal: {:?}", sig);
-                // 发送信号通知主任务退出
-                signal_tx.send(()).expect("Failed to send signal");
-                break;
-            }
-        });
-
         // 1
         Self::awake();
         // 2
@@ -140,7 +122,7 @@ impl NetworkLoop {
         let mut sleep_time: Duration;
         // 上一帧时间
         let mut previous_frame_time = Instant::now();
-        while let Err(_) = rx.try_recv() {
+        while !*stop_signal() {
             Self::fixed_update();
             Self::update();
             Self::late_update();
