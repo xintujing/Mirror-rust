@@ -19,6 +19,7 @@ fn main() {
     thread::spawn(move || {
         for sig in signals_info.forever() {
             println!("\nSignal: {:?}", sig);
+            *stop_signal() = true;
             break;
         }
     });
