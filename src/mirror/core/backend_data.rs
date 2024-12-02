@@ -1,3 +1,4 @@
+use crate::mirror::core::network_loop::NetworkLoop;
 use crate::{log_error, log_info, stop_signal};
 use config::{Config, ConfigBuilder};
 use lazy_static::lazy_static;
@@ -19,7 +20,7 @@ lazy_static! {
 pub struct BackendDataStatic;
 
 impl BackendDataStatic {
-    pub fn tobackend() -> &'static RwLock<Config> {
+    fn tobackend() -> &'static RwLock<Config> {
         static BACKEND_DATA: OnceLock<RwLock<Config>> = OnceLock::new();
         BACKEND_DATA.get_or_init(|| {
             // 判断目录是否存在
@@ -51,6 +52,7 @@ impl BackendDataStatic {
             RwLock::new(backend_data)
         })
     }
+
     pub fn watch() {
         // Create a channel to receive the events.
         let (tx, rx) = channel();
@@ -67,7 +69,7 @@ impl BackendDataStatic {
         // below will be monitored for changes.
         watcher
             .watch(
-                Path::new(BACKEND_DATA_FILE.as_str()),
+                Path::new(BACKEND_DATA_DIR.as_str()),
                 RecursiveMode::NonRecursive,
             )
             .unwrap_or_else(|_| {});
@@ -85,7 +87,11 @@ impl BackendDataStatic {
                    }) => {
                     log_info!(format!("{} has been modified", BACKEND_DATA_FILE.as_str()));
                     match Config::builder()
-                        .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
+                        .add_source(config::File::with_name(format!(
+                            "{}/{}",
+                            BACKEND_DATA_DIR.as_str(),
+                            BACKEND_DATA_FILE.as_str()
+                        ).as_str()))
                         .build()
                     {
                         Ok(backend_data) => {
