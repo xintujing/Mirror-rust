@@ -125,13 +125,13 @@ impl NetworkLoop {
         // 上一帧时间
         let mut previous_frame_time = Instant::now();
         while !*stop_signal() {
+            // 更新上一帧时间
+            previous_frame_time = Instant::now();
             Self::fixed_update();
             Self::update();
             Self::late_update();
             // 计算帧时间
             let elapsed_time = previous_frame_time.elapsed();
-            // 更新上一帧时间
-            previous_frame_time = Instant::now();
             // 计算休眠时间
             sleep_time = if elapsed_time < target_frame_time {
                 target_frame_time - elapsed_time

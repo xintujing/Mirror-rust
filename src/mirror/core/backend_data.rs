@@ -487,8 +487,6 @@ mod tests {
     fn test_import_data() {
         let backend_data = BackendDataStatic::get_backend_data();
 
-        println!("{:?}", backend_data.get_rpc_hash_code_s(42311));
-
         let vec = backend_data
             .get_network_identity_data_network_behaviour_components_by_asset_id(3541431626);
         for v in vec {
@@ -498,11 +496,6 @@ mod tests {
         for x in backend_data.get_sync_var_data_s_by_sub_class("QuickStart.PlayerScript") {
             println!("{:?}", x);
         }
-
-        println!(
-            "{:?}",
-            backend_data.get_network_identity_data_by_asset_id(0)
-        );
 
         println!("{:?}", backend_data.network_manager_settings);
 
