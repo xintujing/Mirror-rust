@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -36,11 +37,15 @@ impl BackendDataStatic {
                     .unwrap();
             }
 
-            let backend_data = Config::builder()
+            match Config::builder()
                 .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
                 .build()
-                .unwrap();
-            RwLock::new(backend_data)
+            {
+                Ok(backend_data) => RwLock::new(backend_data),
+                Err(e) => {
+                    panic!("Failed to read BackendData: {:?}", e);
+                }
+            }
         })
     }
 
@@ -99,17 +104,37 @@ impl BackendDataStatic {
     }
 
     pub fn get_backend_data() -> BackendData {
-        Self::tobackend()
-            .read()
-            .unwrap()
-            .clone()
-            .try_deserialize()
-            .unwrap_or(BackendData::default())
+        match Self::tobackend().read().unwrap().clone().try_deserialize() {
+            Ok(backend_data) => backend_data,
+            Err(e) => {
+                panic!("Failed to deserialize BackendData: {:?}", e);
+            }
+        }
+    }
+
+    pub fn import(path: &'static str) -> BackendData {
+        // 读取 JSON 文件内容
+        match std::fs::read_to_string(path) {
+            Ok(data) => {
+                // 将 JSON 文件内容反序列化为 Data 结构体
+                match serde_json::from_str::<BackendData>(&data) {
+                    Ok(backend_data) => backend_data,
+                    Err(e) => {
+                        panic!("Failed to deserialize BackendData: {:?}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                panic!("Failed to read BackendData: {:?}", e);
+            }
+        }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, Debug, Clone)]
+#[repr(u8)]
 pub enum MethodType {
+    None = 0,
     Command = 1,
     TargetRpc = 2,
     ClientRpc = 3,
@@ -132,8 +157,7 @@ pub struct MethodData {
     #[serde(rename = "requiresAuthority")]
     pub requires_authority: bool,
     #[serde(rename = "type")]
-    //TODO fix
-    pub r#type: String,
+    pub r#type: MethodType,
     #[serde(rename = "parameters")]
     pub parameters: Vec<KeyValue<String, String>>,
     #[serde(rename = "rpcList")]

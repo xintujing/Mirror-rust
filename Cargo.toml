@@ -22,6 +22,7 @@ signal-hook = "0.3.17"
 config = "0.13.4"
 notify = "7.0.0"
 serde_json = "1.0.133"
+serde_repr = "0.1.19"
 
 [profile.dev]
 opt-level = 0      # 优化级别
