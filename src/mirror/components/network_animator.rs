@@ -152,9 +152,9 @@ impl NetworkAnimator {
     fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -217,9 +217,9 @@ impl NetworkAnimator {
     fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -259,9 +259,9 @@ impl NetworkAnimator {
     fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -297,9 +297,9 @@ impl NetworkAnimator {
     fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -335,9 +335,9 @@ impl NetworkAnimator {
     fn invoke_user_code_cmd_set_animator_speed_single(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
