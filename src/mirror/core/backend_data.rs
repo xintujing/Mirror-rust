@@ -1,4 +1,4 @@
-use crate::{hot_reload_signal, log_error, log_info, stop_signal};
+use crate::{log_error, log_info, stop_signal};
 use config::Config;
 use lazy_static::lazy_static;
 use notify::event::{DataChange, ModifyKind};
@@ -36,10 +36,6 @@ impl BackendDataStatic {
                 })
                     .unwrap();
             }
-
-            thread::spawn(|| {
-                Self::watch();
-            });
 
             let backend_data = Config::builder()
                 .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
@@ -88,7 +84,6 @@ impl BackendDataStatic {
                         Ok(backend_data) => {
                             *Self::tobackend().write().unwrap() = backend_data;
                             *stop_signal() = true;
-                            *hot_reload_signal() = true;
                             log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
                         }
                         Err(e) => {

@@ -1,4 +1,4 @@
-use crate::{hot_reload_signal, log_error, log_info, stop_signal};
+use crate::{log_error, log_info, stop_signal};
 use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
@@ -28,10 +28,6 @@ impl Config {
                     .unwrap();
             }
 
-            thread::spawn(|| {
-                Self::watch();
-            });
-
             let backend_data = config::Config::builder()
                 .add_source(config::File::with_name(Self::CONFIG_FILE))
                 .build()
@@ -55,10 +51,7 @@ impl Config {
         // Add a path to be watched. All files and directories at that path and
         // below will be monitored for changes.
         watcher
-            .watch(
-                Path::new(Self::CONFIG_FILE),
-                RecursiveMode::NonRecursive,
-            )
+            .watch(Path::new(Self::CONFIG_FILE), RecursiveMode::NonRecursive)
             .unwrap_or_else(|_| {});
 
         // This is a simple loop, but you may want to use more complex logic here,
@@ -78,8 +71,6 @@ impl Config {
                     {
                         Ok(backend_data) => {
                             *Self::config().write().unwrap() = backend_data;
-                            *stop_signal() = true;
-                            *hot_reload_signal() = true;
                             log_info!(format!("{} has been updated", Self::CONFIG_FILE));
                         }
                         Err(e) => {
