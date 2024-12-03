@@ -173,6 +173,16 @@ impl NetworkManager {
         Self::register_server_messages();
     }
 
+    pub fn shutdown() {
+        unsafe {
+            NETWORK_MANAGER_SINGLETON.take();
+        }
+        START_POSITIONS.write().unwrap().clear();
+        START_POSITIONS_INDEX.store(0, Ordering::Relaxed);
+        NETWORK_SCENE_NAME.write().unwrap().clear();
+        NetworkServer::shutdown();
+    }
+
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
@@ -359,6 +369,7 @@ pub trait NetworkManagerTrait {
     // 字段 get  set
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
+    fn clear_authenticator(&mut self);
     fn offline_scene(&self) -> &str;
     fn set_offline_scene(&mut self, scene_name: &'static str);
     fn auto_create_player(&self) -> bool;
@@ -448,6 +459,10 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.authenticator.replace(authenticator);
+    }
+
+    fn clear_authenticator(&mut self) {
+        self.authenticator.take();
     }
 
     fn offline_scene(&self) -> &str {

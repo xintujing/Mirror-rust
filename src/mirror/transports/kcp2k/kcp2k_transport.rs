@@ -177,7 +177,10 @@ impl TransportTrait for Kcp2kTransport {
         let _ = self.kcp_serv.as_ref().unwrap().stop();
     }
 
-    fn shutdown(&mut self) {}
+    fn shutdown(&mut self) {
+        self.server_stop();
+        Transport::get_active_transport().take();
+    }
 
     fn set_transport_cb_fn(&mut self, func: TransportFunc) {
         self.transport.transport_cb_fn.replace(func);

@@ -93,6 +93,10 @@ impl UnBatcher {
 
         Some((message, remote_time_stamp))
     }
+
+    pub fn clear(&mut self) {
+        self.un_batches.clear();
+    }
 }
 
 #[cfg(test)]

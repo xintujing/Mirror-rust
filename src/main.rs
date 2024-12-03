@@ -1,12 +1,25 @@
 use mirror::core::network_loop::NetworkLoop;
 use signal_hook::iterator::Signals;
 use std::thread;
+use std::thread::sleep;
+
 mod mirror;
 mod quick_start;
 
 pub fn stop_signal() -> &'static mut bool {
     static mut STOP: bool = false;
     unsafe { &mut STOP }
+}
+
+// 热更新信号
+pub fn hot_reload_signal() -> &'static mut bool {
+    static mut HOT_RELOAD: bool = false;
+    unsafe { &mut HOT_RELOAD }
+}
+
+fn start() {
+    // NetworkLoop
+    NetworkLoop::run();
 }
 
 fn main() {
@@ -24,6 +37,18 @@ fn main() {
         }
     });
 
-    // NetworkLoop
-    NetworkLoop::run();
+    // 启动
+    start();
+    // 循环检测是否需要重启
+    loop {
+        if *hot_reload_signal() && *stop_signal() {
+            *stop_signal() = false;
+            *hot_reload_signal() = false;
+            start();
+        }
+        if *stop_signal() && !*hot_reload_signal() {
+            break;
+        }
+        sleep(std::time::Duration::from_secs(3));
+    }
 }

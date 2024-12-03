@@ -282,6 +282,8 @@ impl NetworkServer {
             return;
         }
 
+        NetworkServerStatic::set_initialized(true);
+
         NetworkServerStatic::set_early_update_duration(TimeSample::new(
             NetworkServerStatic::send_rate(),
         ));
@@ -321,7 +323,12 @@ impl NetworkServer {
             }
 
             NetworkServerStatic::set_active(false);
+            NetworkServerStatic::set_initialized(false);
         }
+        NETWORK_MESSAGE_HANDLERS.clear();
+        NetworkServerStatic::network_connections().clear();
+        NetworkServerStatic::spawned_network_identities().clear();
+        NetworkServerStatic::transport_data_un_batcher().write().unwrap().clear();
     }
 
     fn disconnect_all() {

@@ -1,4 +1,4 @@
-use crate::{log_error, log_info, stop_signal};
+use crate::{hot_reload_signal, log_error, log_info, stop_signal};
 use config::Config;
 use lazy_static::lazy_static;
 use notify::event::{DataChange, ModifyKind};
@@ -33,7 +33,8 @@ impl BackendDataStatic {
                         assets: Vec::new(),
                     };
                     serde_json::to_string_pretty(&backend_data).unwrap()
-                }).unwrap();
+                })
+                    .unwrap();
             }
 
             thread::spawn(|| {
@@ -86,6 +87,8 @@ impl BackendDataStatic {
                     {
                         Ok(backend_data) => {
                             *Self::tobackend().write().unwrap() = backend_data;
+                            *stop_signal() = true;
+                            *hot_reload_signal() = true;
                             log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
                         }
                         Err(e) => {

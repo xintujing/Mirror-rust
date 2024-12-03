@@ -5,7 +5,7 @@ use crate::mirror::core::network_manager::{
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
-use crate::mirror::core::transport::TransportTrait;
+use crate::mirror::core::transport::{Transport, TransportTrait};
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 use crate::{log_debug, stop_signal};
 use std::thread;
@@ -102,10 +102,15 @@ impl NetworkLoop {
     }
 
     // 7
-    fn on_disable() {}
+    fn on_disable() {
+        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        network_manager_singleton.clear_authenticator();
+    }
 
     // 8
-    fn on_destroy() {}
+    fn on_destroy() {
+        NetworkManager::shutdown();
+    }
 
     pub fn run() {
         // 1
