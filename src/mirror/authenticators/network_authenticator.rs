@@ -27,6 +27,7 @@ impl NetworkAuthenticatorTraitStatic {
 }
 
 pub trait NetworkAuthenticatorTrait: Send + Sync {
+    fn enable(self);
     fn on_auth_request_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel)
     where
         Self: Sized;

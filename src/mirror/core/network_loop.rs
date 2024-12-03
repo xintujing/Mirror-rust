@@ -1,4 +1,5 @@
 use crate::mirror::authenticators::basic_authenticator::BasicAuthenticator;
+use crate::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
@@ -23,9 +24,7 @@ impl NetworkLoop {
 
     // 2
     fn on_enable() {
-        let authenticator = BasicAuthenticator::new("123".to_string(), "456".to_string());
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
-        network_manager_singleton.set_authenticator(Box::new(authenticator));
+        BasicAuthenticator::new("123".to_string(), "456".to_string()).enable();
     }
 
     // 3
@@ -103,8 +102,7 @@ impl NetworkLoop {
 
     // 7
     fn on_disable() {
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
-        network_manager_singleton.clear_authenticator();
+        NetworkManagerStatic::get_network_manager_singleton().dis_enable_authenticator();
     }
 
     // 8
