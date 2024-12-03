@@ -12,7 +12,6 @@ use std::thread;
 use std::time::Duration;
 
 lazy_static! {
-    static ref BACKEND_DATA_DIR: String = "tobackend".to_string();
     static ref BACKEND_DATA_FILE: String = "tobackend.json".to_string();
 }
 
@@ -22,32 +21,9 @@ impl BackendDataStatic {
     fn tobackend() -> &'static RwLock<Config> {
         static BACKEND_DATA: OnceLock<RwLock<Config>> = OnceLock::new();
         BACKEND_DATA.get_or_init(|| {
-            // 判断目录是否存在
-            if !Path::new(BACKEND_DATA_DIR.as_str()).exists() {
-                std::fs::create_dir(BACKEND_DATA_DIR.as_str()).unwrap();
-            }
-
             // 判断文件是否存在
-            if !Path::new(
-                format!(
-                    "{}/{}",
-                    BACKEND_DATA_DIR.as_str(),
-                    BACKEND_DATA_FILE.as_str()
-                )
-                    .as_str(),
-            )
-                .exists()
-            {
-                std::fs::write(
-                    format!(
-                        "{}/{}",
-                        BACKEND_DATA_DIR.as_str(),
-                        BACKEND_DATA_FILE.as_str()
-                    )
-                        .as_str(),
-                    "{}",
-                )
-                    .unwrap();
+            if !Path::new(BACKEND_DATA_FILE.as_str()).exists() {
+                std::fs::write(BACKEND_DATA_FILE.as_str(), "{}").unwrap();
             }
 
             thread::spawn(|| {
@@ -55,14 +31,7 @@ impl BackendDataStatic {
             });
 
             let backend_data = Config::builder()
-                .add_source(config::File::with_name(
-                    format!(
-                        "{}/{}",
-                        BACKEND_DATA_DIR.as_str(),
-                        BACKEND_DATA_FILE.as_str()
-                    )
-                        .as_str(),
-                ))
+                .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
                 .build()
                 .unwrap();
             RwLock::new(backend_data)
@@ -85,7 +54,7 @@ impl BackendDataStatic {
         // below will be monitored for changes.
         watcher
             .watch(
-                Path::new(BACKEND_DATA_DIR.as_str()),
+                Path::new(BACKEND_DATA_FILE.as_str()),
                 RecursiveMode::NonRecursive,
             )
             .unwrap_or_else(|_| {});
@@ -101,20 +70,13 @@ impl BackendDataStatic {
                        kind: notify::event::EventKind::Modify(ModifyKind::Data(DataChange::Content)),
                        ..
                    }) => {
-                    log_info!(format!("{} has been modified", BACKEND_DATA_FILE.as_str()));
                     match Config::builder()
-                        .add_source(config::File::with_name(
-                            format!(
-                                "{}/{}",
-                                BACKEND_DATA_DIR.as_str(),
-                                BACKEND_DATA_FILE.as_str()
-                            )
-                                .as_str(),
-                        ))
+                        .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
                         .build()
                     {
                         Ok(backend_data) => {
                             *Self::tobackend().write().unwrap() = backend_data;
+                            log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
                         }
                         Err(e) => {
                             log_error!(format!("watch error: {:?}", e));
