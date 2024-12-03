@@ -11,7 +11,7 @@ pub fn stop_signal() -> &'static mut bool {
     unsafe { &mut STOP }
 }
 
-// 热更新信号
+// 热重载配置
 pub fn hot_reload_signal() -> &'static mut bool {
     static mut HOT_RELOAD: bool = false;
     unsafe { &mut HOT_RELOAD }
