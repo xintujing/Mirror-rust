@@ -1,4 +1,5 @@
 use crate::log_error;
+use crate::mirror::config::config::Config;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
@@ -90,7 +91,7 @@ impl TransportTrait for Kcp2kTransport {
             transport: Transport::default(),
             server_active: false,
             config: Default::default(),
-            port: 7777,
+            port: Config::get_config().port,
             kcp_serv: None,
             kcp_serv_rx: None,
         };

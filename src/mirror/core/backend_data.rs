@@ -23,7 +23,17 @@ impl BackendDataStatic {
         BACKEND_DATA.get_or_init(|| {
             // 判断文件是否存在
             if !Path::new(BACKEND_DATA_FILE.as_str()).exists() {
-                std::fs::write(BACKEND_DATA_FILE.as_str(), "{}").unwrap();
+                std::fs::write(BACKEND_DATA_FILE.as_str(), {
+                    let backend_data = BackendData {
+                        methods: Vec::new(),
+                        network_identities: Vec::new(),
+                        network_manager_settings: Vec::new(),
+                        scene_ids: Vec::new(),
+                        sync_vars: Vec::new(),
+                        assets: Vec::new(),
+                    };
+                    serde_json::to_string_pretty(&backend_data).unwrap()
+                }).unwrap();
             }
 
             thread::spawn(|| {
