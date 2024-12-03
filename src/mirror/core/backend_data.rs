@@ -1,6 +1,5 @@
-use crate::mirror::core::network_loop::NetworkLoop;
 use crate::{log_error, log_info, stop_signal};
-use config::{Config, ConfigBuilder};
+use config::Config;
 use lazy_static::lazy_static;
 use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
@@ -8,9 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::mpsc::channel;
-use std::sync::{Arc, OnceLock, RwLock};
+use std::sync::{OnceLock, RwLock};
 use std::thread;
-use std::thread::sleep;
 use std::time::Duration;
 
 lazy_static! {
@@ -30,9 +28,23 @@ impl BackendDataStatic {
             }
 
             // 判断文件是否存在
-            if !Path::new(format!("{}/{}", BACKEND_DATA_DIR.as_str(), BACKEND_DATA_FILE.as_str()).as_str()).exists() {
+            if !Path::new(
+                format!(
+                    "{}/{}",
+                    BACKEND_DATA_DIR.as_str(),
+                    BACKEND_DATA_FILE.as_str()
+                )
+                    .as_str(),
+            )
+                .exists()
+            {
                 std::fs::write(
-                    format!("{}/{}", BACKEND_DATA_DIR.as_str(), BACKEND_DATA_FILE.as_str()).as_str(),
+                    format!(
+                        "{}/{}",
+                        BACKEND_DATA_DIR.as_str(),
+                        BACKEND_DATA_FILE.as_str()
+                    )
+                        .as_str(),
                     "{}",
                 )
                     .unwrap();
@@ -43,11 +55,14 @@ impl BackendDataStatic {
             });
 
             let backend_data = Config::builder()
-                .add_source(config::File::with_name(format!(
-                    "{}/{}",
-                    BACKEND_DATA_DIR.as_str(),
-                    BACKEND_DATA_FILE.as_str()
-                ).as_str()))
+                .add_source(config::File::with_name(
+                    format!(
+                        "{}/{}",
+                        BACKEND_DATA_DIR.as_str(),
+                        BACKEND_DATA_FILE.as_str()
+                    )
+                        .as_str(),
+                ))
                 .build()
                 .unwrap();
             RwLock::new(backend_data)
@@ -88,11 +103,14 @@ impl BackendDataStatic {
                    }) => {
                     log_info!(format!("{} has been modified", BACKEND_DATA_FILE.as_str()));
                     match Config::builder()
-                        .add_source(config::File::with_name(format!(
-                            "{}/{}",
-                            BACKEND_DATA_DIR.as_str(),
-                            BACKEND_DATA_FILE.as_str()
-                        ).as_str()))
+                        .add_source(config::File::with_name(
+                            format!(
+                                "{}/{}",
+                                BACKEND_DATA_DIR.as_str(),
+                                BACKEND_DATA_FILE.as_str()
+                            )
+                                .as_str(),
+                        ))
                         .build()
                     {
                         Ok(backend_data) => {

@@ -7,8 +7,7 @@ use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::transport::TransportTrait;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
-use crate::{log_debug, log_info, stop_signal};
-use signal_hook::iterator::Signals;
+use crate::{log_debug, stop_signal};
 use std::thread;
 use std::time::{Duration, Instant};
 
