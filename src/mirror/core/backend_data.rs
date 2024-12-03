@@ -8,7 +8,6 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::mpsc::channel;
 use std::sync::{OnceLock, RwLock};
-use std::thread;
 use std::time::Duration;
 
 lazy_static! {
