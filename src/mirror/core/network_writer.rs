@@ -182,9 +182,10 @@ pub trait NetworkWriterTrait {
 
     fn write_quaternion(&mut self, value: Quaternion<f32>);
     fn write_quaternion_nullable(&mut self, value: Option<Quaternion<f32>>);
-
-    fn compress_var_int(&mut self, value: i64);
-    fn compress_var_uint(&mut self, value: u64);
+    fn compress_var_int(&mut self, value: i32);
+    fn compress_var_uint(&mut self, value: u32);
+    fn compress_var_long(&mut self, value: i64);
+    fn compress_var_ulong(&mut self, value: u64);
 }
 
 pub trait Writeable {

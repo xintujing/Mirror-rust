@@ -130,15 +130,15 @@ impl NetworkWriterTrait for NetworkWriter {
 
     fn write_bytes_and_size(&mut self, value: Vec<u8>, offset: usize, count: usize) {
         if value.len() == 0 {
-            self.compress_var_uint(0);
+            self.compress_var_ulong(0);
             return;
         }
-        self.compress_var_uint(1 + count as u64);
+        self.compress_var_ulong(1 + count as u64);
         self.write_bytes(value, offset, count);
     }
 
     fn write_array_segment_and_size(&mut self, value: &[u8], offset: usize, count: usize) {
-        self.compress_var_uint(1 + count as u64);
+        self.compress_var_ulong(1 + count as u64);
         self.write_array_segment(value, offset, count);
     }
 
@@ -190,12 +190,20 @@ impl NetworkWriterTrait for NetworkWriter {
         }
     }
 
-    fn compress_var_int(&mut self, value: i64) {
-        let zigzagged = ((value >> 63) ^ (value << 1)) as u64;
-        self.compress_var_uint(zigzagged);
+    fn compress_var_int(&mut self, value: i32) {
+        self.compress_var_uint(value as u32);
     }
 
-    fn compress_var_uint(&mut self, value: u64) {
+    fn compress_var_uint(&mut self, value: u32) {
+        self.compress_var_ulong(value as u64);
+    }
+
+    fn compress_var_long(&mut self, value: i64) {
+        let zigzagged = ((value >> 63) ^ (value << 1)) as u64;
+        self.compress_var_ulong(zigzagged);
+    }
+
+    fn compress_var_ulong(&mut self, value: u64) {
         if value <= 240 {
             self.write_byte(value as u8);
             return;

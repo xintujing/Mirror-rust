@@ -111,7 +111,7 @@ mod tests {
         let mut batch_writer = NetworkWriter::new();
 
         batch_writer.write_double(0.1);
-        batch_writer.compress_var_uint(5);
+        batch_writer.compress_var_ulong(5);
         batch_writer.write_array_segment_all(&[1, 2, 3, 4, 5]);
         batch.extend_from_slice(&batch_writer.to_array_segment());
 

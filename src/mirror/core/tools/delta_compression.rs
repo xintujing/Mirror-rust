@@ -6,7 +6,7 @@ pub struct DeltaCompression;
 
 impl DeltaCompression {
     pub fn compress_long(writer: &mut NetworkWriter, last: i64, current: i64) {
-        writer.compress_var_int(current - last);
+        writer.compress_var_long(current - last);
     }
     pub fn decompress_long(reader: &mut NetworkReader, last: i64) -> i64 {
         last + reader.decompress_var_int()

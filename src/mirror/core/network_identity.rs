@@ -294,10 +294,10 @@ impl NetworkIdentity {
         let (owner_mask, observers_mask) = self.server_dirty_masks(initial_state);
 
         if owner_mask != 0 {
-            owner_writer.compress_var_uint(owner_mask);
+            owner_writer.compress_var_ulong(owner_mask);
         }
         if observers_mask != 0 {
-            observers_writer.compress_var_uint(observers_mask);
+            observers_writer.compress_var_ulong(observers_mask);
         }
 
         if (owner_mask | observers_mask) != 0 {

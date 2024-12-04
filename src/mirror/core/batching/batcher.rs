@@ -59,7 +59,7 @@ impl Batcher {
         }
 
         if let Some(ref mut batcher) = self.batcher {
-            batcher.compress_var_uint(message.len() as u64);
+            batcher.compress_var_ulong(message.len() as u64);
             batcher.write_array_segment(message, 0, message.len());
         }
     }

@@ -4,7 +4,8 @@ use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
 use nalgebra::{Quaternion, Vector3};
 
-pub type NetworkMessageHandlerFunc = Box<dyn Fn(u64, &mut NetworkReader, TransportChannel) + Send + Sync>;
+pub type NetworkMessageHandlerFunc =
+Box<dyn Fn(u64, &mut NetworkReader, TransportChannel) + Send + Sync>;
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,
@@ -224,7 +225,12 @@ pub struct RpcMessage {
 }
 impl RpcMessage {
     #[allow(dead_code)]
-    pub fn new(net_id: u32, component_index: u8, function_hash: u16, payload: Vec<u8>) -> RpcMessage {
+    pub fn new(
+        net_id: u32,
+        component_index: u8,
+        function_hash: u16,
+        payload: Vec<u8>,
+    ) -> RpcMessage {
         RpcMessage {
             net_id,
             component_index,
@@ -336,11 +342,11 @@ impl NetworkMessageTrait for SpawnMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
-        writer.write_uint(self.net_id);
+        writer.compress_var_uint(self.net_id);
         writer.write_bool(self.is_local_player);
         writer.write_bool(self.is_owner);
-        writer.write_ulong(self.scene_id);
-        writer.write_uint(self.asset_id);
+        writer.compress_var_ulong(self.scene_id);
+        writer.compress_var_uint(self.asset_id);
         writer.write_vector3(self.position);
         writer.write_quaternion(self.rotation);
         writer.write_vector3(self.scale);
