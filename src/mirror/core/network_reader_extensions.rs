@@ -119,19 +119,19 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_var_int(&mut self) -> i32 {
-        self.decompress_var_int() as i32
+        self.decompress_var_long() as i32
     }
 
     fn read_var_uint(&mut self) -> u32 {
-        self.decompress_var_uint() as u32
+        self.decompress_var_ulong() as u32
     }
 
     fn read_var_long(&mut self) -> i64 {
-        self.decompress_var_int()
+        self.decompress_var_long()
     }
 
     fn read_var_ulong(&mut self) -> u64 {
-        self.decompress_var_uint()
+        self.decompress_var_ulong()
     }
 
     fn read_decimal(&mut self) -> Decimal {
@@ -147,7 +147,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_bytes_and_size(&mut self) -> Vec<u8> {
-        let count = self.read_uint() as usize;
+        let count = self.decompress_var_uint() as usize;
         if count == 0 {
             return Vec::new();
         }
@@ -155,7 +155,7 @@ impl NetworkReaderTrait for NetworkReader {
     }
 
     fn read_array_segment_and_size(&mut self) -> &[u8] {
-        let count = self.read_uint() as usize;
+        let count = self.decompress_var_uint() as usize;
         if count == 0 {
             return &[];
         }
@@ -214,12 +214,109 @@ impl NetworkReaderTrait for NetworkReader {
         }
     }
 
-    fn decompress_var_int(&mut self) -> i64 {
-        let data = self.decompress_var_uint() as i64;
+    fn decompress_var(&mut self) -> Vec<u8> {
+        let mut value = Vec::new();
+        let a0 = self.read_byte();
+        if a0 < 241 {
+            value.push(a0);
+            return value;
+        }
+
+        let a1 = self.read_byte();
+        if a0 <= 248 {
+            value.push(a0);
+            value.push(a1);
+            return value;
+        }
+
+        let a2 = self.read_byte();
+        if a0 == 249 {
+            value.push(a1);
+            value.push(a2);
+            return value;
+        }
+
+        let a3 = self.read_byte();
+        if a0 == 250 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            return value;
+        }
+
+        let a4 = self.read_byte();
+        if a0 == 251 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            value.push(a4);
+            return value;
+        }
+
+        let a5 = self.read_byte();
+        if a0 == 252 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            value.push(a4);
+            value.push(a5);
+            return value;
+        }
+
+        let a6 = self.read_byte();
+        if a0 == 253 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            value.push(a4);
+            value.push(a5);
+            value.push(a6);
+            return value;
+        }
+
+        let a7 = self.read_byte();
+        if a0 == 254 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            value.push(a4);
+            value.push(a5);
+            value.push(a6);
+            value.push(a7);
+            return value;
+        }
+
+        let a8 = self.read_byte();
+        if a0 == 255 {
+            value.push(a1);
+            value.push(a2);
+            value.push(a3);
+            value.push(a4);
+            value.push(a5);
+            value.push(a6);
+            value.push(a7);
+            value.push(a8);
+            return value;
+        }
+        log_trace!("DecompressVarUInt failure: {}", a0);
+        value.push(0u8);
+        value
+    }
+
+    fn decompress_var_int(&mut self) -> i32 {
+        self.decompress_var_long() as i32
+    }
+
+    fn decompress_var_uint(&mut self) -> u32 {
+        self.decompress_var_ulong() as u32
+    }
+
+    fn decompress_var_long(&mut self) -> i64 {
+        let data = self.decompress_var_ulong() as i64;
         (data >> 1) ^ -(data & 1)
     }
 
-    fn decompress_var_uint(&mut self) -> u64 {
+    fn decompress_var_ulong(&mut self) -> u64 {
         let a0 = self.read_byte() as u64;
         if a0 < 241 {
             return a0;
@@ -262,7 +359,14 @@ impl NetworkReaderTrait for NetworkReader {
 
         let a8 = self.read_byte() as u64;
         if a0 == 255 {
-            return a1 + (a2 << 8) + (a3 << 16) + (a4 << 24) + (a5 << 32) + (a6 << 40) + (a7 << 48) + (a8 << 56);
+            return a1
+                + (a2 << 8)
+                + (a3 << 16)
+                + (a4 << 24)
+                + (a5 << 32)
+                + (a6 << 40)
+                + (a7 << 48)
+                + (a8 << 56);
         }
         log_trace!("DecompressVarUInt failure: {}", a0);
         0

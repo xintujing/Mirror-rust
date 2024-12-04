@@ -9,7 +9,7 @@ impl DeltaCompression {
         writer.compress_var_long(current - last);
     }
     pub fn decompress_long(reader: &mut NetworkReader, last: i64) -> i64 {
-        last + reader.decompress_var_int()
+        last + reader.decompress_var_long()
     }
     pub fn compress_vector3long(writer: &mut NetworkWriter, last: Vector3<i64>, current: Vector3<i64>) {
         Self::compress_long(writer, last.x, current.x);

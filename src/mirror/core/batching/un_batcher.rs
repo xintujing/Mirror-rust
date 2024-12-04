@@ -83,7 +83,7 @@ impl UnBatcher {
             return None;
         }
 
-        let size = self.un_batcher.decompress_var_uint() as usize;
+        let size = self.un_batcher.decompress_var_ulong() as usize;
 
         if self.un_batcher.remaining() < size {
             return None;

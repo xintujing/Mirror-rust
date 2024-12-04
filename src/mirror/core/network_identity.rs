@@ -329,7 +329,7 @@ impl NetworkIdentity {
     pub fn deserialize_server(&mut self, reader: &mut NetworkReader) -> bool {
         self.validate_components();
 
-        let mask = reader.decompress_var_uint();
+        let mask = reader.decompress_var_ulong();
 
         for (i, component) in self.network_behaviours.iter_mut().enumerate() {
             if Self::is_dirty(mask, i as u8) {

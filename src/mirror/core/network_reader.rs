@@ -182,9 +182,11 @@ pub trait NetworkReaderTrait {
 
     fn read_quaternion(&mut self) -> Quaternion<f32>;
     fn read_quaternion_nullable(&mut self) -> Option<Quaternion<f32>>;
-
-    fn decompress_var_int(&mut self) -> i64;
-    fn decompress_var_uint(&mut self) -> u64;
+    fn decompress_var(&mut self) -> Vec<u8>;
+    fn decompress_var_int(&mut self) -> i32;
+    fn decompress_var_uint(&mut self) -> u32;
+    fn decompress_var_long(&mut self) -> i64;
+    fn decompress_var_ulong(&mut self) -> u64;
 }
 
 impl fmt::Display for NetworkReader {

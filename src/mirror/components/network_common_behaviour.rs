@@ -74,12 +74,18 @@ impl NetworkCommonBehaviour {
             }
             // 常规类型
 
+            // 压缩类型
+            // TODO fix
+            "System.Int32" | "System.UInt32" | "System.Long" | "System.ULong" => {
+                value = reader.decompress_var()
+            }
+
             // 4 字节
-            "System.Int32" | "System.Float" => {
+            "System.Float" => {
                 value = reader.read_bytes(4);
             }
             // 8 字节
-            "System.Int64" | "System.Double" => {
+            "System.Double" => {
                 value = reader.read_bytes(8);
             }
             // 12 字节

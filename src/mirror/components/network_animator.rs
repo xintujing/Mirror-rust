@@ -128,9 +128,9 @@ impl NetworkAnimator {
             .downcast_mut::<Self>()
             .unwrap()
             .user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
-                reader.read_int(),
+                reader.decompress_var_int(),
                 reader.read_float(),
-                reader.read_int(),
+                reader.decompress_var_int(),
                 reader.read_float(),
                 reader.read_remaining_bytes(),
             );
@@ -334,9 +334,9 @@ impl NetworkAnimator {
         parameters: Vec<u8>,
     ) {
         NetworkWriterPool::get_return(|writer| {
-            writer.write_int(state_hash);
+            writer.compress_var_int(state_hash);
             writer.write_float(normalized_time);
-            writer.write_int(layer_id);
+            writer.compress_var_int(layer_id);
             writer.write_float(weight);
             writer.write_bytes_all(parameters);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationClientMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", -392669502, writer, TransportChannel::Reliable, true);
@@ -354,7 +354,7 @@ impl NetworkAnimator {
     // 3 RpcOnAnimationTriggerClientMessage(int stateHash)
     fn rpc_on_animation_trigger_client_message(&mut self, state_hash: i32) {
         NetworkWriterPool::get_return(|writer| {
-            writer.write_int(state_hash);
+            writer.compress_var_int(state_hash);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationTriggerClientMessage(System.Int32)", 1759094990, writer, TransportChannel::Reliable, true);
         });
     }
@@ -362,7 +362,7 @@ impl NetworkAnimator {
     // 4 RpcOnAnimationResetTriggerClientMessage(int stateHash)
     fn rpc_on_animation_reset_trigger_client_message(&mut self, state_hash: i32) {
         NetworkWriterPool::get_return(|writer| {
-            writer.write_int(state_hash);
+            writer.compress_var_int(state_hash);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationResetTriggerClientMessage(System.Int32)", 1545278305, writer, TransportChannel::Reliable, true);
         });
     }
