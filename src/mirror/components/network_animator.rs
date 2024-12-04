@@ -1,4 +1,3 @@
-use crate::log_error;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -13,6 +12,9 @@ use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use crate::{log_debug, log_error};
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::any::Any;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Once;
@@ -27,46 +29,13 @@ pub struct NetworkAnimator {
     last_int_parameters: Vec<i32>,
     last_float_parameters: Vec<f32>,
     last_bool_parameters: Vec<bool>,
-    parameters: Vec<AnimatorControllerParameter>,
-    animation_hash: Vec<i32>,
-    transition_hash: Vec<i32>,
-    layer_weight: Vec<f32>,
-    next_send_time: f64,
 }
 
 impl NetworkAnimator {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkAnimator";
 
-    fn send_messages_allowed(&self) -> bool {
-        if !self.client_authority {
-            return true;
-        }
-        if self.network_behaviour.index != 0 && self.network_behaviour.connection_to_client != 0 {
-            return true;
-        }
-        self.client_authority
-    }
-
-    //  no use start
-    fn check_send_rate(&mut self) {
-        let now = NetworkTime::local_time();
-
-        if self.send_messages_allowed()
-            && self.network_behaviour.sync_interval >= 0.0
-            && now >= self.next_send_time
-        {
-            self.next_send_time = now + self.network_behaviour.sync_interval;
-        }
-
-        NetworkWriterPool::get_return(|writer| {
-            if self.write_parameters(writer, false) {
-                // send_animation_parameters_message
-            }
-        })
-    }
-
     fn write_parameters(&mut self, writer: &mut NetworkWriter, force_all: bool) -> bool {
-        let parameter_count = self.parameters.len() as u8;
+        let parameter_count = self.animator.parameters.len() as u8;
         writer.write_byte(parameter_count);
 
         let mut dirty_bits = 0;
@@ -82,14 +51,23 @@ impl NetworkAnimator {
                 continue;
             }
 
-            let par = &self.parameters[i];
+            let par = &self.animator.parameters[i];
 
-            if par.r#type() == &AnimatorControllerParameterType::Int {
-                writer.write_int(self.last_int_parameters[i]);
-            } else if par.r#type() == &AnimatorControllerParameterType::Float {
-                writer.write_float(self.last_float_parameters[i]);
-            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
-                writer.write_bool(self.last_bool_parameters[i]);
+            if par.r#type == AnimatorParameterType::Int {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let int_value = reader.read_int();
+                    writer.write_int(int_value);
+                });
+            } else if par.r#type == AnimatorParameterType::Float {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let float_value = reader.read_float();
+                    writer.write_float(float_value);
+                });
+            } else if par.r#type == AnimatorParameterType::Bool {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let bool_value = reader.read_bool();
+                    writer.write_bool(bool_value);
+                });
             }
         }
 
@@ -98,27 +76,33 @@ impl NetworkAnimator {
 
     fn next_dirty_bits(&mut self) -> u64 {
         let mut dirty_bits = 0;
-        for i in 0..self.parameters.len() {
-            let par = &self.parameters[i];
+        for i in 0..self.animator.parameters.len() {
+            let par = &self.animator.parameters[i];
             let mut changed = false;
-            if par.r#type() == &AnimatorControllerParameterType::Int {
-                let new_int_value = self.animator.get_integer(par.name_hash());
-                changed |= self.last_int_parameters[i] != new_int_value;
-                if changed {
-                    self.last_int_parameters[i] = new_int_value;
-                }
-            } else if par.r#type() == &AnimatorControllerParameterType::Float {
-                let new_float_value = self.animator.get_float(par.name_hash());
-                changed |= (new_float_value - self.last_float_parameters[i]).abs() > 0.001;
-                if changed {
-                    self.last_float_parameters[i] = new_float_value;
-                }
-            } else if par.r#type() == &AnimatorControllerParameterType::Bool {
-                let new_bool_value = self.animator.get_bool(par.name_hash());
-                changed |= self.last_bool_parameters[i] != new_bool_value;
-                if changed {
-                    self.last_bool_parameters[i] = new_bool_value;
-                }
+            if par.r#type == AnimatorParameterType::Int {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let new_int_value = reader.read_int();
+                    changed |= self.last_int_parameters[i] != new_int_value;
+                    if changed {
+                        self.last_int_parameters[i] = new_int_value;
+                    }
+                });
+            } else if par.r#type == AnimatorParameterType::Float {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let new_float_value = reader.read_float();
+                    changed |= (new_float_value - self.last_float_parameters[i]).abs() > 0.001;
+                    if changed {
+                        self.last_float_parameters[i] = new_float_value;
+                    }
+                });
+            } else if par.r#type == AnimatorParameterType::Bool {
+                NetworkReaderPool::get_with_bytes_return(par.value.to_vec(), |reader| {
+                    let new_bool_value = reader.read_bool();
+                    changed |= self.last_bool_parameters[i] != new_bool_value;
+                    if changed {
+                        self.last_bool_parameters[i] = new_bool_value;
+                    }
+                });
             }
             if changed {
                 dirty_bits |= 1 << i;
@@ -126,27 +110,6 @@ impl NetworkAnimator {
         }
         dirty_bits
     }
-
-    fn send_animation_parameters_message(&mut self, parameters: Vec<u8>) {
-        self.cmd_on_animation_parameters_server_message(parameters);
-    }
-
-    fn cmd_on_animation_parameters_server_message(&mut self, parameters: Vec<u8>) {
-        NetworkWriterPool::get_return(|writer| {
-            writer.write_bytes_all(parameters);
-        })
-    }
-
-    fn send_animation_message(
-        &mut self,
-        state_hash: i32,
-        normalized_time: f32,
-        layer_id: i32,
-        weight: f32,
-        parameters: Vec<u8>,
-    ) {}
-
-    // no use end
 
     // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
@@ -415,25 +378,40 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         Self: Sized,
     {
         Self::call_register_delegate();
-        // TODO  Initialize
+        // last_parameters_count
+        let last_parameters_count = network_behaviour_component
+            .network_animator_setting
+            .animator
+            .parameters
+            .len();
+        // layer_count
+        let layer_count = network_behaviour_component
+            .network_animator_setting
+            .animator
+            .layers
+            .len();
         let animator = Self {
             network_behaviour: NetworkBehaviour::new(
                 game_object,
                 network_behaviour_component.network_behaviour_setting,
                 network_behaviour_component.index,
             ),
-            client_authority: true,
-            animator: Animator::new(),
-            animator_speed: 1.0,
-            previous_speed: 1.0,
-            last_int_parameters: Vec::default(),
-            last_float_parameters: Vec::default(),
-            last_bool_parameters: Vec::default(),
-            parameters: Vec::default(),
-            animation_hash: Vec::default(),
-            transition_hash: Vec::default(),
-            layer_weight: Vec::default(),
-            next_send_time: 0.0,
+            client_authority: network_behaviour_component
+                .network_animator_setting
+                .client_authority,
+            animator: network_behaviour_component
+                .network_animator_setting
+                .animator
+                .clone(),
+            animator_speed: network_behaviour_component
+                .network_animator_setting
+                .animator_speed,
+            previous_speed: network_behaviour_component
+                .network_animator_setting
+                .previous_speed,
+            last_int_parameters: Vec::with_capacity(last_parameters_count),
+            last_float_parameters: Vec::with_capacity(last_parameters_count),
+            last_bool_parameters: Vec::with_capacity(last_parameters_count),
         };
         animator
     }
@@ -442,6 +420,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     where
         Self: Sized,
     {
+        log_debug!("Registering delegate for ", Self::COMPONENT_TAG);
         // 1 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", new RemoteCallDelegate(NetworkAnimator.invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte\u005B\u005D), true);
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])",
@@ -601,8 +580,16 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         // 默认实现 end
 
         if initial_state {
-            let layer_count = self.animator.layer_count as u8;
+            let layer_count = self.animator.layers.len() as u8;
             writer.write_byte(layer_count);
+
+            for layer in self.animator.layers.iter() {
+                writer.write_int(layer.full_path_hash);
+                writer.write_float(layer.normalized_time);
+                writer.write_float(layer.layer_weight);
+            }
+
+            self.write_parameters(writer, true);
         }
     }
 
@@ -610,102 +597,42 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self
     }
 
-    fn fixed_update(&mut self) {
-        if !self.send_messages_allowed() {
-            return;
-        }
-    }
+    fn fixed_update(&mut self) {}
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+pub struct AnimatorLayer {
+    #[serde(rename = "fullPathHash")]
+    pub full_path_hash: i32,
+    #[serde(rename = "normalizedTime")]
+    pub normalized_time: f32,
+    #[serde(rename = "layerWeight")]
+    pub layer_weight: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnimatorParameter {
+    #[serde(rename = "index")]
+    pub index: i32,
+    #[serde(rename = "type")]
+    pub r#type: AnimatorParameterType,
+    #[serde(rename = "value")]
+    pub value: Vec<u8>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Animator {
-    pub layer_count: i32,
-}
-impl Animator {
-    pub fn new() -> Self {
-        Self { layer_count: 0 }
-    }
-
-    pub fn get_integer(&self, id: i32) -> i32 {
-        id
-    }
-    pub fn get_float(&self, id: i32) -> f32 {
-        id as f32
-    }
-
-    pub fn get_bool(&self, id: i32) -> bool {
-        id > 0
-    }
+    #[serde(rename = "layers")]
+    pub layers: Vec<AnimatorLayer>,
+    #[serde(rename = "parameters")]
+    pub parameters: Vec<AnimatorParameter>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum AnimatorControllerParameterType {
+#[derive(Serialize_repr, Deserialize_repr, Debug, Clone, Eq, PartialEq)]
+#[repr(u8)]
+pub enum AnimatorParameterType {
     Float = 1,
     Int = 3,
     Bool = 4,
     Trigger = 9,
-}
-#[derive(Debug)]
-pub struct AnimatorControllerParameter {
-    m_name: String,
-    m_type: AnimatorControllerParameterType,
-    m_default_float: f32,
-    m_default_int: i32,
-    m_default_bool: bool,
-}
-
-impl AnimatorControllerParameter {
-    pub fn name(&self) -> &str {
-        &self.m_name
-    }
-    pub fn set_name(&mut self, value: String) {
-        self.m_name = value
-    }
-    pub fn name_hash(&self) -> i32 {
-        // TODO Animator.StringToHash(this.m_Name);
-        let mut hasher = DefaultHasher::new();
-        self.m_name.hash(&mut hasher);
-        hasher.finish() as i32
-    }
-    pub fn r#type(&self) -> &AnimatorControllerParameterType {
-        &self.m_type
-    }
-    pub fn set_type(&mut self, value: AnimatorControllerParameterType) {
-        self.m_type = value
-    }
-    pub fn default_float(&self) -> f32 {
-        self.m_default_float
-    }
-    pub fn set_default_float(&mut self, value: f32) {
-        self.m_default_float = value
-    }
-    pub fn default_int(&self) -> i32 {
-        self.m_default_int
-    }
-    pub fn set_default_int(&mut self, value: i32) {
-        self.m_default_int = value
-    }
-    pub fn default_bool(&self) -> bool {
-        self.m_default_bool
-    }
-    pub fn set_default_bool(&mut self, value: bool) {
-        self.m_default_bool = value
-    }
-
-    pub fn equals(&self, o: &dyn Any) -> bool {
-        if let Some(controller_parameter) = o.downcast_ref::<AnimatorControllerParameter>() {
-            return self.m_name == controller_parameter.m_name
-                && self.m_type == controller_parameter.m_type
-                && self.m_default_float == controller_parameter.m_default_float
-                && self.m_default_int == controller_parameter.m_default_int
-                && self.m_default_bool == controller_parameter.m_default_bool;
-        }
-        false
-    }
-
-    pub fn hash_code(&self) -> u64 {
-        let mut hasher = DefaultHasher::new();
-        self.name().hash(&mut hasher);
-        hasher.finish()
-    }
 }

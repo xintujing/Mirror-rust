@@ -1,3 +1,4 @@
+use crate::mirror::components::network_animator::Animator;
 use crate::{log_error, log_info, stop_signal};
 use config::Config;
 use lazy_static::lazy_static;
@@ -239,15 +240,24 @@ pub struct NetworkTransformReliableSetting {
 pub struct NetworkTransformUnreliableSetting {
     #[serde(rename = "bufferResetMultiplier")]
     pub buffer_reset_multiplier: f32,
-    #[serde(rename = "changedDetection")]
-    pub changed_detection: bool,
-
     #[serde(rename = "positionSensitivity")]
     pub position_sensitivity: f32,
     #[serde(rename = "rotationSensitivity")]
     pub rotation_sensitivity: f32,
     #[serde(rename = "scaleSensitivity")]
     pub scale_sensitivity: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NetworkAnimatorSetting {
+    #[serde(rename = "clientAuthority")]
+    pub client_authority: bool,
+    #[serde(rename = "animator")]
+    pub animator: Animator,
+    #[serde(rename = "animatorSpeed")]
+    pub animator_speed: f32,
+    #[serde(rename = "previousSpeed")]
+    pub previous_speed: f32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -264,6 +274,8 @@ pub struct NetworkBehaviourComponent {
     pub network_transform_reliable_setting: NetworkTransformReliableSetting,
     #[serde(rename = "networkTransformUnreliableSetting")]
     pub network_transform_unreliable_setting: NetworkTransformUnreliableSetting,
+    #[serde(rename = "networkAnimatorSetting")]
+    pub network_animator_setting: NetworkAnimatorSetting,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -302,10 +314,6 @@ pub struct NetworkManagerSetting {
     pub editor_auto_start: bool,
     #[serde(rename = "sendRate")]
     pub send_rate: u32,
-    #[serde(rename = "autoStartServerBuild")]
-    pub auto_start_server_build: bool,
-    #[serde(rename = "autoConnectClientBuild")]
-    pub auto_connect_client_build: bool,
     #[serde(rename = "offlineScene")]
     pub offline_scene: String,
     #[serde(rename = "onlineScene")]
@@ -512,7 +520,7 @@ mod tests {
         let backend_data = BackendDataStatic::get_backend_data();
 
         let vec = backend_data
-            .get_network_identity_data_network_behaviour_components_by_asset_id(3541431626);
+            .get_network_identity_data_network_behaviour_components_by_asset_id(3606887665);
         for v in vec {
             println!("{:?}", v);
         }

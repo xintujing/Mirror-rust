@@ -1,3 +1,4 @@
+use crate::mirror::components::network_animator::NetworkAnimator;
 use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::components::network_transform::network_transform_reliable::NetworkTransformReliable;
@@ -69,6 +70,15 @@ impl NetworkBehaviourFactory {
             Box::new(
                 |game_object: GameObject, component: &NetworkBehaviourComponent| {
                     Box::new(NetworkTransformReliable::new(game_object, component))
+                },
+            ),
+        );
+        // NetworkAnimator
+        Self::add_network_behaviour_factory(
+            NetworkAnimator::COMPONENT_TAG.to_string(),
+            Box::new(
+                |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                    Box::new(NetworkAnimator::new(game_object, component))
                 },
             ),
         );

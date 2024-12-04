@@ -34,7 +34,6 @@ use std::sync::Once;
 pub struct NetworkTransformUnreliable {
     network_transform_base: NetworkTransformBase,
     buffer_reset_multiplier: f32,
-    changed_detection: bool,
     position_sensitivity: f32,
     rotation_sensitivity: f32,
     scale_sensitivity: f32,
@@ -95,30 +94,28 @@ impl NetworkTransformUnreliable {
         {
             let snapshot = self.construct();
 
-            if self.changed_detection {
-                self.cached_changed_comparison = self.compare_changed_snapshots(&snapshot);
+            self.cached_changed_comparison = self.compare_changed_snapshots(&snapshot);
 
-                if (self.cached_changed_comparison == Changed::None.to_u8()
-                    || self.cached_changed_comparison == Changed::CompressRot.to_u8())
-                    && self.has_sent_unchanged_position
-                    && self.network_transform_base.only_sync_on_change
+            if (self.cached_changed_comparison == Changed::None.to_u8()
+                || self.cached_changed_comparison == Changed::CompressRot.to_u8())
+                && self.has_sent_unchanged_position
+                && self.network_transform_base.only_sync_on_change
+            {
+                let sync_data = SyncData::new(
+                    self.cached_changed_comparison,
+                    snapshot.position,
+                    snapshot.rotation,
+                    snapshot.scale,
+                );
+                self.rpc_server_to_client_sync(sync_data);
+
+                if self.cached_changed_comparison == Changed::None.to_u8()
+                    || self.cached_changed_comparison == Changed::CompressRot.to_u8()
                 {
-                    let sync_data = SyncData::new(
-                        self.cached_changed_comparison,
-                        snapshot.position,
-                        snapshot.rotation,
-                        snapshot.scale,
-                    );
-                    self.rpc_server_to_client_sync(sync_data);
-
-                    if self.cached_changed_comparison == Changed::None.to_u8()
-                        || self.cached_changed_comparison == Changed::CompressRot.to_u8()
-                    {
-                        self.has_sent_unchanged_position = true;
-                    } else {
-                        self.has_sent_unchanged_position = false;
-                        self.update_last_sent_snapshot(self.cached_changed_comparison, snapshot);
-                    }
+                    self.has_sent_unchanged_position = true;
+                } else {
+                    self.has_sent_unchanged_position = false;
+                    self.update_last_sent_snapshot(self.cached_changed_comparison, snapshot);
                 }
             }
         }
@@ -350,7 +347,6 @@ impl NetworkTransformUnreliable {
             return;
         }
         let sync_data = SyncData::deserialize(reader);
-        // println!("1 {}", to_hex_string(reader.to_array_segment()));
         NetworkBehaviour::early_invoke(identity, component_index)
             .as_any_mut()
             .downcast_mut::<Self>()
@@ -591,7 +587,6 @@ impl NetworkTransformUnreliable {
     fn rpc_server_to_client_sync(&mut self, mut sync_data: SyncData) {
         NetworkWriterPool::get_return(|writer| {
             sync_data.serialize(writer);
-            // println!("2 {}", to_hex_string(writer.to_array_segment()));
             self.send_rpc_internal(
                 "System.Void Mirror.NetworkTransformUnreliable::RpcServerToClientSync(Mirror.SyncData)",
                 -1891602648,
@@ -640,9 +635,6 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
             buffer_reset_multiplier: network_behaviour_component
                 .network_transform_unreliable_setting
                 .buffer_reset_multiplier,
-            changed_detection: network_behaviour_component
-                .network_transform_unreliable_setting
-                .changed_detection,
             position_sensitivity: network_behaviour_component
                 .network_transform_unreliable_setting
                 .position_sensitivity,
