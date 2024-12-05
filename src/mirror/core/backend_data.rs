@@ -379,19 +379,19 @@ pub struct BackendData {
 #[allow(dead_code)]
 impl BackendData {
     #[allow(dead_code)]
-    pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<MethodData> {
+    pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<&MethodData> {
         for method_data in self.methods.iter() {
             if method_data.hash_code == hash_code {
-                return Some(method_data.clone());
+                return Some(method_data);
             }
         }
         None
     }
     #[allow(dead_code)]
-    pub fn get_method_data_by_method_name(&self, method_name: &str) -> Option<MethodData> {
+    pub fn get_method_data_by_method_name(&self, method_name: &str) -> Option<&MethodData> {
         for method_data in self.methods.iter() {
             if method_data.name == method_name {
-                return Some(method_data.clone());
+                return Some(method_data);
             }
         }
         None
@@ -402,7 +402,7 @@ impl BackendData {
         // 拿到 MethodData
         if let Some(method_data) = self.get_method_data_by_hash_code(hash_code) {
             // 遍历 rpc_list
-            for rpc in &method_data.rpc_list {
+            for rpc in method_data.rpc_list.iter() {
                 // 拿到 MethodData
                 if let Some(rpc_method_data) = self.get_method_data_by_method_name(rpc) {
                     // 添加到 hash_codes
@@ -431,13 +431,13 @@ impl BackendData {
     pub fn get_network_identity_data_by_scene_id(
         &self,
         scene_id: u64,
-    ) -> Option<NetworkIdentityData> {
+    ) -> Option<&NetworkIdentityData> {
         if scene_id == 0 {
             return None;
         }
         for network_identity_data in self.network_identities.iter() {
             if network_identity_data.scene_id == scene_id {
-                return Some(network_identity_data.clone());
+                return Some(network_identity_data);
             }
         }
         None

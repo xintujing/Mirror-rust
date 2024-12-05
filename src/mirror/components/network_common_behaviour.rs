@@ -154,7 +154,7 @@ impl NetworkCommonBehaviour {
             // 发送RPCs
             NetworkWriterPool::get_return(|writer| {
                 writer.write_array_segment_all(reader.to_array_segment());
-                for rpc in method_data.rpc_list {
+                for rpc in method_data.rpc_list.iter() {
                     self.send_rpc_internal(
                         rpc.as_str(),
                         rpc.get_stable_hash_code(),
