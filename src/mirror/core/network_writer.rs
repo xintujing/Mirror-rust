@@ -169,8 +169,8 @@ pub trait NetworkWriterTrait {
 
     fn write_str(&mut self, value: &str);
     fn write_string(&mut self, value: String);
-    fn write_bytes_and_size(&mut self, value: Vec<u8>, offset: usize, count: usize);
-    fn write_array_segment_and_size(&mut self, value: &[u8], offset: usize, count: usize);
+    fn write_bytes_and_size(&mut self, value: Vec<u8>);
+    fn write_array_segment_and_size(&mut self, value: &[u8]);
     fn write_vector2(&mut self, value: Vector2<f32>);
     fn write_vector2_nullable(&mut self, value: Option<Vector2<f32>>);
 

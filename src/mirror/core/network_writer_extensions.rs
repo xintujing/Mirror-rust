@@ -128,18 +128,24 @@ impl NetworkWriterTrait for NetworkWriter {
         self.write(value);
     }
 
-    fn write_bytes_and_size(&mut self, value: Vec<u8>, offset: usize, count: usize) {
-        if value.len() == 0 {
+    fn write_bytes_and_size(&mut self, value: Vec<u8>) {
+        let count = value.len();
+        if count == 0 {
             self.compress_var_ulong(0);
             return;
         }
         self.compress_var_ulong(1 + count as u64);
-        self.write_bytes(value, offset, count);
+        self.write_bytes(value, 0, count);
     }
 
-    fn write_array_segment_and_size(&mut self, value: &[u8], offset: usize, count: usize) {
+    fn write_array_segment_and_size(&mut self, value: &[u8]) {
+        let count = value.len();
+        if count == 0 {
+            self.compress_var_ulong(0);
+            return;
+        }
         self.compress_var_ulong(1 + count as u64);
-        self.write_array_segment(value, offset, count);
+        self.write_array_segment(value, 0, count);
     }
 
     fn write_vector2(&mut self, value: Vector2<f32>) {
@@ -191,7 +197,7 @@ impl NetworkWriterTrait for NetworkWriter {
     }
 
     fn compress_var_int(&mut self, value: i32) {
-        self.compress_var_uint(value as u32);
+        self.compress_var_long(value as i64);
     }
 
     fn compress_var_uint(&mut self, value: u32) {

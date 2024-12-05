@@ -130,7 +130,7 @@ impl NetworkAnimator {
                 reader.read_float(),
                 reader.decompress_var_int(),
                 reader.read_float(),
-                reader.read_remaining_bytes(),
+                reader.read_bytes_and_size(),
             );
         NetworkBehaviour::late_invoke(identity, component_index);
     }
@@ -147,7 +147,6 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-
         NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
             self.handle_anim_msg(state_hash, normalized_time, layer_id, weight, reader);
             self.rpc_on_animation_client_message(
@@ -201,7 +200,6 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-
         NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
             self.handle_anim_params_msg(reader);
             self.rpc_on_animation_parameters_client_message(parameters);
@@ -232,7 +230,7 @@ impl NetworkAnimator {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_on_animation_trigger_server_message_int32(reader.read_int());
+            .user_code_cmd_on_animation_trigger_server_message_int32(reader.decompress_var_int());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -241,7 +239,6 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-
         self.handle_anim_trigger_msg(state_hash);
         self.rpc_on_animation_trigger_client_message(state_hash);
     }
@@ -270,7 +267,9 @@ impl NetworkAnimator {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_on_animation_reset_trigger_server_message_int32(reader.read_int());
+            .user_code_cmd_on_animation_reset_trigger_server_message_int32(
+                reader.decompress_var_int(),
+            );
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
@@ -279,7 +278,6 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-
         self.handle_anim_reset_trigger_msg(state_hash);
         self.rpc_on_animation_reset_trigger_client_message(state_hash);
     }
@@ -336,7 +334,7 @@ impl NetworkAnimator {
             writer.write_float(normalized_time);
             writer.compress_var_int(layer_id);
             writer.write_float(weight);
-            writer.write_bytes_all(parameters);
+            writer.write_bytes_and_size(parameters);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationClientMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", -392669502, writer, TransportChannel::Reliable, true);
         });
     }
@@ -344,7 +342,7 @@ impl NetworkAnimator {
     // 2 RpcOnAnimationParametersClientMessage(byte[] parameters)
     fn rpc_on_animation_parameters_client_message(&mut self, parameters: Vec<u8>) {
         NetworkWriterPool::get_return(|writer| {
-            writer.write_bytes_all(parameters);
+            writer.write_bytes_and_size(parameters);
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationParametersClientMessage(System.Byte[])", -2095336766, writer, TransportChannel::Reliable, true);
         });
     }
@@ -590,6 +588,17 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     }
 
     fn fixed_update(&mut self) {}
+
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
+        if initial_state {
+            writer.write_float(self.animator_speed);
+        } else {
+            writer.write_ulong(self.sync_var_dirty_bits());
+            if self.sync_var_dirty_bits() & (1 << 0) != 0 {
+                writer.write_float(self.animator_speed);
+            }
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
@@ -627,4 +636,27 @@ pub enum AnimatorParameterType {
     Int = 3,
     Bool = 4,
     Trigger = 9,
+}
+
+// 测试
+#[cfg(test)]
+mod tests {
+    use crate::mirror::core::tools::stable_hash::StableHash;
+
+    #[test]
+    fn test_network_animator() {
+        println!("{}", "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])".get_fn_stable_hash_code());
+        println!("{}", "System.Void Mirror.NetworkAnimator::CmdOnAnimationParametersServerMessage(System.Byte[])".get_fn_stable_hash_code());
+        println!(
+            "{}",
+            "System.Void Mirror.NetworkAnimator::CmdOnAnimationTriggerServerMessage(System.Int32)"
+                .get_fn_stable_hash_code()
+        );
+        println!("{}", "System.Void Mirror.NetworkAnimator::CmdOnAnimationResetTriggerServerMessage(System.Int32)".get_fn_stable_hash_code());
+        println!(
+            "{}",
+            "System.Void Mirror.NetworkAnimator::CmdSetAnimatorSpeed(System.Single)"
+                .get_fn_stable_hash_code()
+        );
+    }
 }

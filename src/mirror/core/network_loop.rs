@@ -8,7 +8,7 @@ use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::transport::TransportTrait;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
-use crate::{log_debug, stop_signal};
+use crate::{log_debug, log_warn, stop_signal};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -126,23 +126,34 @@ impl NetworkLoop {
 
         // 目标帧率
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
-        // 休眠时间
-        let mut sleep_time: Duration;
         while !*stop_signal() {
             // 帧开始时间
             let previous_frame_time = Instant::now();
             Self::fixed_update();
             Self::update();
             Self::late_update();
+            NetworkTime::increment_frame_count();
             // 计算耗费时间
             let elapsed_time = previous_frame_time.elapsed();
-            // 计算休眠时间
-            sleep_time = if elapsed_time < target_frame_time {
-                target_frame_time - elapsed_time
-            } else {
-                Duration::from_secs(0)
-            };
-            NetworkTime::increment_frame_count();
+            let mut sleep_time = Duration::from_secs(0);
+            match NetworkServerStatic::full_update_duration().try_read() {
+                Ok(full_update_duration) => {
+                    // 计算平均耗费时间
+                    let average_elapsed_time = Duration::from_secs_f64(full_update_duration.average());
+                    // 如果平均耗费时间小于目标帧率
+                    if average_elapsed_time < target_frame_time {
+                        // 计算帧平均补偿睡眠时间
+                        sleep_time =
+                            (target_frame_time - average_elapsed_time) / NetworkTime::frame_count();
+                    }
+                }
+                Err(e) => {
+                    log_warn!(format!(
+                        "Server.network_late_update() full_update_duration error: {}",
+                        e
+                    ));
+                }
+            }
             // 休眠
             thread::sleep(sleep_time);
         }

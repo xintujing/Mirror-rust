@@ -21,7 +21,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
-use crate::{log_error, log_warn};
+use crate::{log_debug, log_error, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
@@ -206,6 +206,10 @@ impl NetworkServerStatic {
         if let Ok(mut late_update_duration) = LATE_UPDATE_DURATION.write() {
             *late_update_duration = value;
         }
+    }
+    // FULL_UPDATE_DURATION
+    pub fn full_update_duration() -> &'static RwLock<TimeSample> {
+        &FULL_UPDATE_DURATION
     }
     // TRANSPORT_DATA_UN_BATCHER
     fn transport_data_un_batcher() -> &'static RwLock<UnBatcher> {
