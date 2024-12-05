@@ -70,6 +70,9 @@ impl NetworkLoop {
         // AddToPlayerLoop(NetworkEarlyUpdate, typeof(NetworkLoop), ref playerLoop, typeof(EarlyUpdate), AddMode.End);
         NetworkServer::network_early_update();
 
+        // NetworkManager update
+        NetworkManagerStatic::get_network_manager_singleton().update();
+
         // NetworkBehaviour update  模拟
         NetworkServerStatic::spawned_network_identities()
             .iter_mut()
@@ -88,6 +91,9 @@ impl NetworkLoop {
         // NetworkLateUpdate
         // AddToPlayerLoop(NetworkLateUpdate, typeof(NetworkLoop), ref playerLoop, typeof(PreLateUpdate), AddMode.End);
         NetworkServer::network_late_update();
+
+        // NetworkBehaviour late_update  模拟
+        NetworkManagerStatic::get_network_manager_singleton().late_update();
 
         // NetworkBehaviour late_update
         NetworkServerStatic::spawned_network_identities()
@@ -123,12 +129,12 @@ impl NetworkLoop {
         // 休眠时间
         let mut sleep_time: Duration;
         while !*stop_signal() {
-            // 上一帧时间
+            // 帧开始时间
             let previous_frame_time = Instant::now();
             Self::fixed_update();
             Self::update();
             Self::late_update();
-            // 计算帧时间
+            // 计算耗费时间
             let elapsed_time = previous_frame_time.elapsed();
             // 计算休眠时间
             sleep_time = if elapsed_time < target_frame_time {
