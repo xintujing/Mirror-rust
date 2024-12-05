@@ -328,7 +328,10 @@ impl NetworkServer {
         NETWORK_MESSAGE_HANDLERS.clear();
         NetworkServerStatic::network_connections().clear();
         NetworkServerStatic::spawned_network_identities().clear();
-        NetworkServerStatic::transport_data_un_batcher().write().unwrap().clear();
+        NetworkServerStatic::transport_data_un_batcher()
+            .write()
+            .unwrap()
+            .clear();
     }
 
     fn disconnect_all() {
@@ -452,7 +455,13 @@ impl NetworkServer {
     // Broadcast
     fn broadcast() {
         NetworkServerStatic::for_each_network_connection(|mut connection| {
+            // 如果连接不活跃
             if Self::disconnect_if_inactive(&mut connection) {
+                return;
+            }
+
+            // 如果连接没有认证并且没有准备好
+            if Self::disconnect_if_no_auth_not_ready(&mut connection) {
                 return;
             }
 
@@ -527,12 +536,29 @@ impl NetworkServer {
         None
     }
 
+    // DisconnectIfInactive
     fn disconnect_if_inactive(connection: &mut NetworkConnectionToClient) -> bool {
         if NetworkServerStatic::disconnect_inactive_connections()
             && !connection.is_alive(NetworkServerStatic::disconnect_inactive_timeout() as f64)
         {
             log_warn!(format!(
                 "Server.DisconnectIfInactive: connectionId: {} is inactive. Disconnecting.",
+                connection.connection_id()
+            ));
+            connection.disconnect();
+            return true;
+        }
+        false
+    }
+
+    // 关闭5 秒没有认证（链接认证）并且没有准备（链接准备，非游戏准备）好的连接
+    fn disconnect_if_no_auth_not_ready(connection: &mut NetworkConnectionToClient) -> bool {
+        if !connection.is_authenticated()
+            && !connection.is_ready()
+            && NetworkTime::local_time() - connection.first_conn_loc_time_stamp() > 5.0
+        {
+            log_warn!(format!(
+                "Server.DisconnectIfNoAuthNotReady: connectionId: {} is not authenticated and not ready. Disconnecting.",
                 connection.connection_id()
             ));
             connection.disconnect();

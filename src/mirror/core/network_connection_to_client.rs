@@ -93,6 +93,10 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         self.network_connection.set_remote_time_stamp(time);
     }
 
+    fn first_conn_loc_time_stamp(&self) -> f64 {
+        self.network_connection.first_conn_loc_time_stamp()
+    }
+
     fn is_ready(&self) -> bool {
         self.network_connection.is_ready()
     }

@@ -18,6 +18,7 @@ pub struct NetworkConnection {
     net_id: u32,
     owned: Vec<u32>,
     remote_time_stamp: f64,
+    first_conn_loc_time_stamp: f64,
 }
 
 pub trait NetworkConnectionTrait {
@@ -31,6 +32,7 @@ pub trait NetworkConnectionTrait {
     fn set_last_message_time(&mut self, time: f64);
     fn remote_time_stamp(&self) -> f64;
     fn set_remote_time_stamp(&mut self, time: f64);
+    fn first_conn_loc_time_stamp(&self) -> f64;
     fn is_ready(&self) -> bool;
     fn set_ready(&mut self, ready: bool);
     fn is_authenticated(&self) -> bool;
@@ -63,7 +65,10 @@ pub trait NetworkConnectionTrait {
         let local_time = NetworkTime::local_time();
         if local_time >= self.last_ping_time() + NetworkTime::get_ping_interval() {
             self.set_last_ping_time(local_time);
-            self.send_network_message(&mut NetworkPingMessage::new(local_time, 0.0), TransportChannel::Unreliable);
+            self.send_network_message(
+                &mut NetworkPingMessage::new(local_time, 0.0),
+                TransportChannel::Unreliable,
+            );
         }
     }
     fn is_alive(&self, timeout: f64) -> bool {
@@ -88,14 +93,18 @@ impl NetworkConnectionTrait for NetworkConnection {
                 log_warn!("get threshold failed");
                 1500
             }
-            Some(active_transport) => active_transport.get_batcher_threshold(TransportChannel::Reliable)
+            Some(active_transport) => {
+                active_transport.get_batcher_threshold(TransportChannel::Reliable)
+            }
         };
         let unreliable_batcher_threshold = match Transport::get_active_transport() {
             None => {
                 log_warn!("get threshold failed");
                 1500
             }
-            Some(active_transport) => active_transport.get_batcher_threshold(TransportChannel::Unreliable)
+            Some(active_transport) => {
+                active_transport.get_batcher_threshold(TransportChannel::Unreliable)
+            }
         };
         Self {
             id: conn_id,
@@ -109,6 +118,7 @@ impl NetworkConnectionTrait for NetworkConnection {
             reliable_batcher: Batcher::new(reliable_batcher_threshold),
             unreliable_batcher: Batcher::new(unreliable_batcher_threshold),
             last_ping_time: ts,
+            first_conn_loc_time_stamp: NetworkTime::local_time(),
         }
     }
 
@@ -148,6 +158,9 @@ impl NetworkConnectionTrait for NetworkConnection {
         self.remote_time_stamp = time;
     }
 
+    fn first_conn_loc_time_stamp(&self) -> f64 {
+        self.first_conn_loc_time_stamp
+    }
 
     fn is_ready(&self) -> bool {
         self.is_ready
@@ -176,10 +189,12 @@ impl NetworkConnectionTrait for NetworkConnection {
     fn send(&mut self, segment: &[u8], channel: TransportChannel) {
         match channel {
             TransportChannel::Reliable => {
-                self.reliable_batcher.add_message(segment, NetworkTime::local_time());
+                self.reliable_batcher
+                    .add_message(segment, NetworkTime::local_time());
             }
             TransportChannel::Unreliable => {
-                self.unreliable_batcher.add_message(segment, NetworkTime::local_time());
+                self.unreliable_batcher
+                    .add_message(segment, NetworkTime::local_time());
             }
         }
     }
