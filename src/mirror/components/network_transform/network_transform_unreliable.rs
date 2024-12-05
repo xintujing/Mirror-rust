@@ -62,7 +62,7 @@ impl NetworkTransformUnreliable {
             }
 
             match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
-                TryResult::Present(mut conn) => {
+                TryResult::Present(conn) => {
                     let (from, to, t) = SnapshotInterpolation::step_interpolation(
                         &mut self.network_transform_base.server_snapshots,
                         conn.remote_timeline,
@@ -381,7 +381,7 @@ impl NetworkTransformUnreliable {
 
         let mut timestamp = 0f64;
         match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
-            TryResult::Present(mut conn) => {
+            TryResult::Present(conn) => {
                 if self.network_transform_base.server_snapshots.len()
                     >= conn.snapshot_buffer_size_limit as usize
                 {
@@ -430,7 +430,7 @@ impl NetworkTransformUnreliable {
 
         let mut timestamp = 0f64;
         match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
-            TryResult::Present(mut conn) => {
+            TryResult::Present(conn) => {
                 if self.network_transform_base.server_snapshots.len()
                     >= conn.snapshot_buffer_size_limit as usize
                 {

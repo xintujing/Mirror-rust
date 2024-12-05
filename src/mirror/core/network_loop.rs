@@ -122,11 +122,9 @@ impl NetworkLoop {
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 休眠时间
         let mut sleep_time: Duration;
-        // 上一帧时间
-        let mut previous_frame_time = Instant::now();
         while !*stop_signal() {
-            // 更新上一帧时间
-            previous_frame_time = Instant::now();
+            // 上一帧时间
+            let previous_frame_time = Instant::now();
             Self::fixed_update();
             Self::update();
             Self::late_update();

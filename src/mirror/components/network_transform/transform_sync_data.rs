@@ -188,19 +188,6 @@ impl From<u8> for Changed {
     }
 }
 
-// 保留小数
-pub trait Round {
-    fn my_round(&self, digits: u32) -> f32;
-}
-
-impl Round for f32 {
-    fn my_round(&self, digits: u32) -> f32 {
-        let multiplier = 10u32.pow(digits);
-        (self * multiplier as f32).round() / multiplier as f32
-    }
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

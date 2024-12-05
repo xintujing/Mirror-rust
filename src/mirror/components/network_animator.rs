@@ -6,7 +6,6 @@ use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
 use crate::mirror::core::network_server::NetworkServerStatic;
-use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
@@ -16,7 +15,6 @@ use crate::{log_debug, log_error};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::any::Any;
-use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Once;
 
 #[derive(Debug)]
@@ -38,7 +36,7 @@ impl NetworkAnimator {
         let parameter_count = self.animator.parameters.len() as u8;
         writer.write_byte(parameter_count);
 
-        let mut dirty_bits = 0;
+        let dirty_bits: u64;
         if force_all {
             dirty_bits = u64::MAX;
         } else {
@@ -283,7 +281,7 @@ impl NetworkAnimator {
         }
 
         self.handle_anim_reset_trigger_msg(state_hash);
-        self.rpc_on_animation_trigger_client_message(state_hash);
+        self.rpc_on_animation_reset_trigger_client_message(state_hash);
     }
 
     // 4 HandleAnimResetTriggerMsg
