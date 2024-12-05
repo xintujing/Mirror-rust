@@ -382,12 +382,6 @@ impl NetworkBehaviourTrait for NetworkAnimator {
             .animator
             .parameters
             .len();
-        // layer_count
-        let layer_count = network_behaviour_component
-            .network_animator_setting
-            .animator
-            .layers
-            .len();
         let animator = Self {
             network_behaviour: NetworkBehaviour::new(
                 game_object,
