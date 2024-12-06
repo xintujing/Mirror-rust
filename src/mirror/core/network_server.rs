@@ -278,7 +278,7 @@ impl NetworkServer {
 
         // 设置 TransportCallback
         if let Some(transport) = Transport::get_active_transport() {
-            transport.set_transport_cb_fn(Box::new(Self::transport_callback));
+            transport.set_transport_cb_fn(Self::transport_callback);
         }
 
         // NetworkServer 是初始化的

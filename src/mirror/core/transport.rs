@@ -55,7 +55,7 @@ impl Default for TransportCallback {
         }
     }
 }
-pub type TransportFunc = Box<dyn Fn(TransportCallback)>;
+pub type TransportFunc = fn(TransportCallback);
 #[derive(Default)]
 pub struct Transport {
     pub transport_cb_fn: Option<TransportFunc>,
