@@ -8,14 +8,14 @@ use std::any::Any;
 use std::sync::RwLock;
 
 lazy_static! {
-    static ref ON_SERVER_AUTHENTICATED: RwLock<Box<dyn Fn(&mut NetworkConnectionToClient) + Send + Sync>> =
-        RwLock::new(Box::new(|_| {}));
+    static ref ON_SERVER_AUTHENTICATED: RwLock<fn(&mut NetworkConnectionToClient)> =
+        RwLock::new(|_| {});
 }
 
 pub struct NetworkAuthenticatorTraitStatic;
 
 impl NetworkAuthenticatorTraitStatic {
-    pub fn set_on_server_authenticated(func: Box<dyn Fn(&mut NetworkConnectionToClient) + Send + Sync>) {
+    pub fn set_on_server_authenticated(func: fn(&mut NetworkConnectionToClient)) {
         let mut on_server_authenticated = ON_SERVER_AUTHENTICATED.write().unwrap();
         *on_server_authenticated = func;
     }

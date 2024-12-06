@@ -163,9 +163,9 @@ impl NetworkManager {
 
         if let Some(ref mut authenticator) = self.authenticator() {
             authenticator.on_start_server();
-            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(Box::new(
+            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(
                 Self::on_server_authenticated,
-            ));
+            );
         }
 
         NetworkServer::listen(self.max_connections);
