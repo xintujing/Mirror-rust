@@ -204,7 +204,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
         log_debug!("Registering delegate for ", Self::COMPONENT_TAG);
         RemoteProcedureCalls::register_command_delegate::<Self>(
             Self::INVOKE_USER_CODE_CMD,
-            Box::new(Self::invoke_user_code_cmd_common_update_sync_var),
+            Self::invoke_user_code_cmd_common_update_sync_var,
             true,
         );
     }

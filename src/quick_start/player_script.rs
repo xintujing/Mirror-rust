@@ -143,20 +143,20 @@ impl NetworkBehaviourTrait for PlayerScript {
         // System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdSetupPlayer(System.String,UnityEngine.Color)",
-            Box::new(Self::invoke_user_code_cmd_setup_player_string_color),
+            Self::invoke_user_code_cmd_setup_player_string_color,
             true,
         );
         // System.Void QuickStart.PlayerScript::CmdShootRay()
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdShootRay()",
-            Box::new(Self::invoke_user_code_cmd_shoot_ray),
+            Self::invoke_user_code_cmd_shoot_ray,
             true,
         );
 
         // System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void QuickStart.PlayerScript::CmdChangeActiveWeapon(System.Int32)",
-            Box::new(Self::invoke_user_code_cmd_change_active_weapon_int32),
+            Self::invoke_user_code_cmd_change_active_weapon_int32,
             true,
         );
     }

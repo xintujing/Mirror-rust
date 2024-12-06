@@ -6,7 +6,7 @@ use crate::mirror::core::tools::stable_hash::StableHash;
 use dashmap::mapref::one::RefMut;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 use std::fmt::Debug;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -15,8 +15,7 @@ pub enum RemoteCallType {
     ClientRpc,
 }
 
-pub type RemoteCallDelegate =
-Box<dyn Fn(&mut NetworkIdentity, u8, u16, &mut NetworkReader, u64) + Send + Sync>;
+pub type RemoteCallDelegate = fn(&mut NetworkIdentity, u8, u16, &mut NetworkReader, u64);
 
 pub struct Invoker {
     pub type_id: TypeId,
@@ -47,10 +46,7 @@ impl Invoker {
     ) -> bool {
         self.type_id == type_id
             && self.call_type == remote_call_type
-            && std::ptr::addr_eq(
-            self.function.as_ref() as *const _,
-            invoke_function.as_ref() as *const _,
-        )
+            && self.function.eq(invoke_function)
     }
 }
 
