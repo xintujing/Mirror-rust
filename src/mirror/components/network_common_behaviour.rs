@@ -5,6 +5,7 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_identity::NetworkIdentity;
+use crate::mirror::core::network_loop::NetworkLoop;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
@@ -207,6 +208,19 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
             Self::invoke_user_code_cmd_common_update_sync_var,
             true,
         );
+        match NetworkLoop::network_common_behaviour_delegate_functions().try_read() {
+            Ok(delegate_functions) => {
+                for func in delegate_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!(
+                    "NetworkCommonBehaviour.register_delegate() error: {}",
+                    e
+                ));
+            }
+        }
     }
 
     fn get_once() -> &'static Once
@@ -341,7 +355,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
             }
             // 非初始状态
             false => {
-                writer.write_ulong(self.sync_var_dirty_bits());
+                writer.compress_var_ulong(self.sync_var_dirty_bits());
                 for i in 0..self.sync_vars.len() as u8 {
                     if self.sync_var_dirty_bits() & (1 << i) != 0 {
                         if let Some(sync_var) = self.sync_vars.get(&i) {

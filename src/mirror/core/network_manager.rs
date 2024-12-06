@@ -5,7 +5,7 @@ use crate::mirror::components::network_transform::network_transform_base::Transf
 use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourFactory};
+use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::NetworkReader;
@@ -539,8 +539,6 @@ impl NetworkManagerTrait for NetworkManager {
         if backend_data.network_manager_settings.len() == 0 {
             panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
         }
-
-        NetworkBehaviourFactory::register_network_behaviour_factory();
 
         let network_manager_setting = backend_data.network_manager_settings[0].clone();
 

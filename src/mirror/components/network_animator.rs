@@ -547,7 +547,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         if initial_state {
             writer.write_float(self.animator_speed);
         } else {
-            writer.write_ulong(self.sync_var_dirty_bits());
+            writer.compress_var_ulong(self.sync_var_dirty_bits());
             if self.sync_var_dirty_bits() & (1 << 0) != 0 {
                 writer.write_float(self.animator_speed);
             }

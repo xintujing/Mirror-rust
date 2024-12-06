@@ -1,9 +1,10 @@
+use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
-use crate::{log_debug, log_warn};
+use crate::{log_debug, log_error};
 use lazy_static::lazy_static;
 use signal_hook::iterator::Signals;
 use std::sync::RwLock;
@@ -17,6 +18,10 @@ lazy_static! {
     static ref ON_ENABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 disable 函数列表
     static ref ON_DISABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 network_behaviour_factory 函数列表
+    static ref NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 network_common_behaviour_delegate 函数列表
+    static ref NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
 }
 
 pub fn stop_signal() -> &'static mut bool {
@@ -33,7 +38,7 @@ impl NetworkLoop {
                 awake_functions.push(func);
             }
             Err(e) => {
-                log_warn!(format!("add_awake_function error: {}", e));
+                log_error!(format!("add_awake_function error: {}", e));
             }
         }
     }
@@ -48,7 +53,7 @@ impl NetworkLoop {
                 on_enable_functions.push(func);
             }
             Err(e) => {
-                log_warn!(format!("add_on_enable_function error: {}", e));
+                log_error!(format!("add_on_enable_function error: {}", e));
             }
         }
     }
@@ -63,7 +68,7 @@ impl NetworkLoop {
                 on_disable_functions.push(func);
             }
             Err(e) => {
-                log_warn!(format!("add_on_disable_function error: {}", e));
+                log_error!(format!("add_on_disable_function error: {}", e));
             }
         }
     }
@@ -71,6 +76,62 @@ impl NetworkLoop {
     fn on_disable_functions() -> &'static RwLock<Vec<fn()>> {
         &ON_DISABLE_FUNCTIONS
     }
+
+    pub fn add_network_behaviour_factory(func: fn()) {
+        match NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS.write() {
+            Ok(mut network_behaviour_factory_functions) => {
+                network_behaviour_factory_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_network_behaviour_factory error: {}", e));
+            }
+        }
+    }
+
+    fn network_behaviour_factory_functions() -> &'static RwLock<Vec<fn()>> {
+        &NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS
+    }
+
+    // network_common_behaviour_delegate
+    pub fn add_network_common_behaviour_delegate(func: fn()) {
+        match NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS.write() {
+            Ok(mut network_common_behaviour_delegate_functions) => {
+                network_common_behaviour_delegate_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!(
+                    "add_network_common_behaviour_delegate error: {}",
+                    e
+                ));
+            }
+        }
+    }
+
+    // network_common_behaviour_delegate
+    pub fn network_common_behaviour_delegate_functions() -> &'static RwLock<Vec<fn()>> {
+        &NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS
+    }
+
+    // NetworkBehaviourFactory::register_network_behaviour_factory();
+    fn register_network_behaviour_factory() {
+        NetworkBehaviourFactory::register_network_behaviour_factory();
+        match Self::network_behaviour_factory_functions().try_read() {
+            Ok(network_behaviour_factory_functions) => {
+                for func in network_behaviour_factory_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!(
+                    "NetworkLoop.register_network_behaviour_factory() error: {}",
+                    e
+                ));
+            }
+        }
+    }
+
+    // register_network_common_behaviour_delegate
+    fn register_network_common_behaviour_delegate() {}
 
     // 1
     fn awake() {
@@ -82,7 +143,7 @@ impl NetworkLoop {
                 }
             }
             Err(e) => {
-                log_warn!(format!("NetworkLoop.awake() error: {}", e));
+                log_error!(format!("NetworkLoop.awake() error: {}", e));
             }
         }
     }
@@ -96,7 +157,7 @@ impl NetworkLoop {
                 }
             }
             Err(e) => {
-                log_warn!(format!("NetworkLoop.on_enable() error: {}", e));
+                log_error!(format!("NetworkLoop.on_enable() error: {}", e));
             }
         }
     }
@@ -189,7 +250,7 @@ impl NetworkLoop {
                 }
             }
             Err(e) => {
-                log_warn!(format!("NetworkLoop.on_disable() error: {}", e));
+                log_error!(format!("NetworkLoop.on_disable() error: {}", e));
             }
         }
     }
@@ -214,6 +275,8 @@ impl NetworkLoop {
             }
         });
 
+        // 注册 NetworkBehaviourFactory
+        Self::register_network_behaviour_factory();
 
         // 1
         Self::awake();
@@ -233,7 +296,8 @@ impl NetworkLoop {
             match NetworkServerStatic::full_update_duration().try_read() {
                 Ok(full_update_duration) => {
                     // 计算平均耗费时间
-                    let average_elapsed_time = Duration::from_secs_f64(full_update_duration.average());
+                    let average_elapsed_time =
+                        Duration::from_secs_f64(full_update_duration.average());
                     // 如果平均耗费时间小于目标帧率
                     if average_elapsed_time < target_frame_time {
                         // 计算帧平均补偿睡眠时间
@@ -242,7 +306,7 @@ impl NetworkLoop {
                     }
                 }
                 Err(e) => {
-                    log_warn!(format!(
+                    log_error!(format!(
                         "Server.network_late_update() full_update_duration error: {}",
                         e
                     ));

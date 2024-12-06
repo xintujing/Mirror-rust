@@ -23,9 +23,8 @@ use std::any::Any;
 use std::fmt::Debug;
 use std::sync::Once;
 
-type NetworkBehaviourFactoryType = Box<
-    dyn Fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait> + Send + Sync,
->;
+type NetworkBehaviourFactoryType =
+fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait>;
 
 lazy_static! {
     static ref NETWORK_BEHAVIOURS_FACTORIES: DashMap<String, NetworkBehaviourFactoryType> =
@@ -58,29 +57,23 @@ impl NetworkBehaviourFactory {
         // NetworkTransformUnreliable
         Self::add_network_behaviour_factory(
             NetworkTransformUnreliable::COMPONENT_TAG.to_string(),
-            Box::new(
-                |game_object: GameObject, component: &NetworkBehaviourComponent| {
-                    Box::new(NetworkTransformUnreliable::new(game_object, component))
-                },
-            ),
+            |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                Box::new(NetworkTransformUnreliable::new(game_object, component))
+            },
         );
         // NetworkTransformReliable
         Self::add_network_behaviour_factory(
             NetworkTransformReliable::COMPONENT_TAG.to_string(),
-            Box::new(
-                |game_object: GameObject, component: &NetworkBehaviourComponent| {
-                    Box::new(NetworkTransformReliable::new(game_object, component))
-                },
-            ),
+            |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                Box::new(NetworkTransformReliable::new(game_object, component))
+            },
         );
         // NetworkAnimator
         Self::add_network_behaviour_factory(
             NetworkAnimator::COMPONENT_TAG.to_string(),
-            Box::new(
-                |game_object: GameObject, component: &NetworkBehaviourComponent| {
-                    Box::new(NetworkAnimator::new(game_object, component))
-                },
-            ),
+            |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                Box::new(NetworkAnimator::new(game_object, component))
+            },
         );
     }
 }

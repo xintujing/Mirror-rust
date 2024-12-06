@@ -1,21 +1,21 @@
-use crate::log_error;
-use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
-};
-use crate::mirror::core::network_identity::NetworkIdentity;
-use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
-use crate::mirror::core::network_server::NetworkServerStatic;
-use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use crate::mirror::core::network_writer_pool::NetworkWriterPool;
-use crate::mirror::core::remote_calls::RemoteProcedureCalls;
-use crate::mirror::core::sync_object::SyncObject;
-use crate::mirror::core::transport::TransportChannel;
 use nalgebra::Vector4;
 use std::any::Any;
-use std::fmt::Debug;
+use std::fmt::{Debug, Formatter};
 use std::sync::Once;
+use Mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use Mirror_rust::mirror::core::backend_data::NetworkBehaviourComponent;
+use Mirror_rust::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
+use Mirror_rust::mirror::core::network_identity::NetworkIdentity;
+use Mirror_rust::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use Mirror_rust::mirror::core::network_server::NetworkServerStatic;
+use Mirror_rust::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
+use Mirror_rust::mirror::core::network_writer_pool::NetworkWriterPool;
+use Mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
+use Mirror_rust::mirror::core::sync_object::SyncObject;
+use Mirror_rust::mirror::core::transport::TransportChannel;
+use Mirror_rust::{log_debug, log_error};
 
 #[derive(Debug)]
 pub struct PlayerScript {
@@ -26,12 +26,13 @@ pub struct PlayerScript {
 }
 
 impl PlayerScript {
+    pub const COMPONENT_TAG: &'static str = "QuickStart.PlayerScript";
     fn invoke_user_code_cmd_setup_player_string_color(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -63,9 +64,9 @@ impl PlayerScript {
     fn invoke_user_code_cmd_shoot_ray(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
-        reader: &mut NetworkReader,
-        conn_id: u64,
+        _func_hash: u16,
+        _reader: &mut NetworkReader,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -94,9 +95,9 @@ impl PlayerScript {
     fn invoke_user_code_cmd_change_active_weapon_int32(
         identity: &mut NetworkIdentity,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
@@ -106,11 +107,15 @@ impl PlayerScript {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_change_active_weapon_int32(reader.read_int());
+            .user_code_cmd_change_active_weapon_int32(reader.decompress_var_int());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     fn user_code_cmd_change_active_weapon_int32(&mut self, active_weapon: i32) {
+        log_debug!(
+            "PlayerScript::CmdChangeActiveWeapon: active_weapon: ",
+            active_weapon
+        );
         self.active_weapon_synced = active_weapon;
         self.set_sync_var_dirty_bits(1 << 0);
     }
@@ -283,13 +288,12 @@ impl NetworkBehaviourTrait for PlayerScript {
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
-            writer.write_int(self.active_weapon_synced);
+            writer.compress_var_int(self.active_weapon_synced);
             writer.write_string(self.player_name.to_string());
-            writer.write_vector4(self.player_color);
         } else {
-            writer.write_ulong(self.sync_var_dirty_bits());
+            writer.compress_var_ulong(self.sync_var_dirty_bits());
             if self.sync_var_dirty_bits() & 1 << 0 != 0 {
-                writer.write_int(self.active_weapon_synced);
+                writer.compress_var_int(self.active_weapon_synced);
             }
             if self.sync_var_dirty_bits() & 1 << 1 != 0 {
                 writer.write_string(self.player_name.to_string());
@@ -300,9 +304,7 @@ impl NetworkBehaviourTrait for PlayerScript {
         }
     }
 
-    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
         true
     }
 }
-
-impl NetworkCommonBehaviour {}
