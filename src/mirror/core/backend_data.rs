@@ -1,5 +1,6 @@
 use crate::mirror::components::network_animator::Animator;
-use crate::{log_error, log_info, stop_signal};
+use crate::mirror::core::network_loop::stop_signal;
+use crate::{log_error, log_info};
 use config::Config;
 use lazy_static::lazy_static;
 use notify::event::{DataChange, ModifyKind};

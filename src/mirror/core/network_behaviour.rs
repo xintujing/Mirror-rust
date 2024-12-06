@@ -361,14 +361,14 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     // OnDeserialize
     fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        let mut result = false;
+        let mut result: bool;
         result = self.deserialize_sync_objects(reader, initial_state);
         result = self.deserialize_sync_vars(reader, initial_state);
         result
     }
     // Deserialize
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        let mut result = true;
+        let mut result: bool;
 
         let safety = reader.read_byte();
         let chunk_start = reader.get_position();

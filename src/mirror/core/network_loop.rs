@@ -8,9 +8,15 @@ use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::transport::TransportTrait;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
-use crate::{log_debug, log_warn, stop_signal};
+use crate::{log_debug, log_warn};
+use signal_hook::iterator::Signals;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+
+pub fn stop_signal() -> &'static mut bool {
+    static mut STOP: bool = false;
+    unsafe { &mut STOP }
+}
 
 pub struct NetworkLoop;
 
@@ -117,6 +123,21 @@ impl NetworkLoop {
     }
 
     pub fn run() {
+        // 注册信号处理函数
+        let mut signals_info =
+            Signals::new(&[signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM])
+                .expect("Failed to register signal handler");
+
+        // 启动一个线程来监听终止信号
+        thread::spawn(move || {
+            for sig in signals_info.forever() {
+                println!("\nSignal: {:?}", sig);
+                *stop_signal() = true;
+                break;
+            }
+        });
+
+
         // 1
         Self::awake();
         // 2
@@ -127,14 +148,10 @@ impl NetworkLoop {
         // 目标帧率
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         while !*stop_signal() {
-            // 帧开始时间
-            let previous_frame_time = Instant::now();
             Self::fixed_update();
             Self::update();
             Self::late_update();
             NetworkTime::increment_frame_count();
-            // 计算耗费时间
-            let elapsed_time = previous_frame_time.elapsed();
             let mut sleep_time = Duration::from_secs(0);
             match NetworkServerStatic::full_update_duration().try_read() {
                 Ok(full_update_duration) => {

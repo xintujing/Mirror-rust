@@ -1,4 +1,5 @@
-use crate::{log_error, log_info, stop_signal};
+use crate::mirror::core::network_loop::stop_signal;
+use crate::{log_error, log_info};
 use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
