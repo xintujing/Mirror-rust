@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -11,7 +12,6 @@ use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
-use crate::{log_debug, log_error};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::any::Any;
