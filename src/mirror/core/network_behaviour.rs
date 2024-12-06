@@ -82,8 +82,6 @@ impl NetworkBehaviourFactory {
                 },
             ),
         );
-        // QuickStart.PlayerScript
-        // Self::add_network_behaviour_factory("QuickStart.PlayerScript".to_string(), Box::new(|game_object: GameObject, component: &NetworkBehaviourComponent| Box::new(PlayerScript::new(game_object, component))));
     }
 }
 
