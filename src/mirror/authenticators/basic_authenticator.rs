@@ -98,7 +98,7 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
     }
     fn on_start_server(&mut self) {
         NetworkServer::register_handler::<AuthRequestMessage>(
-            Box::new(Self::on_auth_request_message),
+            Self::on_auth_request_message,
             false,
         );
     }

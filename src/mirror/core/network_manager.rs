@@ -208,12 +208,12 @@ impl NetworkManager {
 
         // 添加 AddPlayerMessage 消息处理
         NetworkServer::register_handler::<AddPlayerMessage>(
-            Box::new(Self::on_server_add_player_internal),
+            Self::on_server_add_player_internal,
             true,
         );
         // 添加 ReadyMessage 消息处理
         NetworkServer::replace_handler::<ReadyMessage>(
-            Box::new(Self::on_server_ready_message_internal),
+            Self::on_server_ready_message_internal,
             true,
         );
     }

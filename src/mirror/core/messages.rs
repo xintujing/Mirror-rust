@@ -4,8 +4,7 @@ use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
 use nalgebra::{Quaternion, Vector3};
 
-pub type NetworkMessageHandlerFunc =
-Box<dyn Fn(u64, &mut NetworkReader, TransportChannel) + Send + Sync>;
+pub type NetworkMessageHandlerFunc = fn(u64, &mut NetworkReader, TransportChannel);
 
 pub struct NetworkMessageHandler {
     pub func: NetworkMessageHandlerFunc,

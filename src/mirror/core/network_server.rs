@@ -1318,20 +1318,20 @@ impl NetworkServer {
     // 注册消息处理程序
     fn register_message_handlers() {
         // 注册 ReadyMessage 处理程序
-        Self::register_handler::<ReadyMessage>(Box::new(Self::on_client_ready_message), true);
+        Self::register_handler::<ReadyMessage>(Self::on_client_ready_message, true);
         // 注册 CommandMessage 处理程序
-        Self::register_handler::<CommandMessage>(Box::new(Self::on_command_message), true);
+        Self::register_handler::<CommandMessage>(Self::on_command_message, true);
 
         // 注册 NetworkPingMessage 处理程序
-        Self::register_handler::<NetworkPingMessage>(Box::new(NetworkTime::on_server_ping), false);
+        Self::register_handler::<NetworkPingMessage>(NetworkTime::on_server_ping, false);
         // 注册 NetworkPongMessage 处理程序
-        Self::register_handler::<NetworkPongMessage>(Box::new(NetworkTime::on_server_pong), false);
+        Self::register_handler::<NetworkPongMessage>(NetworkTime::on_server_pong, false);
 
         // 注册 EntityStateMessage 处理程序
-        Self::register_handler::<EntityStateMessage>(Box::new(Self::on_entity_state_message), true);
+        Self::register_handler::<EntityStateMessage>(Self::on_entity_state_message, true);
         // 注册 TimeSnapshotMessage 处理程序
         Self::register_handler::<TimeSnapshotMessage>(
-            Box::new(Self::on_time_snapshot_message),
+            Self::on_time_snapshot_message,
             true,
         );
     }
