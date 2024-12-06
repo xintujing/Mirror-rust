@@ -614,7 +614,7 @@ dependencies = [
 [[package]]
 name = "kcp2k_rust"
 version = "0.1.0"
-source = "git+https://github.com/xtjsk/kcp2k-rust.git#c346770479bbf85934a3812aa688dc5d843427a2"
+source = "git+https://github.com/xtjsk/kcp2k-rust.git#c9a067e52d1fec75cd665fa1dcc02984f8ec667d"
 dependencies = [
  "bytes",
  "crossbeam-channel",
