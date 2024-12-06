@@ -33,7 +33,7 @@ lazy_static! {
 }
 pub struct NetworkBehaviourFactory;
 impl NetworkBehaviourFactory {
-    fn add_network_behaviour_factory(name: String, factory: NetworkBehaviourFactoryType) {
+    pub fn add_network_behaviour_factory(name: String, factory: NetworkBehaviourFactoryType) {
         NETWORK_BEHAVIOURS_FACTORIES.insert(name, factory);
     }
     pub fn create_network_behaviour(
