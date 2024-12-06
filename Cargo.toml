@@ -5,17 +5,17 @@ edition = "2021"
 
 [dependencies]
 kcp2k_rust = { git = "https://github.com/xtjsk/kcp2k-rust.git" }
-bytes = "1.8.0"
+bytes = "1.9.0"
 serde = { version = "1.0.215", features = ["derive"] }
 nalgebra = "0.33.2"
 dashmap = "6.1.0"
 tklog = "0.2.7"
-atomic = "0.6"
+atomic = "0.6.0"
 lazy_static = "1.5.0"
 crossbeam-channel = "0.5.13"
 rust_decimal = "1.36.0"
 half = "2.4.1"
-rand = "0.9.0-beta.0"
+rand = "0.9.0-beta.1"
 ordered-float = "4.5.0"
 signal-hook = "0.3.17"
 # 0.13.4 之后的版本会导致 serde_json 无法正确解析
