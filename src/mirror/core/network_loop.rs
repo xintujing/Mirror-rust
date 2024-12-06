@@ -184,12 +184,16 @@ impl NetworkLoop {
         });
     }
 
-    // 5
-    fn update() {
+    // 4
+    fn early_update() {
         // NetworkEarlyUpdate
         // AddToPlayerLoop(NetworkEarlyUpdate, typeof(NetworkLoop), ref playerLoop, typeof(EarlyUpdate), AddMode.End);
         NetworkServer::network_early_update();
+    }
 
+
+    // 5
+    fn update() {
         // NetworkManager update
         NetworkManagerStatic::get_network_manager_singleton().update();
 
@@ -270,14 +274,20 @@ impl NetworkLoop {
         // 3
         Self::start();
 
-        // 目标帧率
+        // 每一帧的目标时间
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
+        // 循环
         while !*stop_signal() {
+            // 4
+            Self::early_update();
+            // 5
             Self::update();
+            // 6
             Self::late_update();
+            // 计算帧数
             NetworkTime::increment_frame_count();
-            let mut sleep_time = Duration::from_secs(0);
-            match NetworkServerStatic::full_update_duration().try_read() {
+            // 计算睡眠时间
+            let sleep_time = match NetworkServerStatic::full_update_duration().try_read() {
                 Ok(full_update_duration) => {
                     // 计算平均耗费时间
                     let average_elapsed_time =
@@ -286,12 +296,11 @@ impl NetworkLoop {
                     match average_elapsed_time < target_frame_time {
                         true => {
                             // 计算帧平均补偿睡眠时间
-                            sleep_time =
-                                (target_frame_time - average_elapsed_time) / 2;
+                            (target_frame_time - average_elapsed_time) / 2
                         }
                         false => {
                             // 如果平均耗费时间大于目标帧率
-                            sleep_time = Duration::from_secs(0);
+                            Duration::from_secs(0)
                         }
                     }
                 }
@@ -300,8 +309,9 @@ impl NetworkLoop {
                         "Server.network_late_update() full_update_duration error: {}",
                         e
                     ));
+                    Duration::from_secs(0)
                 }
-            }
+            };
             // 休眠
             thread::sleep(sleep_time);
         }
