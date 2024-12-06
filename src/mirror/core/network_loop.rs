@@ -1,10 +1,10 @@
+use crate::log_error;
 use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
-use crate::{log_debug, log_error};
 use lazy_static::lazy_static;
 use signal_hook::iterator::Signals;
 use std::sync::RwLock;
@@ -16,8 +16,18 @@ lazy_static! {
     static ref AWAKE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 on_enable 函数列表
     static ref ON_ENABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 start 函数列表
+    static ref START_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 early_update 函数列表
+    static ref EARLY_UPDATE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 update 函数列表
+    static ref UPDATE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 late_update 函数列表
+    static ref LATE_UPDATE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 disable 函数列表
     static ref ON_DISABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 destroy 函数列表
+    static ref ON_DESTROY_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 network_behaviour_factory 函数列表
     static ref NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 network_common_behaviour_delegate 函数列表
@@ -62,6 +72,72 @@ impl NetworkLoop {
         &ON_ENABLE_FUNCTIONS
     }
 
+    pub fn add_start_function(func: fn()) {
+        match START_FUNCTIONS.write() {
+            Ok(mut start_functions) => {
+                start_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_start_function error: {}", e));
+            }
+        }
+    }
+
+    fn start_functions() -> &'static RwLock<Vec<fn()>> {
+        &START_FUNCTIONS
+    }
+
+    // early_update
+    pub fn add_early_update_function(func: fn()) {
+        match EARLY_UPDATE_FUNCTIONS.write() {
+            Ok(mut early_update_functions) => {
+                early_update_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_early_update_function error: {}", e));
+            }
+        }
+    }
+
+    // early_update
+    pub fn early_update_functions() -> &'static RwLock<Vec<fn()>> {
+        &EARLY_UPDATE_FUNCTIONS
+    }
+
+    // update
+    pub fn add_update_function(func: fn()) {
+        match UPDATE_FUNCTIONS.write() {
+            Ok(mut update_functions) => {
+                update_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_update_function error: {}", e));
+            }
+        }
+    }
+
+    // update
+    pub fn update_functions() -> &'static RwLock<Vec<fn()>> {
+        &UPDATE_FUNCTIONS
+    }
+
+    // late_update
+    pub fn add_late_update_function(func: fn()) {
+        match LATE_UPDATE_FUNCTIONS.write() {
+            Ok(mut late_update_functions) => {
+                late_update_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_late_update_function error: {}", e));
+            }
+        }
+    }
+
+    // late_update
+    pub fn late_update_functions() -> &'static RwLock<Vec<fn()>> {
+        &LATE_UPDATE_FUNCTIONS
+    }
+
     pub fn add_on_disable_function(func: fn()) {
         match ON_DISABLE_FUNCTIONS.write() {
             Ok(mut on_disable_functions) => {
@@ -75,6 +151,21 @@ impl NetworkLoop {
 
     fn on_disable_functions() -> &'static RwLock<Vec<fn()>> {
         &ON_DISABLE_FUNCTIONS
+    }
+
+    pub fn add_on_destroy_function(func: fn()) {
+        match ON_DESTROY_FUNCTIONS.write() {
+            Ok(mut on_destroy_functions) => {
+                on_destroy_functions.push(func);
+            }
+            Err(e) => {
+                log_error!(format!("add_on_destroy_function error: {}", e));
+            }
+        }
+    }
+
+    fn on_destroy_functions() -> &'static RwLock<Vec<fn()>> {
+        &ON_DESTROY_FUNCTIONS
     }
 
     pub fn add_network_behaviour_factory(func: fn()) {
@@ -167,21 +258,16 @@ impl NetworkLoop {
         let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
         network_manager_singleton.start();
 
-        NetworkServerStatic::for_each_network_message_handler(|item| {
-            log_debug!(format!(
-                "message hash: {} require_authentication: {}",
-                item.key(),
-                item.require_authentication
-            ));
-        });
-
-        NetworkServerStatic::for_each_network_connection(|item| {
-            log_debug!(format!(
-                "connection hash: {} address: {}",
-                item.key(),
-                item.address
-            ));
-        });
+        match Self::start_functions().try_read() {
+            Ok(start_functions) => {
+                for func in start_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!("NetworkLoop.start() error: {}", e));
+            }
+        }
     }
 
     // 4
@@ -189,8 +275,18 @@ impl NetworkLoop {
         // NetworkEarlyUpdate
         // AddToPlayerLoop(NetworkEarlyUpdate, typeof(NetworkLoop), ref playerLoop, typeof(EarlyUpdate), AddMode.End);
         NetworkServer::network_early_update();
-    }
 
+        match Self::early_update_functions().try_read() {
+            Ok(early_update_functions) => {
+                for func in early_update_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!("NetworkLoop.early_update() error: {}", e));
+            }
+        }
+    }
 
     // 5
     fn update() {
@@ -208,6 +304,17 @@ impl NetworkLoop {
                         behaviour.update();
                     });
             });
+
+        match Self::update_functions().try_read() {
+            Ok(update_functions) => {
+                for func in update_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!("NetworkLoop.update() error: {}", e));
+            }
+        }
     }
 
     // 6
@@ -228,6 +335,17 @@ impl NetworkLoop {
                     .iter_mut()
                     .for_each(|behaviour| behaviour.late_update());
             });
+
+        match Self::late_update_functions().try_read() {
+            Ok(late_update_functions) => {
+                for func in late_update_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!("NetworkLoop.late_update() error: {}", e));
+            }
+        }
     }
 
     // 7
@@ -247,6 +365,17 @@ impl NetworkLoop {
     // 8
     fn on_destroy() {
         NetworkManager::shutdown();
+
+        match Self::on_destroy_functions().try_read() {
+            Ok(on_destroy_functions) => {
+                for func in on_destroy_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_error!(format!("NetworkLoop.on_destroy() error: {}", e));
+            }
+        }
     }
 
     pub fn run() {
