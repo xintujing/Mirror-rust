@@ -147,30 +147,13 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-        NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
-            self.handle_anim_msg(state_hash, normalized_time, layer_id, weight, reader);
-            self.rpc_on_animation_client_message(
-                state_hash,
-                normalized_time,
-                layer_id,
-                weight,
-                parameters,
-            );
-        });
-    }
-    // 1 HandleAnimMsg
-    fn handle_anim_msg(
-        &mut self,
-        state_hash: i32,
-        normalized_time: f32,
-        layer_id: i32,
-        weight: f32,
-        reader: &mut NetworkReader,
-    ) {
-        if self.client_authority {
-            return;
-        }
-        // TODO
+        self.rpc_on_animation_client_message(
+            state_hash,
+            normalized_time,
+            layer_id,
+            weight,
+            parameters,
+        );
     }
 
     // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
@@ -200,18 +183,7 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-        NetworkReaderPool::get_with_bytes_return(parameters.to_vec(), |reader| {
-            self.handle_anim_params_msg(reader);
-            self.rpc_on_animation_parameters_client_message(parameters);
-        });
-    }
-
-    // 2 HandleAnimParamsMsg
-    fn handle_anim_params_msg(&mut self, reader: &mut NetworkReader) {
-        if self.client_authority {
-            return;
-        }
-        // TODO
+        self.rpc_on_animation_parameters_client_message(parameters);
     }
 
     // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
@@ -239,16 +211,7 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-        self.handle_anim_trigger_msg(state_hash);
         self.rpc_on_animation_trigger_client_message(state_hash);
-    }
-
-    // 3 HandleAnimTriggerMsg
-    fn handle_anim_trigger_msg(&mut self, state_hash: i32) {
-        if self.client_authority {
-            return;
-        }
-        // TODO
     }
 
     // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
@@ -278,16 +241,7 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-        self.handle_anim_reset_trigger_msg(state_hash);
         self.rpc_on_animation_reset_trigger_client_message(state_hash);
-    }
-
-    // 4 HandleAnimResetTriggerMsg
-    fn handle_anim_reset_trigger_msg(&mut self, state_hash: i32) {
-        if self.client_authority {
-            return;
-        }
-        // TODO
     }
 
     // 5 invoke_user_code_cmd_set_animator_speed_single

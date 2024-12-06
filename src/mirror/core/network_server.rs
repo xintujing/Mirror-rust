@@ -21,7 +21,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
-use crate::{log_debug, log_error, log_warn};
+use crate::{log_error, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
