@@ -1,5 +1,7 @@
 use crate::mirror::core::backend_data::{NetworkBehaviourComponent, NetworkBehaviourSetting};
 use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_reader::NetworkReader;
+use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::sync::Once;
@@ -157,5 +159,11 @@ impl NetworkBehaviourTrait for NetworkRigidbodyUnreliable {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn serialize_sync_vars(&mut self, _writer: &mut NetworkWriter, _initial_state: bool) {}
+
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
+        true
     }
 }

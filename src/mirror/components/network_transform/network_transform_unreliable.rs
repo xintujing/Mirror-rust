@@ -840,6 +840,12 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn late_update(&mut self) {
         self.update_server_broadcast();
     }
+
+    fn serialize_sync_vars(&mut self, _writer: &mut NetworkWriter, _initial_state: bool) {}
+
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
+        true
+    }
 }
 
 impl NetworkTransformBaseTrait for NetworkTransformUnreliable {

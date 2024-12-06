@@ -510,15 +510,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn late_update(&mut self) {}
     // SerializeSyncVars
     // TODO serialize_sync_vars USED BY WEAVER
-    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        let _ = writer;
-        let _ = initial_state;
-    }
+    fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool);
     // DeserializeSyncVars
     // TODO deserialize_sync_vars USED BY WEAVER
-    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        let _ = reader;
-        let _ = initial_state;
-        true
-    }
+    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool;
 }

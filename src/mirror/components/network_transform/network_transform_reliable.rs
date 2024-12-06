@@ -507,6 +507,12 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         }
         self.u_check_last_send_time();
     }
+
+    fn serialize_sync_vars(&mut self, _writer: &mut NetworkWriter, _initial_state: bool) {}
+
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
+        true
+    }
 }
 
 impl NetworkTransformBaseTrait for NetworkTransformReliable {

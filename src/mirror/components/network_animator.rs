@@ -553,6 +553,10 @@ impl NetworkBehaviourTrait for NetworkAnimator {
             }
         }
     }
+
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
+        true
+    }
 }
 
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]

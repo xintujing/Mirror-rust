@@ -352,4 +352,8 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
             }
         }
     }
+
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
+        true
+    }
 }
