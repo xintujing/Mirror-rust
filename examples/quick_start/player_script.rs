@@ -290,6 +290,7 @@ impl NetworkBehaviourTrait for PlayerScript {
         if initial_state {
             writer.compress_var_int(self.active_weapon_synced);
             writer.write_string(self.player_name.to_string());
+            writer.write_vector4(self.player_color);
         } else {
             writer.compress_var_ulong(self.sync_var_dirty_bits());
             if self.sync_var_dirty_bits() & 1 << 0 != 0 {
