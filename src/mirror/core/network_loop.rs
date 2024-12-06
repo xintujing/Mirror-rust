@@ -184,21 +184,6 @@ impl NetworkLoop {
         });
     }
 
-    // 4
-    fn fixed_update() {
-        // NetworkBehaviour fixed_update  模拟
-        NetworkServerStatic::spawned_network_identities()
-            .iter_mut()
-            .for_each(|mut identity| {
-                identity
-                    .network_behaviours
-                    .iter_mut()
-                    .for_each(|behaviour| {
-                        behaviour.fixed_update();
-                    });
-            });
-    }
-
     // 5
     fn update() {
         // NetworkEarlyUpdate
@@ -288,7 +273,6 @@ impl NetworkLoop {
         // 目标帧率
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         while !*stop_signal() {
-            Self::fixed_update();
             Self::update();
             Self::late_update();
             NetworkTime::increment_frame_count();
@@ -299,10 +283,16 @@ impl NetworkLoop {
                     let average_elapsed_time =
                         Duration::from_secs_f64(full_update_duration.average());
                     // 如果平均耗费时间小于目标帧率
-                    if average_elapsed_time < target_frame_time {
-                        // 计算帧平均补偿睡眠时间
-                        sleep_time =
-                            (target_frame_time - average_elapsed_time) / NetworkTime::frame_count();
+                    match average_elapsed_time < target_frame_time {
+                        true => {
+                            // 计算帧平均补偿睡眠时间
+                            sleep_time =
+                                (target_frame_time - average_elapsed_time) / 2;
+                        }
+                        false => {
+                            // 如果平均耗费时间大于目标帧率
+                            sleep_time = Duration::from_secs(0);
+                        }
                     }
                 }
                 Err(e) => {

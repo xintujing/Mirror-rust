@@ -660,7 +660,6 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     where
         Self: Sized,
     {
-        log_debug!("Registering delegate for NetworkTransformUnreliable");
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",

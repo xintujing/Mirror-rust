@@ -202,7 +202,6 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     where
         Self: Sized,
     {
-        log_debug!("Registering delegate for ", Self::COMPONENT_TAG);
         RemoteProcedureCalls::register_command_delegate::<Self>(
             Self::INVOKE_USER_CODE_CMD,
             Self::invoke_user_code_cmd_common_update_sync_var,

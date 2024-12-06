@@ -364,7 +364,6 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     where
         Self: Sized,
     {
-        log_debug!("Registering delegate for ", Self::COMPONENT_TAG);
         // 1 RemoteProcedureCalls.RegisterCommand(typeof (NetworkAnimator), "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])", new RemoteCallDelegate(NetworkAnimator.invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte\u005B\u005D), true);
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkAnimator::CmdOnAnimationServerMessage(System.Int32,System.Single,System.Int32,System.Single,System.Byte[])",
@@ -540,8 +539,6 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-
-    fn fixed_update(&mut self) {}
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {

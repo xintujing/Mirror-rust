@@ -1,6 +1,6 @@
 use nalgebra::Vector4;
 use std::any::Any;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::sync::Once;
 use Mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
 use Mirror_rust::mirror::core::backend_data::NetworkBehaviourComponent;
