@@ -1,5 +1,6 @@
 use crate::mirror::components::network_animator::Animator;
 use crate::mirror::core::network_loop::stop_signal;
+use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransportConfig;
 use crate::{log_error, log_info};
 use config::Config;
 use lazy_static::lazy_static;
@@ -27,6 +28,7 @@ impl BackendDataStatic {
             if !Path::new(BACKEND_DATA_FILE.as_str()).exists() {
                 std::fs::write(BACKEND_DATA_FILE.as_str(), {
                     let backend_data = BackendData {
+                        kcp2k_config: Default::default(),
                         methods: Vec::new(),
                         network_identities: Vec::new(),
                         network_manager_settings: Vec::new(),
@@ -364,6 +366,8 @@ pub struct NetworkIdentityData {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct BackendData {
+    #[serde(rename = "kcp2k_config", default)]
+    pub kcp2k_config: Kcp2kTransportConfig,
     #[serde(rename = "methods")]
     pub methods: Vec<MethodData>,
     #[serde(rename = "networkIdentities")]
@@ -379,6 +383,10 @@ pub struct BackendData {
 }
 #[allow(dead_code)]
 impl BackendData {
+    pub fn get_kcp2k_config(&self) -> &Kcp2kTransportConfig {
+        &self.kcp2k_config
+    }
+
     #[allow(dead_code)]
     pub fn get_method_data_by_hash_code(&self, hash_code: u16) -> Option<&MethodData> {
         for method_data in self.methods.iter() {

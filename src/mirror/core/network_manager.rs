@@ -92,26 +92,26 @@ pub enum NetworkManagerMode {
 // NetworkManager
 pub struct NetworkManager {
     player_obj: GameObject,
-    pub snapshot_interpolation_settings: SnapshotInterpolationSetting,
-    pub mode: NetworkManagerMode,
-    pub dont_destroy_on_load: bool,
-    pub editor_auto_start: bool,
-    pub send_rate: u32,
+    snapshot_interpolation_settings: SnapshotInterpolationSetting,
+    mode: NetworkManagerMode,
+    dont_destroy_on_load: bool,
+    editor_auto_start: bool,
+    send_rate: u32,
     offline_scene: String,
-    pub online_scene: String,
-    pub offline_scene_load_delay: f32,
-    pub network_address: String,
-    pub max_connections: usize,
-    pub disconnect_inactive_connections: bool,
-    pub disconnect_inactive_timeout: f32,
+    online_scene: String,
+    offline_scene_load_delay: f32,
+    network_address: String,
+    max_connections: usize,
+    disconnect_inactive_connections: bool,
+    disconnect_inactive_timeout: f32,
     authenticator: Option<Box<dyn NetworkAuthenticatorTrait>>,
     auto_create_player: bool,
-    pub player_spawn_method: PlayerSpawnMethod,
-    pub spawn_prefabs: Vec<GameObject>,
-    pub exceptions_disconnect: bool,
-    pub evaluation_method: ConnectionQualityMethod,
-    pub evaluation_interval: f32,
-    pub time_interpolation_gui: bool,
+    player_spawn_method: PlayerSpawnMethod,
+    spawn_prefabs: Vec<GameObject>,
+    exceptions_disconnect: bool,
+    evaluation_method: ConnectionQualityMethod,
+    evaluation_interval: f32,
+    time_interpolation_gui: bool,
 }
 
 // NetworkManager 的默认实现
@@ -370,6 +370,7 @@ pub trait NetworkManagerTrait {
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
     fn dis_enable_authenticator(&mut self);
+    fn network_address(&self) -> &str;
     fn offline_scene(&self) -> &str;
     fn set_offline_scene(&mut self, scene_name: &'static str);
     fn auto_create_player(&self) -> bool;
@@ -463,6 +464,10 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn dis_enable_authenticator(&mut self) {
         self.authenticator.take();
+    }
+
+    fn network_address(&self) -> &str {
+        self.network_address.as_str()
     }
 
     fn offline_scene(&self) -> &str {

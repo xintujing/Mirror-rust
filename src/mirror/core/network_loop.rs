@@ -1,17 +1,23 @@
-use crate::mirror::authenticators::basic_authenticator::BasicAuthenticator;
-use crate::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
-use crate::mirror::core::network_start_position::NetworkStartPosition;
 use crate::mirror::core::network_time::NetworkTime;
-use crate::mirror::core::transport::TransportTrait;
-use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 use crate::{log_debug, log_warn};
+use lazy_static::lazy_static;
 use signal_hook::iterator::Signals;
+use std::sync::RwLock;
 use std::thread;
 use std::time::Duration;
+
+lazy_static! {
+    // 需要 添加的 awake 函数列表
+    static ref AWAKE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 on_enable 函数列表
+    static ref ON_ENABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    // 需要 添加的 disable 函数列表
+    static ref ON_DISABLE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+}
 
 pub fn stop_signal() -> &'static mut bool {
     static mut STOP: bool = false;
@@ -21,16 +27,78 @@ pub fn stop_signal() -> &'static mut bool {
 pub struct NetworkLoop;
 
 impl NetworkLoop {
+    pub fn add_awake_function(func: fn()) {
+        match AWAKE_FUNCTIONS.write() {
+            Ok(mut awake_functions) => {
+                awake_functions.push(func);
+            }
+            Err(e) => {
+                log_warn!(format!("add_awake_function error: {}", e));
+            }
+        }
+    }
+
+    fn awake_functions() -> &'static RwLock<Vec<fn()>> {
+        &AWAKE_FUNCTIONS
+    }
+
+    pub fn add_on_enable_function(func: fn()) {
+        match ON_ENABLE_FUNCTIONS.write() {
+            Ok(mut on_enable_functions) => {
+                on_enable_functions.push(func);
+            }
+            Err(e) => {
+                log_warn!(format!("add_on_enable_function error: {}", e));
+            }
+        }
+    }
+
+    fn on_enable_functions() -> &'static RwLock<Vec<fn()>> {
+        &ON_ENABLE_FUNCTIONS
+    }
+
+    pub fn add_on_disable_function(func: fn()) {
+        match ON_DISABLE_FUNCTIONS.write() {
+            Ok(mut on_disable_functions) => {
+                on_disable_functions.push(func);
+            }
+            Err(e) => {
+                log_warn!(format!("add_on_disable_function error: {}", e));
+            }
+        }
+    }
+
+    fn on_disable_functions() -> &'static RwLock<Vec<fn()>> {
+        &ON_DISABLE_FUNCTIONS
+    }
+
     // 1
     fn awake() {
-        Kcp2kTransport::awake();
-        NetworkStartPosition::awake();
         NetworkManager::awake();
+        match Self::awake_functions().try_read() {
+            Ok(awake_functions) => {
+                for func in awake_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_warn!(format!("NetworkLoop.awake() error: {}", e));
+            }
+        }
     }
 
     // 2
     fn on_enable() {
-        BasicAuthenticator::new("123".to_string(), "456".to_string()).enable();
+        match Self::on_enable_functions().try_read() {
+            Ok(on_enable_functions) => {
+                for func in on_enable_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_warn!(format!("NetworkLoop.on_enable() error: {}", e));
+            }
+        }
     }
 
     // 3
@@ -114,7 +182,16 @@ impl NetworkLoop {
 
     // 7
     fn on_disable() {
-        NetworkManagerStatic::get_network_manager_singleton().dis_enable_authenticator();
+        match Self::on_disable_functions().try_read() {
+            Ok(on_disable_functions) => {
+                for func in on_disable_functions.iter() {
+                    func();
+                }
+            }
+            Err(e) => {
+                log_warn!(format!("NetworkLoop.on_disable() error: {}", e));
+            }
+        }
     }
 
     // 8

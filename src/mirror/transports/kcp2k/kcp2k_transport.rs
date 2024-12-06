@@ -1,5 +1,6 @@
 use crate::log_error;
-use crate::mirror::config::config::Config;
+use crate::mirror::core::backend_data::BackendDataStatic;
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
@@ -11,7 +12,43 @@ use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
 use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
+use serde::{Deserialize, Serialize};
 use std::process::exit;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Kcp2kTransportConfig {
+    pub port: u16,
+    pub dual_mode: bool,
+    pub no_delay: bool,
+    pub interval: i32,
+    pub timeout: u64,
+    pub recv_buffer_size: usize,
+    pub send_buffer_size: usize,
+    pub fast_resend: i32,
+    pub recv_win_size: u16,
+    pub send_win_size: u16,
+    pub max_retransmits: u32,
+    pub maximize_socket_buffer: bool,
+}
+
+impl Default for Kcp2kTransportConfig {
+    fn default() -> Self {
+        Kcp2kTransportConfig {
+            port: 7777,
+            dual_mode: false,
+            no_delay: true,
+            interval: 10,
+            timeout: 10000,
+            recv_buffer_size: 7361536,
+            send_buffer_size: 7361536,
+            fast_resend: 2,
+            recv_win_size: 4096,
+            send_win_size: 4096,
+            max_retransmits: 40,
+            maximize_socket_buffer: true,
+        }
+    }
+}
 
 pub struct Kcp2kTransport {
     pub transport: Transport,
@@ -87,11 +124,26 @@ impl TransportTrait for Kcp2kTransport {
     where
         Self: Sized,
     {
+        let backend_data = BackendDataStatic::get_backend_data();
+        let kcp2k_transport_config = backend_data.get_kcp2k_config();
+        let config = Kcp2KConfig {
+            dual_mode: kcp2k_transport_config.dual_mode,
+            recv_buffer_size: kcp2k_transport_config.recv_buffer_size,
+            send_buffer_size: kcp2k_transport_config.send_buffer_size,
+            no_delay: kcp2k_transport_config.no_delay,
+            interval: kcp2k_transport_config.interval,
+            fast_resend: kcp2k_transport_config.fast_resend,
+            send_window_size: kcp2k_transport_config.send_win_size,
+            receive_window_size: kcp2k_transport_config.recv_win_size,
+            timeout: kcp2k_transport_config.timeout,
+            max_retransmits: kcp2k_transport_config.max_retransmits,
+            ..Kcp2KConfig::default()
+        };
         let kcp2k_transport = Self {
             transport: Transport::default(),
             server_active: false,
-            config: Default::default(),
-            port: Config::get_config().port,
+            config,
+            port: kcp2k_transport_config.port,
             kcp_serv: None,
             kcp_serv_rx: None,
         };
@@ -107,7 +159,12 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_start(&mut self) {
-        match Kcp2K::new_server(self.config, format!("0.0.0.0:{}", self.port)) {
+        let network_address =
+            match NetworkManagerStatic::get_network_manager_singleton().network_address() {
+                "localhost" => "0.0.0.0",
+                addr => addr,
+            };
+        match Kcp2K::new_server(self.config, format!("{}:{}", network_address, self.port)) {
             Ok((server, s_rx)) => {
                 self.kcp_serv = Some(server);
                 self.kcp_serv_rx = Some(s_rx);

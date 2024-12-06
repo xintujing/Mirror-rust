@@ -23,4 +23,4 @@ pub mod network_connection;
 pub mod sync_object;
 pub mod network_loop;
 pub mod network_behaviour;
-mod network_start_position;
+pub mod network_start_position;
