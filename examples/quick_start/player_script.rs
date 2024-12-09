@@ -1,21 +1,9 @@
-use nalgebra::Vector4;
-use std::any::Any;
-use std::fmt::Debug;
-use std::sync::Once;
+use Mirror_rust::log_error;
 use Mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use Mirror_rust::mirror::core::backend_data::NetworkBehaviourComponent;
-use Mirror_rust::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
-};
+use Mirror_rust::mirror::core::network_behaviour::NetworkBehaviour;
 use Mirror_rust::mirror::core::network_identity::NetworkIdentity;
-use Mirror_rust::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
+use Mirror_rust::mirror::core::network_reader::NetworkReader;
 use Mirror_rust::mirror::core::network_server::NetworkServerStatic;
-use Mirror_rust::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use Mirror_rust::mirror::core::network_writer_pool::NetworkWriterPool;
-use Mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
-use Mirror_rust::mirror::core::sync_object::SyncObject;
-use Mirror_rust::mirror::core::transport::TransportChannel;
-use Mirror_rust::{log_debug, log_error};
 
 pub trait PlayerScript {
     const COMPONENT_TAG: &'static str;

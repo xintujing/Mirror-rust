@@ -1,5 +1,7 @@
 use crate::mirror::components::network_animator::NetworkAnimator;
 use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use crate::mirror::components::network_rigidbody::network_rigidbody_reliable::NetworkRigidbodyReliable;
+use crate::mirror::components::network_rigidbody::network_rigidbody_unreliable::NetworkRigidbodyUnreliable;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::components::network_transform::network_transform_reliable::NetworkTransformReliable;
 use crate::mirror::components::network_transform::network_transform_unreliable::NetworkTransformUnreliable;
@@ -64,6 +66,20 @@ impl NetworkBehaviourFactory {
         // NetworkTransformReliable
         Self::add_network_behaviour_factory(
             NetworkTransformReliable::COMPONENT_TAG.to_string(),
+            |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                Box::new(NetworkTransformReliable::new(game_object, component))
+            },
+        );
+        // NetworkRigidbodyUnreliable
+        Self::add_network_behaviour_factory(
+            NetworkRigidbodyUnreliable::COMPONENT_TAG.to_string(),
+            |game_object: GameObject, component: &NetworkBehaviourComponent| {
+                Box::new(NetworkTransformUnreliable::new(game_object, component))
+            },
+        );
+        // NetworkRigidbodyReliable
+        Self::add_network_behaviour_factory(
+            NetworkRigidbodyReliable::COMPONENT_TAG.to_string(),
             |game_object: GameObject, component: &NetworkBehaviourComponent| {
                 Box::new(NetworkTransformReliable::new(game_object, component))
             },

@@ -221,8 +221,6 @@ impl NetworkLoop {
         }
     }
 
-    // register_network_common_behaviour_delegate
-    fn register_network_common_behaviour_delegate() {}
 
     // 1
     fn awake() {

@@ -40,10 +40,6 @@ pub struct NetworkTransformUnreliable {
     send_interval_counter: u32,
     last_send_interval_time: f64,
 
-    position_changed: bool,
-    rotation_changed: bool,
-    scale_changed: bool,
-
     last_snapshot: TransformSnapshot,
     cached_snapshot_comparison: bool,
     cached_changed_comparison: u8,
@@ -646,9 +642,6 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
                 .scale_sensitivity,
             send_interval_counter: 0,
             last_send_interval_time: f64::MAX,
-            position_changed: false,
-            rotation_changed: false,
-            scale_changed: false,
             last_snapshot: TransformSnapshot::default(),
             cached_snapshot_comparison: false,
             cached_changed_comparison: Changed::None.to_u8(),
