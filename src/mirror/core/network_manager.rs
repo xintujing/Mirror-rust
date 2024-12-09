@@ -145,9 +145,7 @@ impl NetworkManager {
 
         self.on_start_server();
 
-        if self.is_server_online_scene_change_needed() {
-            // TODO  SceneManager.LoadScene(onlineScene);
-        } else {
+        if !self.is_server_online_scene_change_needed() {
             // TODO NetworkServer.SpawnObjects();
         }
     }
@@ -319,10 +317,6 @@ impl NetworkManager {
         }
     }
 
-    fn update_scene() {
-        // TODO  UpdateScene
-    }
-
     fn is_server_online_scene_change_needed(&self) -> bool {
         self.online_scene != self.offline_scene
     }
@@ -447,7 +441,6 @@ pub trait NetworkManagerTrait {
     fn late_update(&mut self);
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
-    fn server_change_scene(&mut self, new_scene_name: &str);
     fn on_destroy(&mut self);
 }
 
@@ -604,8 +597,6 @@ impl NetworkManagerTrait for NetworkManager {
 
         NetworkManagerStatic::set_network_scene_name(self.online_scene.to_string());
 
-        // TODO SceneManager.sceneLoaded += OnSceneLoaded;
-
         self.start_server();
     }
 
@@ -613,14 +604,9 @@ impl NetworkManagerTrait for NetworkManager {
         self.apply_configuration();
     }
 
-    fn late_update(&mut self) {
-        Self::update_scene();
-    }
+    fn late_update(&mut self) {}
 
     fn on_start_server(&mut self) {}
-    fn server_change_scene(&mut self, _new_scene_name: &str) {
-        // TODO  SceneManager.LoadScene(newSceneName);
-    }
     fn on_destroy(&mut self) {
         self.stop_server();
     }

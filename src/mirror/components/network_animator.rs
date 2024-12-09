@@ -316,10 +316,6 @@ impl NetworkAnimator {
             self.send_rpc_internal("System.Void Mirror.NetworkAnimator::RpcOnAnimationResetTriggerClientMessage(System.Int32)", 1545278305, writer, TransportChannel::Reliable, true);
         });
     }
-
-    fn reset(&mut self) {
-        self.network_behaviour.sync_direction = SyncDirection::ClientToServer;
-    }
 }
 
 impl NetworkBehaviourTrait for NetworkAnimator {

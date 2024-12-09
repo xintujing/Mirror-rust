@@ -50,7 +50,6 @@ pub trait NetworkConnectionTrait {
                 log_error!("Message too large to send: ", writer.get_position());
                 return;
             }
-            // TODO NetworkDiagnostics.OnSend(message, channelId, writer.Position, 1);
             self.send(writer.to_array_segment(), channel);
         });
     }

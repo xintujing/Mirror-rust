@@ -6,7 +6,6 @@ use Mirror_rust::mirror::core::network_reader::NetworkReader;
 use Mirror_rust::mirror::core::network_server::NetworkServerStatic;
 
 pub trait PlayerScript {
-    const COMPONENT_TAG: &'static str;
     fn invoke_user_code_cmd_send_player_message_string(
         identity: &mut NetworkIdentity,
         component_index: u8,
@@ -23,8 +22,6 @@ pub trait PlayerScript {
 }
 
 impl PlayerScript for NetworkCommonBehaviour {
-    const COMPONENT_TAG: &'static str = "QuickStart.PlayerScript";
-
     fn invoke_user_code_cmd_send_player_message_string(
         identity: &mut NetworkIdentity,
         component_index: u8,

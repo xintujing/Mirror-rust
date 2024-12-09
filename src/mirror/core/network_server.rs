@@ -1117,8 +1117,6 @@ impl NetworkServer {
                     }
                 }
             }
-
-            // TODO NetworkDiagnostics.OnSend(message, channelId, segment.Count, identity.observers.Count);
         });
     }
 
@@ -1330,10 +1328,7 @@ impl NetworkServer {
         // 注册 EntityStateMessage 处理程序
         Self::register_handler::<EntityStateMessage>(Self::on_entity_state_message, true);
         // 注册 TimeSnapshotMessage 处理程序
-        Self::register_handler::<TimeSnapshotMessage>(
-            Self::on_time_snapshot_message,
-            true,
-        );
+        Self::register_handler::<TimeSnapshotMessage>(Self::on_time_snapshot_message, true);
     }
 
     // 处理 ReadyMessage 消息

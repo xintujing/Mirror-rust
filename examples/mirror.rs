@@ -18,12 +18,13 @@ use Mirror_rust::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 mod quick_start;
 
 fn network_behaviour_factory() {
-    NetworkBehaviourFactory::add_network_behaviour_factory(
-        NetworkCommonBehaviour::COMPONENT_TAG.to_string(),
-        |game_object: GameObject, component: &NetworkBehaviourComponent| {
-            Box::new(NetworkCommonBehaviour::new(game_object, component))
-        },
-    );
+    // 可以复用 NetworkCommonBehaviour 也可以全新实现 NetworkBehaviourTrait
+    // NetworkBehaviourFactory::add_network_behaviour_factory(
+    //     "QuickStart.PlayerScript".to_string(),
+    //     |game_object: GameObject, component: &NetworkBehaviourComponent| {
+    //         Box::new(NetworkCommonBehaviour::new(game_object, component))
+    //     },
+    // );
 }
 
 fn ext_network_common_behaviour_delegate() {

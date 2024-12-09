@@ -401,7 +401,6 @@ impl NetworkIdentity {
     }
 
     pub fn notify_authority(&mut self) {
-        // TODO NotifyAuthority();
         if !self.had_authority && self.is_owned {}
         if self.had_authority && !self.is_owned {}
     }
