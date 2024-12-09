@@ -69,10 +69,7 @@ fn late_update() {
     // });
 }
 
-fn on_disable() {
-    // 禁用基础认证
-    NetworkManagerStatic::get_network_manager_singleton().dis_enable_authenticator();
-}
+fn on_disable() {}
 
 fn on_destroy() {}
 
