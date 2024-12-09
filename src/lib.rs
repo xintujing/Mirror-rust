@@ -1,3 +1,4 @@
+#[macro_use]
 pub mod mirror;
 
 #[cfg(test)]

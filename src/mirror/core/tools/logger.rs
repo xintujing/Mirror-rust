@@ -2,8 +2,7 @@
 macro_rules! log_info {
     ($($arg:tt)*) => {
         {
-            use tklog::info;
-            info!($($arg)*);
+            tklog::info!($($arg)*);
         }
     };
 }
@@ -12,8 +11,7 @@ macro_rules! log_info {
 macro_rules! log_error {
     ($($arg:tt)*) => {
         {
-            use tklog::error;
-            error!($($arg)*);
+            tklog::error!($($arg)*);
         }
     };
 }
@@ -22,8 +20,7 @@ macro_rules! log_error {
 macro_rules! log_warn {
     ($($arg:tt)*) => {
         {
-            use tklog::warn;
-            warn!($($arg)*);
+            tklog::warn!($($arg)*);
         }
     };
 }
@@ -32,8 +29,7 @@ macro_rules! log_warn {
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         {
-            use tklog::debug;
-            debug!($($arg)*);
+            tklog::debug!($($arg)*);
         }
     };
 }
@@ -42,8 +38,7 @@ macro_rules! log_debug {
 macro_rules! log_trace {
     ($($arg:tt)*) => {
         {
-            use tklog::trace;
-            trace!($($arg)*);
+            tklog::trace!($($arg)*);
         }
     };
 }
@@ -52,8 +47,7 @@ macro_rules! log_trace {
 macro_rules! log_fatal {
     ($($arg:tt)*) => {
         {
-            use tklog::fatal;
-            fatal!($($arg)*);
+            tklog::fatal!($($arg)*);
         }
     };
 }
