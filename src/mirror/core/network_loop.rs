@@ -362,7 +362,8 @@ impl NetworkLoop {
 
     // 8
     fn on_destroy() {
-        NetworkManager::shutdown();
+        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        network_manager_singleton.on_destroy();
 
         match Self::on_destroy_functions().try_read() {
             Ok(on_destroy_functions) => {

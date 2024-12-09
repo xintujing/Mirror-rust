@@ -173,16 +173,6 @@ impl NetworkManager {
         Self::register_server_messages();
     }
 
-    pub fn shutdown() {
-        unsafe {
-            NETWORK_MANAGER_SINGLETON.take();
-        }
-        START_POSITIONS.write().unwrap().clear();
-        START_POSITIONS_INDEX.store(0, Ordering::Relaxed);
-        NETWORK_SCENE_NAME.write().unwrap().clear();
-        NetworkServer::shutdown();
-    }
-
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
@@ -355,6 +345,10 @@ impl NetworkManager {
 
         self.on_stop_server();
 
+        START_POSITIONS.write().unwrap().clear();
+        START_POSITIONS_INDEX.store(0, Ordering::Relaxed);
+        NETWORK_SCENE_NAME.write().unwrap().clear();
+
         NetworkServer::shutdown();
 
         self.mode = NetworkManagerMode::Offline;
@@ -362,6 +356,10 @@ impl NetworkManager {
         NetworkManagerStatic::set_start_positions_index(0);
 
         NetworkManagerStatic::set_network_scene_name("".to_string());
+
+        unsafe {
+            NETWORK_MANAGER_SINGLETON.take();
+        }
     }
 }
 
@@ -451,6 +449,7 @@ pub trait NetworkManagerTrait {
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
     fn server_change_scene(&mut self, new_scene_name: &str);
+    fn on_destroy(&mut self);
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -626,6 +625,9 @@ impl NetworkManagerTrait for NetworkManager {
     fn on_start_server(&mut self) {}
     fn server_change_scene(&mut self, _new_scene_name: &str) {
         // TODO  SceneManager.LoadScene(newSceneName);
+    }
+    fn on_destroy(&mut self) {
+        self.stop_server();
     }
 }
 
