@@ -500,6 +500,10 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         self.network_behaviour.sync_objects = value
     }
 
+    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+        self.network_behaviour.sync_objects.push(value);
+    }
+
     fn sync_var_hook_guard(&self) -> u64 {
         self.network_behaviour.sync_var_hook_guard
     }

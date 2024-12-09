@@ -299,6 +299,7 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_game_object(&mut self, value: GameObject);
     fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>>;
     fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>);
+    fn add_sync_object(&mut self, value: Box<dyn SyncObject>);
     fn has_sync_objects(&mut self) -> bool {
         self.sync_objects().len() > 0
     }

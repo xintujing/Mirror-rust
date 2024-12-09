@@ -790,6 +790,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         self.network_transform_base.network_behaviour.sync_objects = value
     }
 
+    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+        self.network_transform_base.network_behaviour.sync_objects.push(value);
+    }
+
     fn sync_var_hook_guard(&self) -> u64 {
         self.network_transform_base
             .network_behaviour
@@ -805,7 +809,6 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn is_dirty(&self) -> bool {
         self.network_transform_base.network_behaviour.is_dirty()
     }
-
     fn on_serialize(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
             if self.network_transform_base.sync_position {
@@ -822,6 +825,7 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+
     fn update(&mut self) {
         self.update_server_interpolation();
     }

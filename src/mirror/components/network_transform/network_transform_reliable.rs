@@ -379,6 +379,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_transform_base.network_behaviour.sync_objects = value
     }
 
+    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+        self.network_transform_base.network_behaviour.sync_objects.push(value);
+    }
+
     fn sync_var_hook_guard(&self) -> u64 {
         self.network_transform_base
             .network_behaviour
@@ -462,7 +466,6 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             self.last_snapshot = snapshot;
         }
     }
-
     // OnDeserialize()
     fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
         let mut position = Vector3::identity();
@@ -526,6 +529,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     fn update(&mut self) {
         self.update_server();
     }
+
     fn late_update(&mut self) {
         if self.send_interval_counter == self.network_transform_base.send_interval_multiplier
             && (!self.network_transform_base.only_sync_on_change || self.changed(self.construct()))
