@@ -1,8 +1,9 @@
+pub use tklog;
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::info!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::info!($($arg)*);
         }
     };
 }
@@ -11,7 +12,7 @@ macro_rules! log_info {
 macro_rules! log_error {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::error!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::error!($($arg)*);
         }
     };
 }
@@ -20,7 +21,7 @@ macro_rules! log_error {
 macro_rules! log_warn {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::warn!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::warn!($($arg)*);
         }
     };
 }
@@ -29,7 +30,7 @@ macro_rules! log_warn {
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::debug!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::debug!($($arg)*);
         }
     };
 }
@@ -38,7 +39,7 @@ macro_rules! log_debug {
 macro_rules! log_trace {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::trace!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::trace!($($arg)*);
         }
     };
 }
@@ -47,7 +48,7 @@ macro_rules! log_trace {
 macro_rules! log_fatal {
     ($($arg:tt)*) => {
         {
-            $crate::tklog::fatal!($($arg)*);
+            $crate::mirror::core::tools::logger::tklog::fatal!($($arg)*);
         }
     };
 }

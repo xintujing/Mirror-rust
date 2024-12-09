@@ -1,4 +1,3 @@
-pub use tklog;
 pub mod mirror;
 
 #[cfg(test)]
