@@ -31,7 +31,7 @@ lazy_static! {
     // 需要 添加的 network_behaviour_factory 函数列表
     static ref NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 network_common_behaviour_delegate 函数列表
-    static ref NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
+    static ref NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTION: RwLock<fn()> = RwLock::new(||{});
 }
 
 pub fn stop_signal() -> &'static mut bool {
@@ -184,10 +184,10 @@ impl NetworkLoop {
     }
 
     // network_common_behaviour_delegate
-    pub fn add_network_common_behaviour_delegate(func: fn()) {
-        match NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS.write() {
-            Ok(mut network_common_behaviour_delegate_functions) => {
-                network_common_behaviour_delegate_functions.push(func);
+    pub fn set_ext_network_common_behaviour_delegate_func(func: fn()) {
+        match NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTION.write() {
+            Ok(mut network_common_behaviour_delegate_function) => {
+                *network_common_behaviour_delegate_function = func;
             }
             Err(e) => {
                 log_error!(format!(
@@ -199,8 +199,8 @@ impl NetworkLoop {
     }
 
     // network_common_behaviour_delegate
-    pub fn network_common_behaviour_delegate_functions() -> &'static RwLock<Vec<fn()>> {
-        &NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTIONS
+    pub fn ext_network_common_behaviour_delegate_func() -> &'static RwLock<fn()> {
+        &NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTION
     }
 
     // NetworkBehaviourFactory::register_network_behaviour_factory();

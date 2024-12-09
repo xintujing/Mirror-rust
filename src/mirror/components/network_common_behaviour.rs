@@ -22,9 +22,9 @@ use std::sync::Once;
 
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
-    network_behaviour: NetworkBehaviour,
-    sub_class: String,
-    sync_vars: DashMap<u8, SyncVarData>,
+    pub network_behaviour: NetworkBehaviour,
+    pub sub_class: String,
+    pub sync_vars: DashMap<u8, SyncVarData>,
 }
 
 impl NetworkCommonBehaviour {
@@ -169,6 +169,17 @@ impl NetworkCommonBehaviour {
             log_error!("Method not found by hash code: {}", func_hash);
         }
     }
+
+    // 通用更新
+    pub fn user_code_cmd_common_update_func(
+        &mut self,
+        reader: &mut NetworkReader,
+        func_hash: u16,
+        conn_id: u64,
+        func: fn(&mut Self, reader: &mut NetworkReader, func_hash: u16, conn_id: u64),
+    ) {
+        func(self, reader, func_hash, conn_id);
+    }
 }
 
 impl NetworkBehaviourTrait for NetworkCommonBehaviour {
@@ -207,11 +218,9 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
             Self::invoke_user_code_cmd_common_update_sync_var,
             true,
         );
-        match NetworkLoop::network_common_behaviour_delegate_functions().try_read() {
-            Ok(delegate_functions) => {
-                for func in delegate_functions.iter() {
-                    func();
-                }
+        match NetworkLoop::ext_network_common_behaviour_delegate_func().try_read() {
+            Ok(function) => {
+                function();
             }
             Err(e) => {
                 log_error!(format!(
