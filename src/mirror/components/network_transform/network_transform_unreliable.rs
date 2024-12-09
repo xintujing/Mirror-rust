@@ -327,7 +327,6 @@ impl NetworkTransformUnreliable {
             quaternion = Some(Quaternion::decompress(rotation.unwrap()));
         }
         self.on_client_to_server_sync_nullable_1_nullable_1_nullable_1(position, quaternion, scale);
-        // TODO this.RpcServerToClientSyncCompressRotation(position, rotation, scale);
     }
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64

@@ -135,6 +135,7 @@ impl NetworkTransformReliable {
         }
 
         let mut timestamp = 0f64;
+        let mut buffer_time_multiplier: f64 = 2.0;
         match NetworkServerStatic::network_connections().try_get(&self.connection_to_client()) {
             TryResult::Present(conn) => {
                 if self.network_transform_base.server_snapshots.len()
@@ -143,6 +144,7 @@ impl NetworkTransformReliable {
                     return;
                 }
                 timestamp = conn.remote_time_stamp();
+                buffer_time_multiplier = conn.buffer_time_multiplier;
             }
             TryResult::Absent => {
                 log_error!(format!(
@@ -158,17 +160,21 @@ impl NetworkTransformReliable {
             }
         }
 
-        // TODO need 去确实是否需要
-        // if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::get_static_send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
-        //     RewriteHistory(
-        //         clientSnapshots,
-        //         NetworkClient.connection.remoteTimeStamp, // arrival remote timestamp. NOT remote timeline.
-        //         NetworkTime.localTime,                    // Unity 2019 doesn't have timeAsDouble yet
-        //         NetworkClient.sendInterval * sendIntervalMultiplier,
-        //         GetPosition(),
-        //         GetRotation(),
-        //         GetScale());
-        // }
+        if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
+            let position = self.get_position();
+            let rotation = self.get_rotation();
+            let scale = self.get_scale();
+            Self::rewrite_history(
+                &mut self.network_transform_base.server_snapshots,
+                timestamp,
+                NetworkTime::local_time(),
+                NetworkServerStatic::send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64,
+                position,
+                rotation,
+                scale,
+                buffer_time_multiplier as usize,
+            );
+        }
 
         let mut server_snapshots = take(&mut self.network_transform_base.server_snapshots);
         self.add_snapshot(
@@ -192,6 +198,27 @@ impl NetworkTransformReliable {
         snapshots.len() == 1
             && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time
             >= buffer_time * tolerance_multiplier
+    }
+
+    fn rewrite_history(
+        snapshots: &mut BTreeMap<OrderedFloat<f64>, TransformSnapshot>,
+        remote_timestamp: f64,
+        local_time: f64,
+        send_interval: f64,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+        scale: Vector3<f32>,
+        buffer_time_multiplier: usize,
+    ) {
+        snapshots.clear();
+        let snapshot = TransformSnapshot::new(
+            remote_timestamp - send_interval,
+            local_time - send_interval,
+            position,
+            rotation,
+            scale,
+        );
+        SnapshotInterpolation::insert_if_not_exists(snapshots, buffer_time_multiplier, snapshot);
     }
 }
 
