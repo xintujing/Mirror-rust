@@ -1,4 +1,4 @@
-#[macro_use]
+pub use tklog;
 pub mod mirror;
 
 #[cfg(test)]

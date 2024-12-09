@@ -2,7 +2,7 @@
 macro_rules! log_info {
     ($($arg:tt)*) => {
         {
-            tklog::info!($($arg)*);
+            $crate::tklog::info!($($arg)*);
         }
     };
 }
@@ -11,7 +11,7 @@ macro_rules! log_info {
 macro_rules! log_error {
     ($($arg:tt)*) => {
         {
-            tklog::error!($($arg)*);
+            $crate::tklog::error!($($arg)*);
         }
     };
 }
@@ -20,7 +20,7 @@ macro_rules! log_error {
 macro_rules! log_warn {
     ($($arg:tt)*) => {
         {
-            tklog::warn!($($arg)*);
+            $crate::tklog::warn!($($arg)*);
         }
     };
 }
@@ -29,7 +29,7 @@ macro_rules! log_warn {
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         {
-            tklog::debug!($($arg)*);
+            $crate::tklog::debug!($($arg)*);
         }
     };
 }
@@ -38,7 +38,7 @@ macro_rules! log_debug {
 macro_rules! log_trace {
     ($($arg:tt)*) => {
         {
-            tklog::trace!($($arg)*);
+            $crate::tklog::trace!($($arg)*);
         }
     };
 }
@@ -47,7 +47,7 @@ macro_rules! log_trace {
 macro_rules! log_fatal {
     ($($arg:tt)*) => {
         {
-            tklog::fatal!($($arg)*);
+            $crate::tklog::fatal!($($arg)*);
         }
     };
 }
