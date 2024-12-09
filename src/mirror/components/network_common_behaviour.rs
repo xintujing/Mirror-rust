@@ -139,12 +139,6 @@ impl NetworkCommonBehaviour {
         if let Some(method_data) =
             BackendDataStatic::get_backend_data().get_method_data_by_hash_code(func_hash)
         {
-            log_debug!(format!(
-                "sub_class: {}, fn: {} - {}",
-                self.sub_class,
-                func_hash,
-                method_data.name.split("::").collect::<Vec<&str>>()[1]
-            ));
             // 更新同步变量
             for (index, parameter) in method_data.parameters.iter().enumerate() {
                 let r#type = parameter.value.as_str();

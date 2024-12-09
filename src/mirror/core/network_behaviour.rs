@@ -47,7 +47,6 @@ impl NetworkBehaviourFactory {
             Some(factory) => Some(factory(game_object, component)),
             // 如果不存在则创建 NetworkCommonBehaviour
             None => {
-                log_error!("Using NetworkCommonBehaviour creat ", component.sub_class);
                 Some(Box::new(NetworkCommonBehaviour::new(
                     game_object,
                     component,
