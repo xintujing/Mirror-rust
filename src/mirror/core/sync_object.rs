@@ -4,6 +4,9 @@ use std::any::Any;
 use std::fmt::Debug;
 
 pub trait SyncObject: Any + Send + Sync + Debug {
+    fn sub_class_name() -> &'static str
+    where
+        Self: Sized;
     fn is_recording(&self) -> bool {
         true
     }
