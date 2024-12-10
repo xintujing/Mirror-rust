@@ -176,3 +176,4 @@ rust-project.json
 
 /tobackend.json
 /config.json
+.DS_Store
