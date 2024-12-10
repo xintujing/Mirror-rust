@@ -1,3 +1,4 @@
+#[allow(warnings)]
 #[repr(u8)]
 pub enum ConnectionQuality {
     ESTIMATING,
@@ -7,6 +8,7 @@ pub enum ConnectionQuality {
     EXCELLENT,
 }
 
+#[allow(warnings)]
 #[repr(u8)]
 #[derive(Clone)]
 pub enum ConnectionQualityMethod {
@@ -14,8 +16,10 @@ pub enum ConnectionQualityMethod {
     Pragmatic,
 }
 
+#[allow(warnings)]
 pub struct ConnectionQualityHeuristics;
 
+#[allow(warnings)]
 impl ConnectionQualityHeuristics {
     pub fn color_code(quality: ConnectionQuality) -> u32 {
         match quality {

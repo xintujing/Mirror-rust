@@ -14,6 +14,7 @@ pub struct NetworkConnection {
     last_message_time: f64,
     last_ping_time: f64,
     is_authenticated: bool,
+    #[allow(warnings)]
     authentication_data: Vec<u8>,
     net_id: u32,
     owned: Vec<u32>,

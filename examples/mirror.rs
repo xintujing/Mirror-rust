@@ -1,14 +1,14 @@
 use crate::quick_start::player_script::PlayerScript;
-use Mirror_rust::log_debug;
-use Mirror_rust::mirror::authenticators::basic_authenticator::BasicAuthenticator;
-use Mirror_rust::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
-use Mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use Mirror_rust::mirror::core::network_loop::NetworkLoop;
-use Mirror_rust::mirror::core::network_server::NetworkServerStatic;
-use Mirror_rust::mirror::core::network_start_position::NetworkStartPosition;
-use Mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
-use Mirror_rust::mirror::core::transport::TransportTrait;
-use Mirror_rust::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
+use mirror_rust::log_debug;
+use mirror_rust::mirror::authenticators::basic_authenticator::BasicAuthenticator;
+use mirror_rust::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
+use mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use mirror_rust::mirror::core::network_loop::NetworkLoop;
+use mirror_rust::mirror::core::network_server::NetworkServerStatic;
+use mirror_rust::mirror::core::network_start_position::NetworkStartPosition;
+use mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
+use mirror_rust::mirror::core::transport::TransportTrait;
+use mirror_rust::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 
 mod quick_start;
 

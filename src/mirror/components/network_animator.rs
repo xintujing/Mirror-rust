@@ -23,6 +23,7 @@ pub struct NetworkAnimator {
     client_authority: bool,
     animator: Animator,
     animator_speed: f32,
+    #[allow(warnings)]
     previous_speed: f32,
     last_int_parameters: Vec<i32>,
     last_float_parameters: Vec<f32>,

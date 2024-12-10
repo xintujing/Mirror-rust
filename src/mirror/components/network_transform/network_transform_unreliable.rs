@@ -41,6 +41,7 @@ pub struct NetworkTransformUnreliable {
     last_send_interval_time: f64,
 
     last_snapshot: TransformSnapshot,
+    #[allow(warnings)]
     cached_snapshot_comparison: bool,
     cached_changed_comparison: u8,
     has_sent_unchanged_position: bool,

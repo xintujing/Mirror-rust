@@ -1,9 +1,9 @@
-use Mirror_rust::log_error;
-use Mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use Mirror_rust::mirror::core::network_behaviour::NetworkBehaviour;
-use Mirror_rust::mirror::core::network_identity::NetworkIdentity;
-use Mirror_rust::mirror::core::network_reader::NetworkReader;
-use Mirror_rust::mirror::core::network_server::NetworkServerStatic;
+use mirror_rust::log_error;
+use mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use mirror_rust::mirror::core::network_behaviour::NetworkBehaviour;
+use mirror_rust::mirror::core::network_identity::NetworkIdentity;
+use mirror_rust::mirror::core::network_reader::NetworkReader;
+use mirror_rust::mirror::core::network_server::NetworkServerStatic;
 
 pub trait PlayerScript {
     fn invoke_user_code_cmd_send_player_message_string(

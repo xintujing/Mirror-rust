@@ -97,10 +97,12 @@ pub struct NetworkManager {
     snapshot_interpolation_settings: SnapshotInterpolationSetting,
     mode: NetworkManagerMode,
     dont_destroy_on_load: bool,
+    #[allow(warnings)]
     editor_auto_start: bool,
     send_rate: u32,
     offline_scene: String,
     online_scene: String,
+    #[allow(warnings)]
     offline_scene_load_delay: f32,
     network_address: String,
     max_connections: usize,
@@ -111,8 +113,11 @@ pub struct NetworkManager {
     player_spawn_method: PlayerSpawnMethod,
     spawn_prefabs: Vec<GameObject>,
     exceptions_disconnect: bool,
+    #[allow(warnings)]
     evaluation_method: ConnectionQualityMethod,
+    #[allow(warnings)]
     evaluation_interval: f32,
+    #[allow(warnings)]
     time_interpolation_gui: bool,
 }
 

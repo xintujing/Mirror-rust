@@ -368,10 +368,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     // OnDeserialize
     fn on_deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        let mut result: bool;
-        result = self.deserialize_sync_objects(reader, initial_state);
-        result = self.deserialize_sync_vars(reader, initial_state);
-        result
+        self.deserialize_sync_objects(reader, initial_state)
+            && self.deserialize_sync_vars(reader, initial_state)
     }
     // Deserialize
     fn deserialize(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
