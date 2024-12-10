@@ -61,12 +61,15 @@ pub struct Transport {
     pub transport_cb_fn: Option<TransportFunc>,
 }
 impl Transport {
+    #[allow(warnings)]
     pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
         unsafe { ACTIVE_TRANSPORT.as_mut() }
     }
+    #[allow(warnings)]
     pub fn active_transport_exists() -> bool {
         unsafe { ACTIVE_TRANSPORT.is_some() }
     }
+    #[allow(warnings)]
     pub fn set_active_transport(transport: Box<dyn TransportTrait>) {
         unsafe {
             ACTIVE_TRANSPORT.replace(transport);

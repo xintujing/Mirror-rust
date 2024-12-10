@@ -42,10 +42,12 @@ impl NetworkManagerStatic {
         }
     }
 
+    #[allow(warnings)]
     pub fn network_manager_singleton_exists() -> bool {
         unsafe { NETWORK_MANAGER_SINGLETON.is_some() }
     }
 
+    #[allow(warnings)]
     pub fn set_network_manager_singleton(network_manager: Box<dyn NetworkManagerTrait>) {
         unsafe {
             NETWORK_MANAGER_SINGLETON.replace(network_manager);
@@ -351,6 +353,7 @@ impl NetworkManager {
 
         NetworkManagerStatic::set_network_scene_name("".to_string());
 
+        #[allow(warnings)]
         unsafe {
             NETWORK_MANAGER_SINGLETON.take();
         }

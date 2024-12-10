@@ -34,6 +34,7 @@ lazy_static! {
     static ref NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTION: RwLock<fn()> = RwLock::new(||{});
 }
 
+#[allow(warnings)]
 pub fn stop_signal() -> &'static mut bool {
     static mut STOP: bool = false;
     unsafe { &mut STOP }

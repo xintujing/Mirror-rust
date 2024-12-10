@@ -14,7 +14,7 @@ use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
-use crate::{log_debug, log_error};
+use crate::log_error;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
