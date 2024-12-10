@@ -270,7 +270,6 @@ impl NetworkAnimator {
         if !self.client_authority {
             return;
         }
-        // TODO this.animator.speed = newSpeed;
         self.animator_speed = speed;
         self.set_sync_object_dirty_bits(1 << 0);
     }
