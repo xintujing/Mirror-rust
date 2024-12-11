@@ -147,7 +147,7 @@ impl NetworkConnectionToClient {
         }
 
         let snapshot_settings =
-            NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
+            NetworkManagerStatic::network_manager_singleton().snapshot_interpolation_settings();
 
         // dynamic adjustment
         if snapshot_settings.dynamic_adjustment {

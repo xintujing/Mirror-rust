@@ -58,7 +58,7 @@ pub trait NetworkAuthenticatorTrait: Send + Sync {
     where
         Self: Sized,
     {
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
 
         if let Some(authenticator) = network_manager_singleton.authenticator() {
             return Some(authenticator.as_any_mut());

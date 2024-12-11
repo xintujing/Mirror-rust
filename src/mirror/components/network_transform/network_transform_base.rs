@@ -177,7 +177,7 @@ pub trait NetworkTransformBaseTrait {
                                               position.unwrap(),
                                               rotation.unwrap(),
                                               scale.unwrap());
-        let snapshot_settings = NetworkManagerStatic::get_network_manager_singleton().snapshot_interpolation_settings();
+        let snapshot_settings = NetworkManagerStatic::network_manager_singleton().snapshot_interpolation_settings();
         SnapshotInterpolation::insert_if_not_exists(snapshots,
                                                     snapshot_settings.buffer_limit,
                                                     snapshot);

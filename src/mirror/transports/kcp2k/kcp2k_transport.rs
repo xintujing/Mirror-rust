@@ -160,7 +160,7 @@ impl TransportTrait for Kcp2kTransport {
 
     fn server_start(&mut self) {
         let network_address =
-            match NetworkManagerStatic::get_network_manager_singleton().network_address() {
+            match NetworkManagerStatic::network_manager_singleton().network_address() {
                 "localhost" => "0.0.0.0",
                 addr => addr,
             };

@@ -254,7 +254,7 @@ impl NetworkLoop {
 
     // 3
     fn start() {
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
         network_manager_singleton.start();
 
         match Self::start_functions().try_read() {
@@ -290,7 +290,7 @@ impl NetworkLoop {
     // 5
     fn update() {
         // NetworkManager update
-        NetworkManagerStatic::get_network_manager_singleton().update();
+        NetworkManagerStatic::network_manager_singleton().update();
 
         // NetworkBehaviour update  模拟
         NetworkServerStatic::spawned_network_identities()
@@ -323,7 +323,7 @@ impl NetworkLoop {
         NetworkServer::network_late_update();
 
         // NetworkBehaviour late_update  模拟
-        NetworkManagerStatic::get_network_manager_singleton().late_update();
+        NetworkManagerStatic::network_manager_singleton().late_update();
 
         // NetworkBehaviour late_update
         NetworkServerStatic::spawned_network_identities()
@@ -363,7 +363,7 @@ impl NetworkLoop {
 
     // 8
     fn on_destroy() {
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
         network_manager_singleton.on_destroy();
 
         match Self::on_destroy_functions().try_read() {

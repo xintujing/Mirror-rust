@@ -23,7 +23,7 @@ impl BasicAuthenticator {
 
 impl NetworkAuthenticatorTrait for BasicAuthenticator {
     fn enable(self) {
-        let network_manager_singleton = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
         network_manager_singleton.set_authenticator(Box::new(self));
     }
 

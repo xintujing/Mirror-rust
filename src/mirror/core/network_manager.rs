@@ -18,7 +18,7 @@ use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use rand::Rng;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, LockResult, RwLock};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 
@@ -33,7 +33,7 @@ pub struct NetworkManagerStatic;
 
 // NetworkManagerStatic 的默认实现
 impl NetworkManagerStatic {
-    pub fn get_network_manager_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
+    pub fn network_manager_singleton() -> &'static mut Box<dyn NetworkManagerTrait> {
         unsafe {
             if let Some(ref mut singleton) = NETWORK_MANAGER_SINGLETON {
                 return singleton;
@@ -54,7 +54,7 @@ impl NetworkManagerStatic {
         }
     }
 
-    pub fn get_network_scene_name() -> String {
+    pub fn network_scene_name() -> String {
         if let Ok(name) = NETWORK_SCENE_NAME.try_read() {
             return name.to_string();
         }
@@ -70,12 +70,27 @@ impl NetworkManagerStatic {
         }
     }
 
-    pub fn get_start_positions_index() -> usize {
+    pub fn start_positions_index() -> usize {
         START_POSITIONS_INDEX.load(Ordering::Relaxed)
     }
 
     pub fn set_start_positions_index(index: usize) {
         START_POSITIONS_INDEX.store(index, Ordering::Relaxed);
+    }
+
+    pub fn start_positions() -> &'static Arc<RwLock<Vec<Transform>>> {
+        &START_POSITIONS
+    }
+
+    pub fn add_start_position(start: Transform) {
+        match START_POSITIONS.write() {
+            Ok(mut sps) => {
+                sps.push(start);
+            }
+            Err(e) => {
+                log_error!(format!("Failed to add start position: {:?}", e));
+            }
+        }
     }
 }
 
@@ -222,12 +237,12 @@ impl NetworkManager {
         conn.set_authenticated(true);
 
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
         // offline_scene
         let offline_scene = network_manager.offline_scene();
 
         // 获取 场景名称
-        let network_scene_name = NetworkManagerStatic::get_network_scene_name();
+        let network_scene_name = NetworkManagerStatic::network_scene_name();
         // 如果 场景名称不为空 且 场景名称不等于 NetworkManager 的 offline_scene
         if network_scene_name != "" && network_scene_name != offline_scene {
             // 创建 SceneMessage 消息
@@ -261,7 +276,7 @@ impl NetworkManager {
         _channel: TransportChannel,
     ) {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
         if network_manager.auto_create_player() && network_manager.player_obj().prefab == "" {
@@ -320,7 +335,7 @@ impl NetworkManager {
             let v3 = Vector3::new(x, y, z);
             start.position = v3;
             start.local_position = v3;
-            START_POSITIONS.write().unwrap().push(start.clone());
+            NetworkManagerStatic::add_start_position(start);
         }
     }
 
@@ -339,16 +354,16 @@ impl NetworkManager {
         }
 
         if let Some(ref mut authenticator) =
-            NetworkManagerStatic::get_network_manager_singleton().authenticator()
+            NetworkManagerStatic::network_manager_singleton().authenticator()
         {
             authenticator.on_stop_server();
         }
 
         self.on_stop_server();
 
-        START_POSITIONS.write().unwrap().clear();
-        START_POSITIONS_INDEX.store(0, Ordering::Relaxed);
-        NETWORK_SCENE_NAME.write().unwrap().clear();
+        NetworkManagerStatic::start_positions().write().unwrap().clear();
+        NetworkManagerStatic::set_start_positions_index(0);
+        NetworkManagerStatic::set_network_scene_name("".to_string());
 
         NetworkServer::shutdown();
 
@@ -410,19 +425,19 @@ pub trait NetworkManagerTrait {
     where
         Self: Sized;
     fn get_start_position(&mut self) -> Transform {
-        if START_POSITIONS.read().unwrap().len() == 0 {
+        if NetworkManagerStatic::start_positions().read().unwrap().len() == 0 {
             return Transform::default();
         }
 
         if *self.player_spawn_method() == PlayerSpawnMethod::Random {
-            let index = rand::random::<u32>() % START_POSITIONS.read().unwrap().len() as u32;
-            return START_POSITIONS.read().unwrap()[index as usize].clone();
+            let index = rand::random::<u32>() % NetworkManagerStatic::start_positions().read().unwrap().len() as u32;
+            return NetworkManagerStatic::start_positions().read().unwrap()[index as usize].clone();
         }
-        let index = NetworkManagerStatic::get_start_positions_index();
+        let index = NetworkManagerStatic::start_positions_index();
         NetworkManagerStatic::set_start_positions_index(
-            index + 1 % START_POSITIONS.read().unwrap().len(),
+            index + 1 % NetworkManagerStatic::start_positions().read().unwrap().len(),
         );
-        START_POSITIONS.read().unwrap()[index].clone()
+        NetworkManagerStatic::start_positions().read().unwrap()[index].clone()
     }
     fn on_server_add_player(&mut self, conn_id: u64) {
         let mut player_obj = self.player_obj().clone();
@@ -509,7 +524,7 @@ impl NetworkManagerTrait for NetworkManager {
         Self: Sized,
     {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::get_network_manager_singleton();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
 
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
@@ -627,6 +642,6 @@ mod tests {
     #[test]
     fn test_network_manager() {
         NetworkManagerStatic::set_network_scene_name("test".to_string());
-        println!("{}", NetworkManagerStatic::get_network_scene_name());
+        println!("{}", NetworkManagerStatic::network_scene_name());
     }
 }
