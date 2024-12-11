@@ -1,10 +1,5 @@
 use crate::mirror::core::batching::un_batcher::UnBatcher;
-use crate::mirror::core::messages::{
-    ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler,
-    NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage,
-    ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage,
-    ReadyMessage, SpawnMessage, TimeSnapshotMessage,
-};
+use crate::mirror::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage, NotReadyMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
 use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
@@ -1360,6 +1355,59 @@ impl NetworkServer {
         }
         // 为连接生成观察者
         Self::spawn_observers_for_connection(conn_id);
+    }
+    // 设置客户端未准备就绪
+    pub fn set_client_not_ready(conn_id: u64) {
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut connection) => {
+                connection.set_ready(false);
+                connection.remove_from_observings_observers();
+                connection.send_network_message(&mut NotReadyMessage::default(), TransportChannel::Reliable);
+            }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "Server.SetClientNotReady: connectionId {} not found in connections",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                log_error!(format!(
+                    "Server.SetClientNotReady: connectionId {} is locked",
+                    conn_id
+                ));
+            }
+        }
+    }
+    // 发送给所有客户端
+    pub fn send_to_all<T>(message: &mut T, channel: TransportChannel, send_to_ready_only: bool)
+    where
+        T: NetworkMessageTrait + Send,
+    {
+        if !NetworkServerStatic::active() {
+            log_error!("Server.SendToAll: NetworkServer is not active. Cannot send messages without an active server.");
+            return;
+        }
+
+        NetworkWriterPool::get_return(|writer| {
+            message.serialize(writer);
+            let max = NetworkMessages::max_message_size(channel);
+            if writer.get_position() > max {
+                log_error!("Message too large to send: ", writer.get_position());
+                return;
+            }
+            NetworkServerStatic::for_each_network_connection(|mut connection| {
+                if send_to_ready_only && !connection.is_ready() {
+                    return;
+                }
+                connection.send(writer.to_array_segment(), channel);
+            });
+        });
+    }
+    // 设置所有客户端未准备就绪
+    pub fn set_all_clients_not_ready() {
+        NetworkServerStatic::for_each_network_connection(|connection| {
+            Self::set_client_not_ready(connection.connection_id());
+        });
     }
     // 为连接生成观察者
     fn spawn_observers_for_connection(conn_id: u64) {

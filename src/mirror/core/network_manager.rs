@@ -18,7 +18,7 @@ use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use rand::Rng;
 use std::sync::atomic::Ordering;
-use std::sync::{Arc, LockResult, RwLock};
+use std::sync::{Arc, RwLock};
 
 static mut NETWORK_MANAGER_SINGLETON: Option<Box<dyn NetworkManagerTrait>> = None;
 
@@ -167,7 +167,9 @@ impl NetworkManager {
 
         self.on_start_server();
 
-        if !self.is_server_online_scene_change_needed() {
+        if self.is_server_online_scene_change_needed() {
+            self.server_change_scene(self.online_scene.to_string());
+        } else {
             // TODO NetworkServer.SpawnObjects();
         }
     }
@@ -361,7 +363,10 @@ impl NetworkManager {
 
         self.on_stop_server();
 
-        NetworkManagerStatic::start_positions().write().unwrap().clear();
+        NetworkManagerStatic::start_positions()
+            .write()
+            .unwrap()
+            .clear();
         NetworkManagerStatic::set_start_positions_index(0);
         NetworkManagerStatic::set_network_scene_name("".to_string());
 
@@ -425,17 +430,30 @@ pub trait NetworkManagerTrait {
     where
         Self: Sized;
     fn get_start_position(&mut self) -> Transform {
-        if NetworkManagerStatic::start_positions().read().unwrap().len() == 0 {
+        if NetworkManagerStatic::start_positions()
+            .read()
+            .unwrap()
+            .len()
+            == 0
+        {
             return Transform::default();
         }
 
         if *self.player_spawn_method() == PlayerSpawnMethod::Random {
-            let index = rand::random::<u32>() % NetworkManagerStatic::start_positions().read().unwrap().len() as u32;
+            let index = rand::random::<u32>()
+                % NetworkManagerStatic::start_positions()
+                .read()
+                .unwrap()
+                .len() as u32;
             return NetworkManagerStatic::start_positions().read().unwrap()[index as usize].clone();
         }
         let index = NetworkManagerStatic::start_positions_index();
         NetworkManagerStatic::set_start_positions_index(
-            index + 1 % NetworkManagerStatic::start_positions().read().unwrap().len(),
+            index
+                + 1 % NetworkManagerStatic::start_positions()
+                .read()
+                .unwrap()
+                .len(),
         );
         NetworkManagerStatic::start_positions().read().unwrap()[index].clone()
     }
@@ -465,6 +483,8 @@ pub trait NetworkManagerTrait {
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
     fn on_destroy(&mut self);
+    fn server_change_scene(&mut self, new_scene_name: String);
+    fn on_server_change_scene(&mut self, _new_scene_name: String) {}
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -632,6 +652,44 @@ impl NetworkManagerTrait for NetworkManager {
     fn on_start_server(&mut self) {}
     fn on_destroy(&mut self) {
         self.stop_server();
+    }
+    fn server_change_scene(&mut self, new_scene_name: String) {
+        if new_scene_name == "" {
+            log_error!("ServerChangeScene newSceneName is empty");
+            return;
+        }
+
+        if NetworkServerStatic::is_loading_scene()
+            && new_scene_name == NetworkManagerStatic::network_scene_name()
+        {
+            log_error!(format!(
+                "Scene change is already in progress for scene: {}",
+                new_scene_name
+            ));
+            return;
+        }
+
+        if !NetworkServerStatic::active() && new_scene_name == self.online_scene {
+            log_error!(
+                "ServerChangeScene called when server is not active. Call StartServer first."
+            );
+            return;
+        }
+
+        NetworkServer::set_all_clients_not_ready();
+        NetworkManagerStatic::set_network_scene_name(new_scene_name.to_string());
+
+        self.on_server_change_scene(new_scene_name.to_string());
+
+        NetworkServerStatic::set_is_loading_scene(true);
+
+        if NetworkServerStatic::active() {
+            NetworkServer::send_to_all(
+                &mut SceneMessage::new(new_scene_name.to_string(), SceneOperation::Normal, true),
+                TransportChannel::Reliable,
+                false,
+            );
+        }
     }
 }
 
