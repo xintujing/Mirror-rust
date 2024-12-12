@@ -103,7 +103,7 @@ pub enum PlayerSpawnMethod {
 #[derive(Debug)]
 pub enum NetworkManagerMode {
     Offline,
-    Server,
+    ServerOnly,
 }
 
 // NetworkManager
@@ -161,7 +161,7 @@ impl NetworkManager {
             return;
         }
 
-        self.mode = NetworkManagerMode::Server;
+        self.mode = NetworkManagerMode::ServerOnly;
 
         self.setup_server();
 
@@ -382,6 +382,26 @@ impl NetworkManager {
         unsafe {
             NETWORK_MANAGER_SINGLETON.take();
         }
+    }
+
+    fn update_scene(&mut self) {
+        self.finish_load_scene();
+    }
+
+    fn finish_load_scene(&mut self) {
+        NetworkServerStatic::set_is_loading_scene(false);
+
+        match self.mode {
+            NetworkManagerMode::ServerOnly => {
+                self.finish_load_scene_server_only();
+            }
+            _ => {}
+        }
+    }
+
+    fn finish_load_scene_server_only(&mut self) {
+        // TODO NetworkServer.SpawnObjects();
+        self.on_server_change_scene(NetworkManagerStatic::network_scene_name());
     }
 }
 
@@ -647,7 +667,9 @@ impl NetworkManagerTrait for NetworkManager {
         self.apply_configuration();
     }
 
-    fn late_update(&mut self) {}
+    fn late_update(&mut self) {
+        self.update_scene();
+    }
 
     fn on_start_server(&mut self) {}
     fn on_destroy(&mut self) {
