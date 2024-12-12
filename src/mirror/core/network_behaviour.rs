@@ -99,6 +99,7 @@ pub struct GameObject {
     pub name: String,
     pub prefab: String,
     pub transform: Transform,
+    pub active: bool,
 }
 
 // GameObject 的默认实现
@@ -108,6 +109,7 @@ impl GameObject {
             name: "".to_string(),
             prefab,
             transform: Transform::default(),
+            active: false,
         }
     }
     pub fn default() -> Self {
@@ -115,6 +117,7 @@ impl GameObject {
             name: "".to_string(),
             prefab: "".to_string(),
             transform: Transform::default(),
+            active: false,
         }
     }
     pub fn is_has_component(&self) -> bool {
