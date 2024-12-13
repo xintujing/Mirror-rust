@@ -210,8 +210,7 @@ impl NetworkMessageTrait for CommandMessage {
         writer.compress_var_uint(self.net_id);
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
-        writer.compress_var_uint(1 + self.payload.len() as u32);
-        writer.write_array_segment_all(self.payload.as_slice());
+        writer.write_array_segment_and_size(self.payload.as_slice());
     }
 }
 
@@ -265,8 +264,7 @@ impl NetworkMessageTrait for RpcMessage {
         writer.compress_var_uint(self.net_id);
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
-        writer.compress_var_uint(1 + self.payload.len() as u32);
-        writer.write_array_segment_all(self.payload.as_slice());
+        writer.write_array_segment_and_size(self.payload.as_slice());
     }
 }
 
@@ -349,8 +347,7 @@ impl NetworkMessageTrait for SpawnMessage {
         writer.write_vector3(self.position);
         writer.write_quaternion(self.rotation);
         writer.write_vector3(self.scale);
-        writer.compress_var_uint(1 + self.payload.len() as u32);
-        writer.write_array_segment_all(self.payload.as_slice());
+        writer.write_array_segment_and_size(self.payload.as_slice());
     }
 }
 
@@ -502,8 +499,7 @@ impl NetworkMessageTrait for EntityStateMessage {
         // 12504
         writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
-        writer.compress_var_uint(1 + self.payload.len() as u32);
-        writer.write_array_segment_all(self.payload.as_slice());
+        writer.write_array_segment_and_size(self.payload.as_slice());
     }
 }
 
