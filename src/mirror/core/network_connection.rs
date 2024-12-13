@@ -56,7 +56,7 @@ pub trait NetworkConnectionTrait {
     }
     fn send(&mut self, segment: &[u8], channel: TransportChannel);
     fn send_to_transport(&self, segment: Vec<u8>, channel: TransportChannel) {
-        if let Some(transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::active_transport() {
             transport.server_send(self.connection_id(), segment, channel);
         }
     }
@@ -88,7 +88,7 @@ impl NetworkConnection {
 impl NetworkConnectionTrait for NetworkConnection {
     fn new(conn_id: u64) -> Self {
         let ts = NetworkTime::local_time();
-        let reliable_batcher_threshold = match Transport::get_active_transport() {
+        let reliable_batcher_threshold = match Transport::active_transport() {
             None => {
                 log_warn!("get threshold failed");
                 1500
@@ -97,7 +97,7 @@ impl NetworkConnectionTrait for NetworkConnection {
                 active_transport.get_batcher_threshold(TransportChannel::Reliable)
             }
         };
-        let unreliable_batcher_threshold = match Transport::get_active_transport() {
+        let unreliable_batcher_threshold = match Transport::active_transport() {
             None => {
                 log_warn!("get threshold failed");
                 1500

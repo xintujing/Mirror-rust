@@ -34,12 +34,13 @@ pub enum TransportError {
     Unexpected,         // unexpected error / exception, requires fix.
     SendError,          // failed to send data
     ConnectionNotFound, // connection not found
+    ConnectionLocked,   // connection is locked
 }
 
 #[derive(Debug, Clone)]
 pub struct TransportCallback {
     pub r#type: TransportCallbackType,
-    pub connection_id: u64,
+    pub conn_id: u64,
     pub data: Vec<u8>,
     pub channel: TransportChannel,
     pub error: TransportError,
@@ -49,7 +50,7 @@ impl Default for TransportCallback {
         Self {
             r#type: TransportCallbackType::OnServerError,
             data: Vec::new(),
-            connection_id: 0,
+            conn_id: 0,
             channel: TransportChannel::Reliable,
             error: TransportError::None,
         }
@@ -62,7 +63,7 @@ pub struct Transport {
 }
 impl Transport {
     #[allow(warnings)]
-    pub fn get_active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
+    pub fn active_transport() -> Option<&'static mut Box<dyn TransportTrait>> {
         unsafe { ACTIVE_TRANSPORT.as_mut() }
     }
     #[allow(warnings)]
@@ -96,6 +97,7 @@ pub trait TransportTrait {
     fn server_late_update(&mut self);
     fn server_stop(&mut self);
     fn shutdown(&mut self);
+    fn transport_cb_fn(&self) -> Option<TransportFunc>;
     fn set_transport_cb_fn(&mut self, func: TransportFunc);
     fn get_max_packet_size(&self, channel: TransportChannel) -> usize;
     fn get_batcher_threshold(&self, channel: TransportChannel) -> usize {

@@ -51,7 +51,7 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         };
         network_connection_to_client.buffer_time = NetworkServerStatic::send_interval() as f64
             * network_connection_to_client.buffer_time_multiplier;
-        if let Some(transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::active_transport() {
             network_connection_to_client.address = transport.server_get_client_address(conn_id);
         }
         network_connection_to_client

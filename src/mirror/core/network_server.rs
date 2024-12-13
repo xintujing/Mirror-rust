@@ -272,7 +272,7 @@ impl NetworkServer {
         NetworkTime::reset_statics();
 
         // 设置 TransportCallback
-        if let Some(transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::active_transport() {
             transport.set_transport_cb_fn(Self::transport_callback);
         }
 
@@ -302,7 +302,7 @@ impl NetworkServer {
 
         // 如果不监听
         if NetworkServerStatic::dont_listen() {
-            if let Some(transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::active_transport() {
                 transport.server_start();
             }
         }
@@ -317,7 +317,7 @@ impl NetworkServer {
         if NetworkServerStatic::initialized() {
             Self::disconnect_all();
 
-            if let Some(transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::active_transport() {
                 transport.shutdown();
             }
 
@@ -366,7 +366,7 @@ impl NetworkServer {
             }
         }
 
-        if let Some(active_transport) = Transport::get_active_transport() {
+        if let Some(active_transport) = Transport::active_transport() {
             active_transport.server_early_update();
         }
 
@@ -406,7 +406,7 @@ impl NetworkServer {
             }
             Self::broadcast();
         }
-        if let Some(active_transport) = Transport::get_active_transport() {
+        if let Some(active_transport) = Transport::active_transport() {
             active_transport.server_late_update();
         }
 
@@ -641,19 +641,19 @@ impl NetworkServer {
     fn transport_callback(tcb: TransportCallback) {
         match tcb.r#type {
             TransportCallbackType::OnServerConnected => {
-                Self::on_transport_connected(tcb.connection_id)
+                Self::on_transport_connected(tcb.conn_id)
             }
             TransportCallbackType::OnServerDataReceived => {
-                Self::on_transport_data(tcb.connection_id, tcb.data, tcb.channel)
+                Self::on_transport_data(tcb.conn_id, tcb.data, tcb.channel)
             }
             TransportCallbackType::OnServerDisconnected => {
-                Self::on_transport_disconnected(tcb.connection_id)
+                Self::on_transport_disconnected(tcb.conn_id)
             }
             TransportCallbackType::OnServerError => {
-                Self::on_transport_error(tcb.connection_id, tcb.error)
+                Self::on_transport_error(tcb.conn_id, tcb.error)
             }
             TransportCallbackType::OnServerTransportException => {
-                Self::on_transport_exception(tcb.connection_id, tcb.error)
+                Self::on_transport_exception(tcb.conn_id, tcb.error)
             }
             TransportCallbackType::OnServerDataSent => {}
         }
@@ -663,7 +663,7 @@ impl NetworkServer {
     fn on_transport_connected(connection_id: u64) {
         if connection_id == 0 {
             log_error!(format!("Server.HandleConnect: invalid connectionId: {}. Needs to be != 0, because 0 is reserved for local player.", connection_id));
-            if let Some(transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;
@@ -674,7 +674,7 @@ impl NetworkServer {
                 "Server.HandleConnect: connectionId {} already exists.",
                 connection_id
             ));
-            if let Some(transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;
@@ -687,7 +687,7 @@ impl NetworkServer {
                 NetworkServerStatic::max_connections(),
                 connection_id
             ));
-            if let Some(transport) = Transport::get_active_transport() {
+            if let Some(transport) = Transport::active_transport() {
                 transport.server_disconnect(connection_id);
             }
             return;

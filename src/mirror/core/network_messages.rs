@@ -15,7 +15,7 @@ impl NetworkMessages {
     }
 
     pub fn max_content_size(channel: TransportChannel) -> usize {
-        if let Some(transport) = Transport::get_active_transport() {
+        if let Some(transport) = Transport::active_transport() {
             let transport_max_size = transport.get_max_packet_size(channel);
             transport_max_size - NetworkMessages::ID_SIZE - Batcher::max_message_overhead(transport_max_size)
         } else {

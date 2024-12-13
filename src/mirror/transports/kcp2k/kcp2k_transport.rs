@@ -56,7 +56,6 @@ pub struct Kcp2kTransport {
     pub config: Kcp2KConfig,
     pub port: u16,
     pub kcp_serv: Option<Kcp2K>,
-    pub kcp_serv_rx: Option<crossbeam_channel::Receiver<Callback>>,
 }
 
 impl Kcp2kTransport {
@@ -86,6 +85,7 @@ impl Kcp2kTransport {
             ErrorCode::Unexpected => TransportError::Unexpected,
             ErrorCode::SendError => TransportError::SendError,
             ErrorCode::ConnectionNotFound => TransportError::ConnectionNotFound,
+            ErrorCode::ConnectionLocked => TransportError::ConnectionLocked,
         }
     }
     pub fn from_kcp2k_callback_type(callback_type: CallbackType) -> TransportCallbackType {
@@ -96,25 +96,26 @@ impl Kcp2kTransport {
             CallbackType::OnError => TransportCallbackType::OnServerError,
         }
     }
-    fn recv_data(&mut self) {
+    fn kcp2k_cb(cb: Callback) {
         // 服务器接收数据
-        if let Some(ref kcp_serv_rx) = self.kcp_serv_rx {
-            if let Ok(cb) = kcp_serv_rx.try_recv() {
-                let mut tcb = TransportCallback::default();
-                tcb.r#type = Self::from_kcp2k_callback_type(cb.callback_type);
-                tcb.connection_id = cb.connection_id;
-                tcb.data = cb.data.to_vec();
-                tcb.channel = Self::from_kcp2k_channel(cb.channel);
-                tcb.error = Self::from_kcp2k_error_code(cb.error_code);
-                match self.transport.transport_cb_fn.as_ref() {
-                    None => {
-                        log_error!("Kcp2kTransport recv_data error: transport_cb_fn is None");
-                    }
-                    Some(transport_cb_fn) => {
-                        transport_cb_fn(tcb);
-                    }
-                }
+        let mut tcb = TransportCallback::default();
+        tcb.r#type = Self::from_kcp2k_callback_type(cb.r#type);
+        tcb.conn_id = cb.conn_id;
+        tcb.data = cb.data.to_vec();
+        tcb.channel = Self::from_kcp2k_channel(cb.channel);
+        tcb.error = Self::from_kcp2k_error_code(cb.error_code);
+        match Transport::active_transport() {
+            None => {
+                log_error!("Kcp2kTransport kcp2k_cb error: active_transport is None");
             }
+            Some(active_transport) => match active_transport.transport_cb_fn() {
+                None => {
+                    log_error!("Kcp2kTransport kcp2k_cb error: transport_cb_fn is None");
+                }
+                Some(transport_cb_fn) => {
+                    transport_cb_fn(tcb);
+                }
+            },
         }
     }
 }
@@ -145,7 +146,6 @@ impl TransportTrait for Kcp2kTransport {
             config,
             port: kcp2k_transport_config.port,
             kcp_serv: None,
-            kcp_serv_rx: None,
         };
         Transport::set_active_transport(Box::new(kcp2k_transport));
     }
@@ -164,10 +164,13 @@ impl TransportTrait for Kcp2kTransport {
                 "localhost" => "0.0.0.0",
                 addr => addr,
             };
-        match Kcp2K::new_server(self.config, format!("{}:{}", network_address, self.port)) {
-            Ok((server, s_rx)) => {
+        match Kcp2K::new_server(
+            self.config,
+            format!("{}:{}", network_address, self.port),
+            Self::kcp2k_cb,
+        ) {
+            Ok(server) => {
                 self.kcp_serv = Some(server);
-                self.kcp_serv_rx = Some(s_rx);
                 self.server_active = true;
             }
             Err(err) => {
@@ -186,13 +189,13 @@ impl TransportTrait for Kcp2kTransport {
         ) {
             Ok(_) => {
                 tcb.r#type = TransportCallbackType::OnServerDataSent;
-                tcb.connection_id = connection_id;
+                tcb.conn_id = connection_id;
                 tcb.data = data;
                 tcb.channel = channel;
             }
             Err(e) => {
                 tcb.r#type = TransportCallbackType::OnServerError;
-                tcb.connection_id = connection_id;
+                tcb.conn_id = connection_id;
                 tcb.error = Self::from_kcp2k_error_code(e);
             }
         }
@@ -222,12 +225,10 @@ impl TransportTrait for Kcp2kTransport {
 
     fn server_early_update(&mut self) {
         self.kcp_serv.as_ref().unwrap().tick_incoming();
-        self.recv_data();
     }
 
     fn server_late_update(&mut self) {
         self.kcp_serv.as_ref().unwrap().tick_outgoing();
-        self.recv_data();
     }
 
     fn server_stop(&mut self) {
@@ -236,7 +237,11 @@ impl TransportTrait for Kcp2kTransport {
 
     fn shutdown(&mut self) {
         self.server_stop();
-        Transport::get_active_transport().take();
+        Transport::active_transport().take();
+    }
+
+    fn transport_cb_fn(&self) -> Option<TransportFunc> {
+        self.transport.transport_cb_fn
     }
 
     fn set_transport_cb_fn(&mut self, func: TransportFunc) {
