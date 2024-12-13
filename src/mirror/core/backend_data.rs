@@ -1,4 +1,6 @@
 use crate::mirror::components::network_animator::Animator;
+use crate::mirror::core::network_behaviour::GameObject;
+use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_loop::stop_signal;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransportConfig;
 use crate::{log_error, log_info};
@@ -8,7 +10,7 @@ use notify::event::{DataChange, ModifyKind};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 use std::sync::mpsc::channel;
 use std::sync::{OnceLock, RwLock};
@@ -358,7 +360,7 @@ pub struct NetworkIdentityData {
     #[serde(rename = "assetId")]
     pub asset_id: u32,
     #[serde(rename = "sceneId")]
-    pub scene_id: u64,
+    pub scene_id: String,
     /// need fix  dont need use KeyValue
     #[serde(rename = "networkBehaviourComponents")]
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
@@ -375,7 +377,7 @@ pub struct BackendData {
     #[serde(rename = "networkManagerSettings")]
     pub network_manager_settings: Vec<NetworkManagerSetting>,
     #[serde(rename = "sceneIds")]
-    pub scene_ids: Vec<KeyValue<String, u64>>,
+    pub scene_ids: Vec<KeyValue<String, String>>,
     #[serde(rename = "syncVars")]
     pub sync_vars: Vec<SyncVarData>,
     #[serde(rename = "assets")]
@@ -445,7 +447,7 @@ impl BackendData {
             return None;
         }
         for network_identity_data in self.network_identities.iter() {
-            if network_identity_data.scene_id == scene_id {
+            if network_identity_data.scene_id == scene_id.to_string() {
                 return Some(network_identity_data);
             }
         }
@@ -491,7 +493,14 @@ impl BackendData {
     pub fn get_scene_id_by_scene_name(&self, scene_name: &str) -> Option<u64> {
         for scene_id in self.scene_ids.iter() {
             if scene_id.key == scene_name {
-                return Some(scene_id.value);
+                match scene_id.value.parse::<u64>() {
+                    Ok(scene_id) => {
+                        return Some(scene_id);
+                    }
+                    Err(err) => {
+                        log_error!(format!("Failed to parse scene_id: {:?}", err));
+                    }
+                }
             }
         }
         None
@@ -516,6 +525,20 @@ impl BackendData {
             }
         }
         sync_var_data_s
+    }
+
+    pub fn find_scene_network_identity_all(&self) -> VecDeque<NetworkIdentity> {
+        let mut network_identities = VecDeque::new();
+        for scene_ids in self.scene_ids.iter() {
+            let mut game_object = GameObject::new_with_scene_name(scene_ids.key.clone());
+            match game_object.get_identity_by_scene_name() {
+                None => {}
+                Some(identity) => {
+                    network_identities.push_back(identity);
+                }
+            }
+        }
+        network_identities
     }
 }
 

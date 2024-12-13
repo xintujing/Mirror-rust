@@ -79,10 +79,58 @@ pub struct NetworkIdentity {
 }
 
 impl NetworkIdentity {
-    pub fn new(asset_id: u32) -> Self {
+    pub fn new_with_asset_id(asset_id: u32) -> Self {
         let mut network_identity = NetworkIdentity {
             scene_id: 0,
             asset_id,
+            net_id: 0,
+            had_authority: false,
+            game_object: GameObject::default(),
+            server_only: false,
+            owned_type: OwnedType::Client,
+            is_owned: false,
+            observers: Default::default(),
+            conn_to_client: 0,
+            is_init: false,
+            destroy_called: false,
+            visibility: Visibility::Default,
+            last_serialization: NetworkIdentitySerialization::new(0),
+            scene_ids: Default::default(),
+            has_spawned: false,
+            spawned_from_instantiate: false,
+            network_behaviours: Default::default(),
+        };
+        network_identity.awake();
+        network_identity
+    }
+    pub fn new_with_scene_id(scene_id: u64) -> Self {
+        let mut network_identity = NetworkIdentity {
+            scene_id,
+            asset_id: 0,
+            net_id: 0,
+            had_authority: false,
+            game_object: GameObject::default(),
+            server_only: false,
+            owned_type: OwnedType::Client,
+            is_owned: false,
+            observers: Default::default(),
+            conn_to_client: 0,
+            is_init: false,
+            destroy_called: false,
+            visibility: Visibility::Default,
+            last_serialization: NetworkIdentitySerialization::new(0),
+            scene_ids: Default::default(),
+            has_spawned: false,
+            spawned_from_instantiate: false,
+            network_behaviours: Default::default(),
+        };
+        network_identity.awake();
+        network_identity
+    }
+    pub fn new() -> Self {
+        let mut network_identity = NetworkIdentity {
+            scene_id: 0,
+            asset_id: 0,
             net_id: 0,
             had_authority: false,
             game_object: GameObject::default(),
@@ -112,6 +160,10 @@ impl NetworkIdentity {
         // 设置所有的 component 的 net_id
         for component in self.network_behaviours.iter_mut() {
             component.set_net_id(self.net_id);
+        }
+        // 如果 conn_to_client 不为0，设置 connection_to_client 的 net_id
+        if self.conn_to_client == 0 {
+            return;
         }
         // 设置 connection_to_client 的 net_id
         match NetworkServerStatic::network_connections().try_get_mut(&self.conn_to_client) {
@@ -146,6 +198,10 @@ impl NetworkIdentity {
         // 设置所有的component的conn_id
         for component in self.network_behaviours.iter_mut() {
             component.set_connection_to_client(self.conn_to_client);
+        }
+        // 如果 conn_to_client 不为0，设置 connection_to_client 的 net_id
+        if self.conn_to_client == 0 {
+            return;
         }
         // 添加到conn的owned_objects
         match NetworkServerStatic::network_connections().try_get_mut(&self.conn_to_client) {
@@ -211,14 +267,28 @@ impl NetworkIdentity {
         None
     }
     pub fn initialize_network_behaviours(&mut self) {
-        for component in BackendDataStatic::get_backend_data()
-            .get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id)
-        {
-            if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(
-                self.game_object.clone(),
-                &component,
-            ) {
-                self.network_behaviours.push(network_behaviour);
+        if self.asset_id != 0 {
+            for component in BackendDataStatic::get_backend_data()
+                .get_network_identity_data_network_behaviour_components_by_asset_id(self.asset_id)
+            {
+                if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(
+                    self.game_object.clone(),
+                    &component,
+                ) {
+                    self.network_behaviours.push(network_behaviour);
+                }
+            }
+        }
+        if self.scene_id != 0 {
+            for component in BackendDataStatic::get_backend_data()
+                .get_network_identity_data_network_behaviour_components_by_scene_id(self.scene_id)
+            {
+                if let Some(network_behaviour) = NetworkBehaviourFactory::create_network_behaviour(
+                    self.game_object.clone(),
+                    &component,
+                ) {
+                    self.network_behaviours.push(network_behaviour);
+                }
             }
         }
         self.validate_components();
@@ -244,9 +314,7 @@ impl NetworkIdentity {
         }
     }
     pub fn validate_components(&self) {
-        if self.network_behaviours.len() == 0 {
-            log_error!("NetworkIdentity has no components.");
-        } else if self.network_behaviours.len() > 64 {
+        if self.network_behaviours.len() > 64 {
             log_error!("NetworkIdentity has too many components. Max is 64.");
         }
     }
@@ -454,5 +522,9 @@ impl NetworkIdentity {
     }
     pub fn set_static_next_network_id(id: u32) {
         NEXT_NETWORK_ID.store(id, Ordering::Relaxed);
+    }
+
+    pub fn set_active(&mut self, active: bool) {
+        self.game_object.set_active(active);
     }
 }

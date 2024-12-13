@@ -46,12 +46,10 @@ impl NetworkBehaviourFactory {
             // 如果存在则调用工厂方法创建 NetworkBehaviour
             Some(factory) => Some(factory(game_object, component)),
             // 如果不存在则创建 NetworkCommonBehaviour
-            None => {
-                Some(Box::new(NetworkCommonBehaviour::new(
-                    game_object,
-                    component,
-                )))
-            }
+            None => Some(Box::new(NetworkCommonBehaviour::new(
+                game_object,
+                component,
+            ))),
         }
     }
     pub fn register_network_behaviour_factory() {
@@ -96,7 +94,7 @@ impl NetworkBehaviourFactory {
 // GameObject
 #[derive(Debug, Clone)]
 pub struct GameObject {
-    pub name: String,
+    pub scene_name: String,
     pub prefab: String,
     pub transform: Transform,
     pub active: bool,
@@ -104,17 +102,25 @@ pub struct GameObject {
 
 // GameObject 的默认实现
 impl GameObject {
-    pub fn new(prefab: String) -> Self {
+    pub fn new_with_prefab(prefab: String) -> Self {
         Self {
-            name: "".to_string(),
+            scene_name: "".to_string(),
             prefab,
+            transform: Transform::default(),
+            active: false,
+        }
+    }
+    pub fn new_with_scene_name(scene_name: String) -> Self {
+        Self {
+            scene_name,
+            prefab: "".to_string(),
             transform: Transform::default(),
             active: false,
         }
     }
     pub fn default() -> Self {
         Self {
-            name: "".to_string(),
+            scene_name: "".to_string(),
             prefab: "".to_string(),
             transform: Transform::default(),
             active: false,
@@ -131,24 +137,39 @@ impl GameObject {
         }
         true
     }
-    pub fn get_identity(&mut self) -> Option<NetworkIdentity> {
+    pub fn get_identity_by_prefab(&mut self) -> Option<NetworkIdentity> {
+        // 如果 prefab 不为空
         if let Some(asset_id) =
             BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str())
         {
-            let mut identity = NetworkIdentity::new(asset_id);
+            let mut identity = NetworkIdentity::new_with_asset_id(asset_id);
+            identity.set_game_object(self.clone());
+            return Some(identity);
+        };
+        None
+    }
+    pub fn get_identity_by_scene_name(&mut self) -> Option<NetworkIdentity> {
+        // 如果 scene_name 不为空
+        if let Some(scene_id) = BackendDataStatic::get_backend_data()
+            .get_scene_id_by_scene_name(self.scene_name.as_str())
+        {
+            let mut identity = NetworkIdentity::new_with_scene_id(scene_id);
             identity.set_game_object(self.clone());
             return Some(identity);
         };
         None
     }
     pub fn is_null(&self) -> bool {
-        self.name == "" && self.prefab == ""
+        self.scene_name == "" && self.prefab == ""
+    }
+    pub fn set_active(&mut self, value: bool) {
+        self.active = value;
     }
 }
 // GameObject 的 PartialEq 实现
 impl PartialEq for GameObject {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.prefab == other.prefab
+        self.scene_name == other.scene_name && self.prefab == other.prefab
     }
 }
 

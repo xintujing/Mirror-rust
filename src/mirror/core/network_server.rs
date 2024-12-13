@@ -1,5 +1,11 @@
+use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::batching::un_batcher::UnBatcher;
-use crate::mirror::core::messages::{ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler, NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage, NotReadyMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage, ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage};
+use crate::mirror::core::messages::{
+    ChangeOwnerMessage, CommandMessage, EntityStateMessage, NetworkMessageHandler,
+    NetworkMessageHandlerFunc, NetworkMessageTrait, NetworkPingMessage, NetworkPongMessage,
+    NotReadyMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage,
+    ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage,
+};
 use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
@@ -640,9 +646,7 @@ impl NetworkServer {
     // 处理 TransportCallback   AddTransportHandlers(
     fn transport_callback(tcb: TransportCallback) {
         match tcb.r#type {
-            TransportCallbackType::OnServerConnected => {
-                Self::on_transport_connected(tcb.conn_id)
-            }
+            TransportCallbackType::OnServerConnected => Self::on_transport_connected(tcb.conn_id),
             TransportCallbackType::OnServerDataReceived => {
                 Self::on_transport_data(tcb.conn_id, tcb.data, tcb.channel)
             }
@@ -1116,7 +1120,7 @@ impl NetworkServer {
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
-        if let Some(mut identity) = player.get_identity() {
+        if let Some(mut identity) = player.get_identity_by_prefab() {
             match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
                 TryResult::Present(mut connection) => {
                     if connection.net_id() != 0 {
@@ -1146,6 +1150,23 @@ impl NetworkServer {
         }
         log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
         false
+    }
+
+    pub fn spawn_objects() {
+        if !NetworkServerStatic::active() {
+            log_error!("SpawnObjects: NetworkServer is not active. Cannot spawn objects without an active server.".to_string());
+            return;
+        }
+
+        let mut deque = BackendDataStatic::get_backend_data().find_scene_network_identity_all();
+        while let Some(mut identity) = deque.pop_front() {
+            // TODO ValidParent
+            if identity.scene_id != 0 {
+                identity.set_active(true);
+                let conn_id = identity.connection_to_client();
+                Self::spawn(identity, conn_id);
+            }
+        }
     }
 
     fn spawn(identity: NetworkIdentity, conn_id: u64) {
@@ -1362,7 +1383,10 @@ impl NetworkServer {
             TryResult::Present(mut connection) => {
                 connection.set_ready(false);
                 connection.remove_from_observings_observers();
-                connection.send_network_message(&mut NotReadyMessage::default(), TransportChannel::Reliable);
+                connection.send_network_message(
+                    &mut NotReadyMessage::default(),
+                    TransportChannel::Reliable,
+                );
             }
             TryResult::Absent => {
                 log_error!(format!(

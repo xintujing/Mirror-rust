@@ -171,6 +171,7 @@ impl NetworkManager {
             self.server_change_scene(self.online_scene.to_string());
         } else {
             // TODO NetworkServer.SpawnObjects();
+            // NetworkServer::spawn_objects();
         }
     }
 
@@ -385,7 +386,9 @@ impl NetworkManager {
     }
 
     fn update_scene(&mut self) {
-        self.finish_load_scene();
+        if NetworkServerStatic::is_loading_scene() {
+            self.finish_load_scene();
+        }
     }
 
     fn finish_load_scene(&mut self) {
@@ -401,6 +404,7 @@ impl NetworkManager {
 
     fn finish_load_scene_server_only(&mut self) {
         // TODO NetworkServer.SpawnObjects();
+        // NetworkServer::spawn_objects();
         self.on_server_change_scene(NetworkManagerStatic::network_scene_name());
     }
 }
@@ -594,7 +598,7 @@ impl NetworkManagerTrait for NetworkManager {
 
         let mut spawn_prefabs = Vec::new();
         for spawn_prefab in &network_manager_setting.spawn_prefabs {
-            spawn_prefabs.push(GameObject::new(spawn_prefab.clone()));
+            spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
         }
 
         let manager = Self {
@@ -611,7 +615,7 @@ impl NetworkManagerTrait for NetworkManager {
                 .disconnect_inactive_connections,
             disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
             authenticator: None,
-            player_obj: GameObject::new(network_manager_setting.player_prefab.clone()),
+            player_obj: GameObject::new_with_prefab(network_manager_setting.player_prefab.clone()),
             auto_create_player: network_manager_setting.auto_create_player,
             player_spawn_method: PlayerSpawnMethod::Random,
             spawn_prefabs,
