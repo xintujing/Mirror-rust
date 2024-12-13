@@ -30,6 +30,27 @@ pub struct NetworkConnectionToClient {
     pub snapshot_buffer_size_limit: i32,
     pub _rtt: ExponentialMovingAverage,
 }
+impl Default for NetworkConnectionToClient {
+    fn default() -> Self {
+        let ts = NetworkTime::local_time();
+        Self {
+            network_connection: NetworkConnection::new(0),
+            reliable_rpcs_batch: NetworkWriter::new(),
+            unreliable_rpcs_batch: NetworkWriter::new(),
+            address: "".to_string(),
+            observing: Vec::new(),
+            drift_ema: ExponentialMovingAverage::new(60),
+            delivery_time_ema: ExponentialMovingAverage::new(10),
+            remote_timeline: ts,
+            remote_timescale: ts,
+            buffer_time_multiplier: 2.0,
+            buffer_time: 0.0,
+            snapshots: Default::default(),
+            snapshot_buffer_size_limit: 64,
+            _rtt: ExponentialMovingAverage::new(NetworkTime::PING_WINDOW_SIZE),
+        }
+    }
+}
 impl NetworkConnectionTrait for NetworkConnectionToClient {
     fn new(conn_id: u64) -> Self {
         let ts = NetworkTime::local_time();

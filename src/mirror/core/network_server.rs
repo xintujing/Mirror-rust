@@ -927,7 +927,7 @@ impl NetworkServer {
             return;
         }
 
-        if identity.scene_id == 0 {
+        if identity.scene_id != 0 {
             Self::un_spawn_internal(conn, identity, true);
         } else {
             Self::un_spawn_internal(conn, identity, false);

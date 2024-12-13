@@ -4,9 +4,10 @@ use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
+use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
-use crate::mirror::core::network_server::NetworkServerStatic;
+use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::{RemoteCallType, RemoteProcedureCalls};
@@ -310,7 +311,7 @@ impl NetworkIdentity {
         }
 
         if !self.destroy_called {
-            // TODO NetworkServer.Destroy(game_object);
+            NetworkServer::destroy(&mut NetworkConnectionToClient::default(), self);
         }
     }
     pub fn validate_components(&self) {
