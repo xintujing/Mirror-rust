@@ -317,7 +317,7 @@ impl NetworkMessageTrait for SpawnMessage {
         let net_id = reader.decompress_var_uint();
         let is_local_player = reader.read_bool();
         let is_owner = reader.read_bool();
-        let scene_id = reader.read_ulong();
+        let scene_id = reader.decompress_var_ulong();
         let asset_id = reader.decompress_var_uint();
         let position = reader.read_vector3();
         let rotation = reader.read_quaternion();
