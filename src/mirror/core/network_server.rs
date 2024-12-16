@@ -22,7 +22,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
-use crate::{log_error, log_warn};
+use crate::{log_error, log_info, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
@@ -646,17 +646,35 @@ impl NetworkServer {
     // 处理 TransportCallback   AddTransportHandlers(
     fn transport_callback(tcb: TransportCallback) {
         match tcb.r#type {
-            TransportCallbackType::OnServerConnected => Self::on_transport_connected(tcb.conn_id),
+            TransportCallbackType::OnServerConnected => {
+                log_info!(format!(
+                    "Server.HandleConnect: connectionId: {}",
+                    tcb.conn_id
+                ));
+                Self::on_transport_connected(tcb.conn_id)
+            }
             TransportCallbackType::OnServerDataReceived => {
                 Self::on_transport_data(tcb.conn_id, tcb.data, tcb.channel)
             }
             TransportCallbackType::OnServerDisconnected => {
+                log_info!(format!(
+                    "Server.HandleDisconnect: connectionId: {}",
+                    tcb.conn_id
+                ));
                 Self::on_transport_disconnected(tcb.conn_id)
             }
             TransportCallbackType::OnServerError => {
+                log_error!(format!(
+                    "Server.HandleError: connectionId: {} error: {:?}",
+                    tcb.conn_id, tcb.error
+                ));
                 Self::on_transport_error(tcb.conn_id, tcb.error)
             }
             TransportCallbackType::OnServerTransportException => {
+                log_error!(format!(
+                    "Server.HandleTransportException: connectionId: {} error: {:?}",
+                    tcb.conn_id, tcb.error
+                ));
                 Self::on_transport_exception(tcb.conn_id, tcb.error)
             }
             TransportCallbackType::OnServerDataSent => {}
