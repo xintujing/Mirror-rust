@@ -93,7 +93,7 @@ impl BackendDataStatic {
                     {
                         Ok(backend_data) => {
                             *Self::tobackend().write().unwrap() = backend_data;
-                            NetworkLoop::set_stop_signal(true);
+                            NetworkLoop::set_stop(true);
                             log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
                         }
                         Err(e) => {

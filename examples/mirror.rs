@@ -9,6 +9,9 @@ use mirror_rust::mirror::core::network_start_position::NetworkStartPosition;
 use mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
 use mirror_rust::mirror::core::transport::TransportTrait;
 use mirror_rust::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
+use signal_hook::consts::SIGINT;
+use signal_hook::flag::register;
+use std::sync::Arc;
 
 mod quick_start;
 
@@ -70,6 +73,16 @@ fn on_disable() {}
 fn on_destroy() {}
 
 fn main() {
+    // 注册信号
+    match register(SIGINT, Arc::clone(NetworkLoop::stop())) {
+        Ok(s) => {
+            log_debug!(format!("register signal: {:?}", s));
+        }
+        Err(err) => {
+            panic!("{}", err);
+        }
+    }
+
     // 添加网络行为工厂
     NetworkLoop::add_network_behaviour_factory(network_behaviour_factory);
     // 设置扩展网络公共行为委托函数

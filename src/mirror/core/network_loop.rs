@@ -1,13 +1,11 @@
+use crate::log_error;
 use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
-use crate::{log_debug, log_error};
 use lazy_static::lazy_static;
-use signal_hook::consts::SIGINT;
-use signal_hook::flag::register;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 use std::thread;
@@ -41,12 +39,16 @@ lazy_static! {
 pub struct NetworkLoop;
 
 impl NetworkLoop {
-    pub fn stop_signal() -> bool {
-        STOP.load(Ordering::Relaxed)
+    pub fn stop() -> &'static Arc<AtomicBool> {
+        &STOP
     }
 
-    pub fn set_stop_signal(value: bool) {
+    pub fn set_stop(value: bool) {
         STOP.store(value, Ordering::Relaxed);
+    }
+
+    pub fn stop_signal() -> bool {
+        STOP.load(Ordering::Relaxed)
     }
     pub fn add_awake_function(func: fn()) {
         match AWAKE_FUNCTIONS.write() {
@@ -383,16 +385,6 @@ impl NetworkLoop {
     }
 
     pub fn run() {
-        // 注册信号
-        match register(SIGINT, Arc::clone(&STOP)) {
-            Ok(s) => {
-                log_debug!(format!("register signal: {:?}", s));
-            }
-            Err(err) => {
-                panic!("{}", err);
-            }
-        }
-
         // 注册 NetworkBehaviourFactory
         Self::register_network_behaviour_factory();
 
