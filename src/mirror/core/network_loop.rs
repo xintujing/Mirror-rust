@@ -6,8 +6,10 @@ use crate::mirror::core::network_manager::{
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
 use lazy_static::lazy_static;
-use signal_hook::iterator::Signals;
-use std::sync::RwLock;
+use signal_hook::consts::SIGTERM;
+use signal_hook::flag::register;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -32,12 +34,16 @@ lazy_static! {
     static ref NETWORK_BEHAVIOUR_FACTORY_FUNCTIONS: RwLock<Vec<fn()>> = RwLock::new(vec![]);
     // 需要 添加的 network_common_behaviour_delegate 函数列表
     static ref NETWORK_COMMON_BEHAVIOUR_DELEGATE_FUNCTION: RwLock<fn()> = RwLock::new(||{});
+    // 是否停止
+    static ref STOP: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
-#[allow(warnings)]
-pub fn stop_signal() -> &'static mut bool {
-    static mut STOP: bool = false;
-    unsafe { &mut STOP }
+pub fn stop_signal() -> bool {
+    STOP.load(Ordering::Relaxed)
+}
+
+pub fn set_stop_signal(value: bool) {
+    STOP.store(value, Ordering::Relaxed);
 }
 
 pub struct NetworkLoop;
@@ -222,7 +228,6 @@ impl NetworkLoop {
         }
     }
 
-
     // 1
     fn awake() {
         NetworkManager::awake();
@@ -379,19 +384,10 @@ impl NetworkLoop {
     }
 
     pub fn run() {
-        // 注册信号处理函数
-        let mut signals_info =
-            Signals::new(&[signal_hook::consts::SIGINT, signal_hook::consts::SIGTERM])
-                .expect("Failed to register signal handler");
-
-        // 启动一个线程来监听终止信号
-        thread::spawn(move || {
-            for sig in signals_info.forever() {
-                println!("\nSignal: {:?}", sig);
-                *stop_signal() = true;
-                break;
-            }
-        });
+        // 注册信号
+        if let Err(e) = register(SIGTERM, Arc::clone(&STOP)) {
+            panic!("Failed to register signal handler: {}", e);
+        }
 
         // 注册 NetworkBehaviourFactory
         Self::register_network_behaviour_factory();
@@ -406,7 +402,7 @@ impl NetworkLoop {
         // 每一帧的目标时间
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 循环
-        while !*stop_signal() {
+        while !stop_signal() {
             // 4
             Self::early_update();
             // 5
