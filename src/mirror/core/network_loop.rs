@@ -1,12 +1,12 @@
-use crate::log_error;
 use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
 };
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
+use crate::{log_debug, log_error};
 use lazy_static::lazy_static;
-use signal_hook::consts::SIGTERM;
+use signal_hook::consts::SIGINT;
 use signal_hook::flag::register;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -385,8 +385,13 @@ impl NetworkLoop {
 
     pub fn run() {
         // 注册信号
-        if let Err(e) = register(SIGTERM, Arc::clone(&STOP)) {
-            panic!("Failed to register signal handler: {}", e);
+        match register(SIGINT, Arc::clone(&STOP)) {
+            Ok(s) => {
+                log_debug!(format!("register signal: {:?}", s));
+            }
+            Err(err) => {
+                panic!("{}", err);
+            }
         }
 
         // 注册 NetworkBehaviourFactory
