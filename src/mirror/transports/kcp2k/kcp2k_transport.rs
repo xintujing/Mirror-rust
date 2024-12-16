@@ -11,6 +11,7 @@ use kcp2k_rust::kcp2k::Kcp2K;
 use kcp2k_rust::kcp2k_callback::{Callback, CallbackType};
 use kcp2k_rust::kcp2k_channel::Kcp2KChannel;
 use kcp2k_rust::kcp2k_config::Kcp2KConfig;
+use kcp2k_rust::kcp2k_connection::Kcp2KConnection;
 use kcp2k_rust::kcp2k_peer::Kcp2KPeer;
 use serde::{Deserialize, Serialize};
 use std::process::exit;
@@ -96,14 +97,16 @@ impl Kcp2kTransport {
             CallbackType::OnError => TransportCallbackType::OnServerError,
         }
     }
-    fn kcp2k_cb(cb: Callback) {
+    fn kcp2k_cb(_: &Kcp2KConnection, cb: Callback) {
         // 服务器接收数据
-        let mut tcb = TransportCallback::default();
-        tcb.r#type = Self::from_kcp2k_callback_type(cb.r#type);
-        tcb.conn_id = cb.conn_id;
-        tcb.data = cb.data.to_vec();
-        tcb.channel = Self::from_kcp2k_channel(cb.channel);
-        tcb.error = Self::from_kcp2k_error_code(cb.error_code);
+        let tcb = TransportCallback {
+            r#type: Self::from_kcp2k_callback_type(cb.r#type),
+            conn_id: cb.conn_id,
+            data: cb.data.to_vec(),
+            channel: Self::from_kcp2k_channel(cb.channel),
+            error: Self::from_kcp2k_error_code(cb.error_code),
+            ..TransportCallback::default()
+        };
         match Transport::active_transport() {
             None => {
                 log_error!("Kcp2kTransport kcp2k_cb error: active_transport is None");
