@@ -263,8 +263,7 @@ impl TransportTrait for Kcp2kTransport {
         }
     }
 
-    fn get_batcher_threshold(&self, channel: TransportChannel) -> usize {
-        let _ = channel;
+    fn get_batcher_threshold(&self, _channel: TransportChannel) -> usize {
         Kcp2KPeer::unreliable_max_message_size(self.config.mtu as u32)
     }
 }
