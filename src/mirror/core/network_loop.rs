@@ -38,17 +38,16 @@ lazy_static! {
     static ref STOP: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 }
 
-pub fn stop_signal() -> bool {
-    STOP.load(Ordering::Relaxed)
-}
-
-pub fn set_stop_signal(value: bool) {
-    STOP.store(value, Ordering::Relaxed);
-}
-
 pub struct NetworkLoop;
 
 impl NetworkLoop {
+    pub fn stop_signal() -> bool {
+        STOP.load(Ordering::Relaxed)
+    }
+
+    pub fn set_stop_signal(value: bool) {
+        STOP.store(value, Ordering::Relaxed);
+    }
     pub fn add_awake_function(func: fn()) {
         match AWAKE_FUNCTIONS.write() {
             Ok(mut awake_functions) => {
@@ -407,7 +406,7 @@ impl NetworkLoop {
         // 每一帧的目标时间
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 循环
-        while !stop_signal() {
+        while !Self::stop_signal() {
             // 4
             Self::early_update();
             // 5

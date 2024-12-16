@@ -1,7 +1,7 @@
 use crate::mirror::components::network_animator::Animator;
 use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_identity::NetworkIdentity;
-use crate::mirror::core::network_loop::{set_stop_signal, stop_signal};
+use crate::mirror::core::network_loop::NetworkLoop;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransportConfig;
 use crate::{log_error, log_info};
 use config::Config;
@@ -79,7 +79,7 @@ impl BackendDataStatic {
         // This is a simple loop, but you may want to use more complex logic here,
         // for example to handle I/O.
         while let Ok(event) = rx.recv() {
-            if stop_signal() {
+            if NetworkLoop::stop_signal() {
                 break;
             }
             match event {
@@ -93,7 +93,7 @@ impl BackendDataStatic {
                     {
                         Ok(backend_data) => {
                             *Self::tobackend().write().unwrap() = backend_data;
-                            set_stop_signal(true);
+                            NetworkLoop::set_stop_signal(true);
                             log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
                         }
                         Err(e) => {
