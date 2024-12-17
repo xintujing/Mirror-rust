@@ -364,6 +364,8 @@ pub struct NetworkIdentityData {
     /// need fix  dont need use KeyValue
     #[serde(rename = "networkBehaviourComponents")]
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
+    #[serde(rename = "validParent")]
+    pub valid_parent: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -427,13 +429,13 @@ impl BackendData {
     pub fn get_network_identity_data_by_asset_id(
         &self,
         asset_id: u32,
-    ) -> Option<NetworkIdentityData> {
+    ) -> Option<&NetworkIdentityData> {
         if asset_id == 0 {
             return None;
         }
         for network_identity_data in self.network_identities.iter() {
             if network_identity_data.asset_id == asset_id {
-                return Some(network_identity_data.clone());
+                return Some(network_identity_data);
             }
         }
         None

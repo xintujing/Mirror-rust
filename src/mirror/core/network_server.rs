@@ -1178,8 +1178,7 @@ impl NetworkServer {
 
         let mut deque = BackendDataStatic::get_backend_data().find_scene_network_identity_all();
         while let Some(mut identity) = deque.pop_front() {
-            // TODO ValidParent
-            if identity.scene_id != 0 {
+            if identity.scene_id != 0 && identity.valid_parent {
                 identity.set_active(true);
                 let conn_id = identity.connection_to_client();
                 Self::spawn(identity, conn_id);

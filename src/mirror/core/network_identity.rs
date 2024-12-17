@@ -77,6 +77,7 @@ pub struct NetworkIdentity {
     pub has_spawned: bool,
     pub spawned_from_instantiate: bool,
     pub network_behaviours: Vec<Box<dyn NetworkBehaviourTrait>>,
+    pub valid_parent: bool,
 }
 
 impl NetworkIdentity {
@@ -100,6 +101,7 @@ impl NetworkIdentity {
             has_spawned: false,
             spawned_from_instantiate: false,
             network_behaviours: Default::default(),
+            valid_parent: false,
         };
         network_identity.awake();
         network_identity
@@ -124,7 +126,13 @@ impl NetworkIdentity {
             has_spawned: false,
             spawned_from_instantiate: false,
             network_behaviours: Default::default(),
+            valid_parent: false,
         };
+        if let Some(temp) =
+            BackendDataStatic::get_backend_data().get_network_identity_data_by_scene_id(scene_id)
+        {
+            network_identity.valid_parent = temp.valid_parent;
+        }
         network_identity.awake();
         network_identity
     }
@@ -148,6 +156,7 @@ impl NetworkIdentity {
             has_spawned: false,
             spawned_from_instantiate: false,
             network_behaviours: Default::default(),
+            valid_parent: false,
         };
         network_identity.awake();
         network_identity
