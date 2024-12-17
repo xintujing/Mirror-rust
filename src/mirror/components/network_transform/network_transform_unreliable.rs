@@ -613,6 +613,119 @@ impl NetworkTransformUnreliable {
             );
         });
     }
+
+    // NetworkTransformBase start
+
+    // InvokeUserCode_CmdTeleport__Vector3
+    fn invoke_user_code_cmd_teleport_vector3(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        _func_hash: u16,
+        reader: &mut NetworkReader,
+        _conn_id: u64,
+    ) {
+        if !NetworkServerStatic::active() {
+            log_error!("Command CmdTeleport called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_teleport_vector3(reader.read_vector3());
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // UserCode_CmdTeleport_Vector3
+    fn user_code_cmd_teleport_vector3(&mut self, position: Vector3<f32>) {
+        if *self.sync_direction() != SyncDirection::ServerToClient {
+            return;
+        }
+        self.on_teleport_vector3(position);
+        self.rpc_teleport_vector3(position);
+    }
+
+    fn on_teleport_vector3(&mut self, position: Vector3<f32>) {
+        self.set_position(position);
+        self.reset_state();
+    }
+
+    fn rpc_teleport_vector3(&mut self, position: Vector3<f32>) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_vector3(position);
+            self.send_rpc_internal(
+                "System.Void Mirror.NetworkTransformBase::RpcTeleport(UnityEngine.Vector3)",
+                -1933368736,
+                writer,
+                TransportChannel::Reliable,
+                true,
+            );
+        });
+    }
+
+    // InvokeUserCode_CmdTeleport__Vector3__Quaternion
+    fn invoke_user_code_cmd_teleport_vector3_quaternion(
+        identity: &mut NetworkIdentity,
+        component_index: u8,
+        _func_hash: u16,
+        reader: &mut NetworkReader,
+        _conn_id: u64,
+    ) {
+        if !NetworkServerStatic::active() {
+            log_error!("Command CmdTeleport called on client.");
+            return;
+        }
+        NetworkBehaviour::early_invoke(identity, component_index)
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap()
+            .user_code_cmd_teleport_vector3_quaternion(
+                reader.read_vector3(),
+                reader.read_quaternion(),
+            );
+        NetworkBehaviour::late_invoke(identity, component_index);
+    }
+
+    // UserCode_CmdTeleport_Vector3_Quaternion
+    fn user_code_cmd_teleport_vector3_quaternion(
+        &mut self,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+    ) {
+        if *self.sync_direction() != SyncDirection::ServerToClient {
+            return;
+        }
+        self.on_teleport_vector3_quaternion(position, rotation);
+        self.rpc_teleport_vector3_quaternion(position, rotation);
+    }
+
+    fn on_teleport_vector3_quaternion(
+        &mut self,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+    ) {
+        self.set_position(position);
+        self.set_rotation(rotation);
+        self.reset_state();
+    }
+
+    fn rpc_teleport_vector3_quaternion(
+        &mut self,
+        position: Vector3<f32>,
+        rotation: Quaternion<f32>,
+    ) {
+        NetworkWriterPool::get_return(|writer| {
+            writer.write_vector3(position);
+            writer.write_quaternion(rotation);
+            self.send_rpc_internal(
+                "System.Void Mirror.NetworkTransformBase::RpcTeleport(UnityEngine.Vector3,UnityEngine.Quaternion)",
+                -1675599861,
+                writer,
+                TransportChannel::Reliable,
+                true,
+            );
+        });
+    }
 }
 
 impl NetworkBehaviourTrait for NetworkTransformUnreliable {
@@ -656,21 +769,35 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<UnityEngine.Quaternion>,System.Nullable`1<UnityEngine.Vector3>)",
-            NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1,
+            Self::invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1,
             true,
         );
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSyncCompressRotation(System.Nullable`1<UnityEngine.Vector3>,System.Nullable`1<System.UInt32>,System.Nullable`1<UnityEngine.Vector3>)",
-            NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1,
+            Self::invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1,
             true,
         );
 
         // System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)
         RemoteProcedureCalls::register_command_delegate::<Self>(
             "System.Void Mirror.NetworkTransformUnreliable::CmdClientToServerSync(Mirror.SyncData)",
-            NetworkTransformUnreliable::invoke_user_code_cmd_client_to_server_sync_sync_data,
+            Self::invoke_user_code_cmd_client_to_server_sync_sync_data,
+            true,
+        );
+
+        // System.Void Mirror.NetworkTransformBase::CmdTeleport(UnityEngine.Vector3)
+        RemoteProcedureCalls::register_command_delegate::<Self>(
+            "System.Void Mirror.NetworkTransformBase::CmdTeleport(UnityEngine.Vector3)",
+            Self::invoke_user_code_cmd_teleport_vector3,
+            true,
+        );
+
+        // System.Void Mirror.NetworkTransformBase::CmdTeleport(UnityEngine.Vector3,UnityEngine.Quaternion)
+        RemoteProcedureCalls::register_command_delegate::<Self>(
+            "System.Void Mirror.NetworkTransformBase::CmdTeleport(UnityEngine.Vector3,UnityEngine.Quaternion)",
+            Self::invoke_user_code_cmd_teleport_vector3_quaternion,
             true,
         );
     }
@@ -792,7 +919,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
-        self.network_transform_base.network_behaviour.sync_objects.push(value);
+        self.network_transform_base
+            .network_behaviour
+            .sync_objects
+            .push(value);
     }
 
     fn sync_var_hook_guard(&self) -> u64 {
