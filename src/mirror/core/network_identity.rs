@@ -82,52 +82,14 @@ pub struct NetworkIdentity {
 
 impl NetworkIdentity {
     pub fn new_with_asset_id(asset_id: u32) -> Self {
-        let mut network_identity = NetworkIdentity {
-            scene_id: 0,
-            asset_id,
-            net_id: 0,
-            had_authority: false,
-            game_object: GameObject::default(),
-            server_only: false,
-            owned_type: OwnedType::Client,
-            is_owned: false,
-            observers: Default::default(),
-            conn_to_client: 0,
-            is_init: false,
-            destroy_called: false,
-            visibility: Visibility::Default,
-            last_serialization: NetworkIdentitySerialization::new(0),
-            scene_ids: Default::default(),
-            has_spawned: false,
-            spawned_from_instantiate: false,
-            network_behaviours: Default::default(),
-            valid_parent: false,
-        };
+        let mut network_identity = Self::new();
+        network_identity.asset_id = asset_id;
         network_identity.awake();
         network_identity
     }
     pub fn new_with_scene_id(scene_id: u64) -> Self {
-        let mut network_identity = NetworkIdentity {
-            scene_id,
-            asset_id: 0,
-            net_id: 0,
-            had_authority: false,
-            game_object: GameObject::default(),
-            server_only: false,
-            owned_type: OwnedType::Client,
-            is_owned: false,
-            observers: Default::default(),
-            conn_to_client: 0,
-            is_init: false,
-            destroy_called: false,
-            visibility: Visibility::Default,
-            last_serialization: NetworkIdentitySerialization::new(0),
-            scene_ids: Default::default(),
-            has_spawned: false,
-            spawned_from_instantiate: false,
-            network_behaviours: Default::default(),
-            valid_parent: false,
-        };
+        let mut network_identity = Self::new();
+        network_identity.scene_id = scene_id;
         if let Some(temp) =
             BackendDataStatic::get_backend_data().get_network_identity_data_by_scene_id(scene_id)
         {
