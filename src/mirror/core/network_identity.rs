@@ -84,7 +84,6 @@ impl NetworkIdentity {
     pub fn new_with_asset_id(asset_id: u32) -> Self {
         let mut network_identity = Self::new();
         network_identity.asset_id = asset_id;
-        network_identity.awake();
         network_identity
     }
     pub fn new_with_scene_id(scene_id: u64) -> Self {
@@ -95,7 +94,6 @@ impl NetworkIdentity {
         {
             network_identity.valid_parent = temp.valid_parent;
         }
-        network_identity.awake();
         network_identity
     }
     pub fn new() -> Self {
