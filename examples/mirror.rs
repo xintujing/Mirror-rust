@@ -11,7 +11,6 @@ use mirror_rust::mirror::core::transport::TransportTrait;
 use mirror_rust::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransport;
 use signal_hook::consts::SIGINT;
 use signal_hook::flag::register;
-use std::sync::Arc;
 
 mod quick_start;
 
@@ -74,7 +73,7 @@ fn on_destroy() {}
 
 fn main() {
     // 注册信号
-    match register(SIGINT, Arc::clone(NetworkLoop::stop())) {
+    match register(SIGINT, NetworkLoop::stop().clone()) {
         Ok(s) => {
             log_debug!(format!("register signal: {:?}", s));
         }
