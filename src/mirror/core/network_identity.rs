@@ -497,4 +497,16 @@ impl NetworkIdentity {
     pub fn set_active(&mut self, active: bool) {
         self.game_object.set_active(active);
     }
+
+    pub fn get_component<T>(&mut self) -> Option<&T>
+    where
+        T: NetworkBehaviourTrait,
+    {
+        for component in self.network_behaviours.iter_mut() {
+            if let Some(component) = component.as_any_mut().downcast_ref::<T>() {
+                return Some(component);
+            }
+        }
+        None
+    }
 }

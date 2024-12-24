@@ -13,8 +13,6 @@ use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, Netwo
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
 use dashmap::try_result::TryResult;
-use nalgebra::Vector3;
-use rand::Rng;
 
 pub struct PendingPlayer {
     pub conn: u64,
@@ -378,8 +376,16 @@ impl NetworkManagerTrait for NetworkRoomManager {
             authenticator.on_server_authenticate(conn);
         } else {
             // 如果 NetworkManager 的 authenticator 为空
-            NetworkManager::on_server_authenticated(conn);
+            Self::on_server_authenticated(conn);
         }
+    }
+
+    fn on_server_connect(conn: &mut NetworkConnectionToClient)
+    where
+        Self: Sized,
+    {
+        <Self as NetworkManagerTrait>::on_server_connect(conn);
+        // OnRoomServerConnect(conn);
     }
 
     // OnServerDisconnect
@@ -524,11 +530,11 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn late_update(&mut self) {
         self.update_scene();
     }
-
     fn on_start_server(&mut self) {}
     fn on_destroy(&mut self) {
         self.stop_server();
     }
+
     fn server_change_scene(&mut self, new_scene_name: String) {
         if new_scene_name == "" {
             log_error!("ServerChangeScene newSceneName is empty");
