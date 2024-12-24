@@ -13,7 +13,7 @@ pub mod messages;
 mod network_writer_extensions;
 pub mod network_writer_pool;
 mod batching;
-mod connection_quality;
+pub mod connection_quality;
 pub mod network_reader;
 mod network_reader_extensions;
 pub mod remote_calls;
