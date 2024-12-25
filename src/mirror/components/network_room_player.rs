@@ -8,7 +8,7 @@ use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
-use crate::mirror::core::network_writer::NetworkWriter;
+use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
@@ -226,10 +226,21 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
     }
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
-        todo!()
+        if initial_state {
+            writer.write_bool(self.ready_to_begin);
+            writer.write_int(self.index);
+        } else {
+            writer.compress_var_ulong(self.sync_var_dirty_bits());
+            if self.sync_var_dirty_bits() & (1 << 0) != 0 {
+                writer.write_bool(self.ready_to_begin);
+            }
+            if self.sync_var_dirty_bits() & (1 << 1) != 0 {
+                writer.write_int(self.index);
+            }
+        }
     }
 
     fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
-        todo!()
+        true
     }
 }
