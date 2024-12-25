@@ -16,7 +16,9 @@ use crate::mirror::core::network_manager::{
     PlayerSpawnMethod,
 };
 use crate::mirror::core::network_reader::NetworkReader;
-use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
+use crate::mirror::core::network_server::{
+    EventHandlerType, NetworkServer, NetworkServerStatic, ReplacePlayerOptions,
+};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
 use dashmap::try_result::TryResult;
@@ -205,7 +207,67 @@ impl NetworkRoomManager {
     fn on_server_ready(conn_id: u64) {
         NetworkServer::set_client_ready(conn_id);
 
-        // TODO SceneLoadedForPlayer
+        if conn_id != 0 {
+            let mut net_id = 0;
+            let mut room_player = GameObject::default();
+            match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+                TryResult::Present(conn) => {
+                    net_id = conn.net_id();
+                }
+                TryResult::Absent => {
+                    log_error!(format!(
+                        "Failed to on_server_ready for conn {} because of absent",
+                        conn_id
+                    ));
+                }
+                TryResult::Locked => {
+                    log_error!(format!(
+                        "Failed to on_server_ready for conn {} because of locked",
+                        conn_id
+                    ));
+                }
+            }
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+                TryResult::Present(mut identity) => {
+                    if identity.get_component::<NetworkRoomPlayer>().is_some() {
+                        room_player = identity.game_object().clone();
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to on_server_ready for identity because of absent");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to on_server_ready for identity because of locked");
+                }
+            }
+            if !room_player.is_null() {
+                Self::scene_loaded_for_player(conn_id, room_player);
+            }
+        }
+    }
+
+    fn scene_loaded_for_player(conn_id: u64, mut room_player: GameObject) {
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        let room_scene = network_manager.online_scene();
+        if NetworkManagerStatic::network_scene_name() == room_scene {
+            let pending_player = PendingPlayer {
+                conn: conn_id,
+                room_player: room_player.clone(),
+            };
+
+            let network_room_manager = network_manager.as_any_mut().downcast_mut::<Self>().unwrap();
+            network_room_manager.pending_players.push(pending_player);
+            return;
+        }
+
+        let transform = network_manager.get_start_position();
+        room_player.transform = transform;
+
+        NetworkServer::replace_player_for_connection(
+            conn_id,
+            room_player,
+            ReplacePlayerOptions::KeepAuthority,
+        );
     }
 
     fn on_server_add_player_internal(

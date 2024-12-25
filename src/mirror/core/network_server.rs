@@ -31,6 +31,13 @@ use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
 
+pub enum ReplacePlayerOptions {
+    KeepAuthority,
+    KeepActive,
+    UnSpawn,
+    Destroy,
+}
+
 pub enum RemovePlayerOptions {
     // <summary>Player Object remains active on server and clients. Only ownership is removed</summary>
     KeepActive,
@@ -1137,13 +1144,13 @@ impl NetworkServer {
         });
     }
 
-    pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
+    fn init_identity_by_game_obj(conn_id: u64, mut player: &mut GameObject) -> Option<NetworkIdentity> {
         if let Some(mut identity) = player.get_identity_by_prefab() {
             match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
                 TryResult::Present(mut connection) => {
                     if connection.net_id() != 0 {
                         log_warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
-                        return false;
+                        return None;
                     }
                     // 设置连接的 NetworkIdentity
                     connection.set_net_id(identity.net_id());
@@ -1155,19 +1162,138 @@ impl NetworkServer {
                         "AddPlayer: connectionId {} not found in connections",
                         conn_id
                     ));
-                    return false;
+                    return None;
                 }
                 TryResult::Locked => {
                     log_error!(format!("AddPlayer: connectionId {} is locked", conn_id));
-                    return false;
+                    return None;
                 }
             }
+            return Some(identity);
+        }
+        None
+    }
+
+    pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
+        if let Some(identity) = Self::init_identity_by_game_obj(conn_id, &mut player) {
             Self::set_client_ready(conn_id);
             Self::respawn(identity);
-            return true;
         }
         log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
         false
+    }
+
+    pub fn replace_player_for_connection(
+        conn_id: u64,
+        mut player: GameObject,
+        replace_player_options: ReplacePlayerOptions,
+    ) -> bool {
+        if let Some(identity) = Self::init_identity_by_game_obj(conn_id, &mut player) {
+            Self::spawn_observers_for_connection(conn_id);
+            Self::respawn(identity);
+        }
+
+        // 处理旧的 NetworkIdentity
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut conn) => {
+                match replace_player_options {
+                    // 保留所有权
+                    ReplacePlayerOptions::KeepAuthority => {
+                        match NetworkServerStatic::spawned_network_identities()
+                            .try_get_mut(&conn.net_id())
+                        {
+                            TryResult::Present(mut identity) => {
+                                Self::send_change_owner_message(&mut identity, conn.value_mut());
+                            }
+                            TryResult::Absent => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of absent"
+                                );
+                            }
+                            TryResult::Locked => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of locked"
+                                );
+                            }
+                        }
+                    }
+                    // 保留激活状态
+                    ReplacePlayerOptions::KeepActive => {
+                        match NetworkServerStatic::spawned_network_identities()
+                            .try_get_mut(&conn.net_id())
+                        {
+                            TryResult::Present(mut identity) => {
+                                identity.remove_client_authority();
+                            }
+                            TryResult::Absent => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of absent"
+                                );
+                            }
+                            TryResult::Locked => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of locked"
+                                );
+                            }
+                        }
+                    }
+                    // 保留激活状态
+                    ReplacePlayerOptions::UnSpawn => {
+                        match NetworkServerStatic::spawned_network_identities()
+                            .try_get_mut(&conn.net_id())
+                        {
+                            TryResult::Present(mut identity) => {
+                                Self::un_spawn(conn.value_mut(), &mut identity);
+                            }
+                            TryResult::Absent => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of absent"
+                                );
+                            }
+                            TryResult::Locked => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of locked"
+                                );
+                            }
+                        }
+                    }
+                    // 销毁
+                    ReplacePlayerOptions::Destroy => {
+                        match NetworkServerStatic::spawned_network_identities()
+                            .try_get_mut(&conn.net_id())
+                        {
+                            TryResult::Present(mut identity) => {
+                                Self::destroy(conn.value_mut(), &mut identity);
+                            }
+                            TryResult::Absent => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of absent"
+                                );
+                            }
+                            TryResult::Locked => {
+                                log_error!(
+                                    "Failed to on_server_ready for identity because of locked"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "Failed to on_server_ready for conn {} because of absent",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                log_error!(format!(
+                    "Failed to on_server_ready for conn {} because of locked",
+                    conn_id
+                ));
+            }
+        }
+
+        true
     }
 
     pub fn spawn_objects() {

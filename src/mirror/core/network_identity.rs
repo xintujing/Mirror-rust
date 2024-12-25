@@ -509,4 +509,23 @@ impl NetworkIdentity {
         }
         None
     }
+
+    pub fn remove_client_authority(&mut self) {
+        if self.conn_to_client == 0 {
+            return;
+        }
+        match NetworkServerStatic::network_connections().try_get_mut(&self.conn_to_client) {
+            TryResult::Present(mut conn) => {
+                // TODO clientAuthorityCallback?.Invoke(connectionToClient, this, false);
+                self.conn_to_client = 0;
+                NetworkServer::send_change_owner_message(self, &mut conn);
+            }
+            TryResult::Absent => {
+                log_error!("Failed to remove client authority because connection is absent.");
+            }
+            TryResult::Locked => {
+                log_error!("Failed to remove client authority because connection is locked.");
+            }
+        }
+    }
 }
