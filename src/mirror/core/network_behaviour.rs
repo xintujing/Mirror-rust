@@ -536,7 +536,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     }
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
-    fn update(&mut self) {}
+    fn start(&mut self) {}
+    fn update(&mut self) {
+        self.start()
+    }
     fn late_update(&mut self) {}
     // SerializeSyncVars
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool);
