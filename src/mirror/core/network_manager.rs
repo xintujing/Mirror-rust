@@ -17,6 +17,7 @@ use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use nalgebra::Vector3;
 use rand::Rng;
+use std::any::Any;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 
@@ -509,6 +510,7 @@ pub trait NetworkManagerTrait {
     fn on_destroy(&mut self);
     fn server_change_scene(&mut self, new_scene_name: String);
     fn on_server_change_scene(&mut self, _new_scene_name: String) {}
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -716,6 +718,10 @@ impl NetworkManagerTrait for NetworkManager {
                 false,
             );
         }
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

@@ -1,18 +1,26 @@
-use crate::mirror::authenticators::network_authenticator::{NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic};
+use crate::mirror::authenticators::network_authenticator::{
+    NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic,
+};
 use crate::mirror::components::network_room_player::NetworkRoomPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
-use crate::mirror::core::network_manager::{NetworkManager, NetworkManagerMode, NetworkManagerStatic, NetworkManagerTrait, PlayerSpawnMethod};
+use crate::mirror::core::network_manager::{
+    NetworkManager, NetworkManagerMode, NetworkManagerStatic, NetworkManagerTrait,
+    PlayerSpawnMethod,
+};
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
 use dashmap::try_result::TryResult;
+use std::any::Any;
 
 pub struct PendingPlayer {
     pub conn: u64,
@@ -96,7 +104,9 @@ impl NetworkRoomManager {
         NetworkServerStatic::set_disconnect_inactive_connections(
             self.network_manager.disconnect_inactive_connections,
         );
-        NetworkServerStatic::set_disconnect_inactive_timeout(self.network_manager.disconnect_inactive_timeout);
+        NetworkServerStatic::set_disconnect_inactive_timeout(
+            self.network_manager.disconnect_inactive_timeout,
+        );
         NetworkServerStatic::set_exceptions_disconnect(self.network_manager.exceptions_disconnect);
 
         if let Some(ref mut authenticator) = self.authenticator() {
@@ -337,7 +347,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn set_auto_create_player(&mut self, auto_create_player: bool) {
-        self.network_manager.set_auto_create_player(auto_create_player);
+        self.network_manager
+            .set_auto_create_player(auto_create_player);
     }
 
     fn player_obj(&self) -> &GameObject {
@@ -353,7 +364,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod) {
-        self.network_manager.set_player_spawn_method(player_spawn_method);
+        self.network_manager
+            .set_player_spawn_method(player_spawn_method);
     }
 
     fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
@@ -393,7 +405,28 @@ impl NetworkManagerTrait for NetworkRoomManager {
     where
         Self: Sized,
     {
-        NetworkServer::destroy_player_for_connection(conn);
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id()) {
+            TryResult::Present(mut identity) => {
+                let room_player = identity.get_component::<NetworkRoomPlayer>();
+                if room_player.is_some() {
+                    let room_player = room_player.unwrap();
+                    let network_room_manager =
+                        NetworkManagerStatic::network_manager_singleton()
+                            .as_any_mut()
+                            .downcast_mut::<Self>()
+                            .unwrap();
+                    network_room_manager
+                        .room_slots
+                        .remove(room_player.index() as usize);
+                }
+            }
+            TryResult::Absent => {
+                log_error!("Failed to on_server_disconnect for identity because of absent");
+            }
+            TryResult::Locked => {
+                log_error!("Failed to on_server_disconnect for identity because of locked");
+            }
+        }
     }
 
     fn awake() {
@@ -485,19 +518,31 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn on_validate(&mut self) {
         self.network_manager.max_connections = self.network_manager.max_connections.max(0);
 
-        if !self.network_manager.player_obj.is_null() && !self.network_manager.player_obj.is_has_component() {
+        if !self.network_manager.player_obj.is_null()
+            && !self.network_manager.player_obj.is_has_component()
+        {
             log_error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
         }
 
-        if !self.network_manager.player_obj.is_null() && self.network_manager.spawn_prefabs.contains(&self.network_manager.player_obj) {
+        if !self.network_manager.player_obj.is_null()
+            && self
+            .network_manager
+            .spawn_prefabs
+            .contains(&self.network_manager.player_obj)
+        {
             log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
-            self.network_manager.spawn_prefabs.retain(|x| x != &self.network_manager.player_obj);
+            self.network_manager
+                .spawn_prefabs
+                .retain(|x| x != &self.network_manager.player_obj);
         }
 
         // NetworkRoomManager start
 
         // always <= maxConnections
-        self.min_players = self.network_manager.max_connections.max(self.min_players as usize) as i32;
+        self.min_players = self
+            .network_manager
+            .max_connections
+            .max(self.min_players as usize) as i32;
         // always >= 0
         self.min_players = self.min_players.max(0);
 
@@ -572,5 +617,9 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 false,
             );
         }
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
