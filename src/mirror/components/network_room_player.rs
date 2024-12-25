@@ -240,7 +240,7 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         }
     }
 
-    fn deserialize_sync_vars(&mut self, reader: &mut NetworkReader, initial_state: bool) -> bool {
+    fn deserialize_sync_vars(&mut self, _reader: &mut NetworkReader, _initial_state: bool) -> bool {
         true
     }
 }
