@@ -1,6 +1,12 @@
+use crate::log_error;
+use crate::mirror::components::network_room_manager::NetworkRoomManager;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_reader::NetworkReader;
+use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::NetworkWriter;
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
@@ -19,7 +25,11 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         Self: Sized,
     {
         Self {
-            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_component.network_behaviour_setting, network_behaviour_component.index),
+            network_behaviour: NetworkBehaviour::new(
+                game_object,
+                network_behaviour_component.network_behaviour_setting,
+                network_behaviour_component.index,
+            ),
             ready_to_begin: false,
             index: 0,
         }
@@ -154,6 +164,27 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    // 在第一次 update 之前仅调用一次
+    fn start(&mut self) {
+        static ONCE: Once = Once::new();
+        let _ = &ONCE.call_once(|| {
+            match NetworkManagerStatic::network_manager_singleton().as_any_mut().downcast_mut::<NetworkRoomManager>() {
+                None => {
+                    log_error!("RoomPlayer could not find a NetworkRoomManager. The RoomPlayer requires a NetworkRoomManager object to function. Make sure that there is one in the scene.")
+                }
+                Some(room) => {
+                    if room.network_manager.dont_destroy_on_load {}
+
+                    room.room_slots.push(self.net_id());
+
+                    if NetworkServerStatic::active() {
+                        room.recalculate_room_player_indices();
+                    }
+                }
+            }
+        });
     }
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {

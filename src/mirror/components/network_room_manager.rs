@@ -11,6 +11,7 @@ use crate::mirror::core::network_behaviour::{
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
+use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerMode, NetworkManagerStatic, NetworkManagerTrait,
     PlayerSpawnMethod,
@@ -19,6 +20,7 @@ use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
+use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use std::any::Any;
 
@@ -35,7 +37,7 @@ pub struct NetworkRoomManager {
     pub gameplay_scene: String,
     pub pending_players: Vec<PendingPlayer>,
     _all_players_ready: bool,
-    pub room_slots: Vec<NetworkRoomPlayer>,
+    pub room_slots: Vec<u32>,
 }
 
 impl NetworkRoomManager {
@@ -50,16 +52,22 @@ impl NetworkRoomManager {
             self._all_players_ready = value;
             match now_ready {
                 true => {
-                    // TODO OnRoomServerPlayersReady();
-                    // OnRoomServerPlayersReady();
+                    self.on_room_server_players_ready();
                 }
                 false => {
-                    // TODO OnRoomServerPlayersNotReady();
-                    // OnRoomServerPlayersNotReady();
+                    self.on_room_server_players_not_ready();
                 }
             }
         }
     }
+
+    // OnRoomServerPlayersReady
+    fn on_room_server_players_ready(&mut self) {
+        self.server_change_scene(self.gameplay_scene.to_string());
+    }
+
+    // OnRoomServerPlayersNotReady
+    fn on_room_server_players_not_ready(&mut self) {}
 
     fn initialize_singleton(&self) -> bool {
         if NetworkManagerStatic::network_manager_singleton_exists() {
@@ -262,6 +270,28 @@ impl NetworkRoomManager {
         NetworkServerStatic::set_tick_rate(self.network_manager.send_rate);
     }
 
+    pub fn recalculate_room_player_indices(&mut self) {
+        for (i, net_id) in self.room_slots.iter().enumerate() {
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+                TryResult::Present(mut identity) => {
+                    if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
+                        player.index = i as i32
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!(
+                        "Failed to recalculate_room_player_indices for identity because of absent"
+                    );
+                }
+                TryResult::Locked => {
+                    log_error!(
+                        "Failed to recalculate_room_player_indices for identity because of locked"
+                    );
+                }
+            }
+        }
+    }
+
     fn stop_server(&mut self) {
         if !NetworkServerStatic::active() {
             log_warn!("Server already stopped.");
@@ -410,11 +440,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 let room_player = identity.get_component::<NetworkRoomPlayer>();
                 if room_player.is_some() {
                     let room_player = room_player.unwrap();
-                    let network_room_manager =
-                        NetworkManagerStatic::network_manager_singleton()
-                            .as_any_mut()
-                            .downcast_mut::<Self>()
-                            .unwrap();
+                    let network_room_manager = NetworkManagerStatic::network_manager_singleton()
+                        .as_any_mut()
+                        .downcast_mut::<Self>()
+                        .unwrap();
                     network_room_manager
                         .room_slots
                         .remove(room_player.index() as usize);
