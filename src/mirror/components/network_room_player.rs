@@ -9,6 +9,7 @@ use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::NetworkWriter;
+use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use std::any::Any;
 use std::sync::Once;
@@ -36,16 +37,11 @@ impl NetworkRoomPlayer {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_change_ready_state_boolean(
-                reader.read_bool(),
-            );
+            .user_code_cmd_change_ready_state_boolean(reader.read_bool());
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
-    fn user_code_cmd_change_ready_state_boolean(
-        &mut self,
-        value: bool,
-    ) {
+    fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
         self.ready_to_begin = value;
         let network_room_manager = NetworkManagerStatic::network_manager_singleton()
             .as_any_mut()
@@ -60,6 +56,7 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
     where
         Self: Sized,
     {
+        Self::register_delegate();
         Self {
             network_behaviour: NetworkBehaviour::new(
                 game_object,
@@ -75,7 +72,12 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
     where
         Self: Sized,
     {
-        todo!()
+        // RemoteProcedureCalls.RegisterCommand(typeof (NetworkRoomPlayer), "System.Void Mirror.NetworkRoomPlayer::CmdChangeReadyState(System.Boolean)", new RemoteCallDelegate(NetworkRoomPlayer.InvokeUserCode_CmdChangeReadyState__Boolean), true);
+        RemoteProcedureCalls::register_command_delegate::<Self>(
+            "System.Void Mirror.NetworkRoomPlayer::CmdChangeReadyState(System.Boolean)",
+            Self::invoke_user_code_cmd_change_ready_state_boolean,
+            true,
+        );
     }
 
     fn get_once() -> &'static Once
