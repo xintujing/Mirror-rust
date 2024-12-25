@@ -36,6 +36,7 @@ pub struct NetworkRoomManager {
     pub pending_players: Vec<PendingPlayer>,
     _all_players_ready: bool,
     pub room_slots: Vec<u32>,
+    pub client_index: i32,
 }
 
 impl NetworkRoomManager {
@@ -97,7 +98,7 @@ impl NetworkRoomManager {
         self.network_manager.on_start_server();
 
         if self.is_server_online_scene_change_needed() {
-            self.server_change_scene(self.network_manager.online_scene.to_string());
+            self.server_change_scene(self.online_scene().to_string());
         } else {
             // TODO NetworkServer.SpawnObjects();
             NetworkServer::spawn_objects();
@@ -200,8 +201,11 @@ impl NetworkRoomManager {
         Self::on_server_ready(conn_id)
     }
 
+    // OnServerReady(
     fn on_server_ready(conn_id: u64) {
         NetworkServer::set_client_ready(conn_id);
+
+        // TODO SceneLoadedForPlayer
     }
 
     fn on_server_add_player_internal(
@@ -261,7 +265,7 @@ impl NetworkRoomManager {
     }
 
     fn is_server_online_scene_change_needed(&self) -> bool {
-        self.network_manager.online_scene != self.network_manager.offline_scene
+        self.online_scene() != self.offline_scene()
     }
 
     fn apply_configuration(&mut self) {
@@ -396,11 +400,19 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn offline_scene(&self) -> &str {
-        self.network_manager.offline_scene()
+        self.room_scene.as_str()
     }
 
     fn set_offline_scene(&mut self, scene_name: &'static str) {
-        self.network_manager.set_offline_scene(scene_name);
+        self.room_scene = scene_name.to_string();
+    }
+
+    fn online_scene(&self) -> &str {
+        self.gameplay_scene.as_str()
+    }
+
+    fn set_online_scene(&mut self, scene_name: &'static str) {
+        self.gameplay_scene = scene_name.to_string();
     }
 
     fn auto_create_player(&self) -> bool {
@@ -451,14 +463,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
             // 如果 NetworkManager 的 authenticator 为空
             Self::on_server_authenticated(conn);
         }
-    }
-
-    fn on_server_connect(conn: &mut NetworkConnectionToClient)
-    where
-        Self: Sized,
-    {
-        <Self as NetworkManagerTrait>::on_server_connect(conn);
-        // OnRoomServerConnect(conn);
     }
 
     // OnServerDisconnect
@@ -548,9 +552,27 @@ impl NetworkManagerTrait for NetworkRoomManager {
             pending_players: vec![],
             _all_players_ready: false,
             room_slots: vec![],
+            client_index: 0,
         };
 
         NetworkManagerStatic::set_network_manager_singleton(Box::new(network_room_manager));
+    }
+
+    fn on_server_add_player(&mut self, conn_id: u64) {
+        self.client_index += 1;
+        self.set_all_players_ready(false);
+
+        // 拿到 player_obj
+        let mut player_obj = self.room_player_prefab.game_object().clone();
+        if player_obj.is_null() {
+            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            return;
+        }
+
+        // 修改 player_obj 的 transform 属性
+        player_obj.transform = self.get_start_position();
+
+        NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
 
     fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
@@ -609,7 +631,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
         self.apply_configuration();
 
-        NetworkManagerStatic::set_network_scene_name(self.network_manager.online_scene.to_string());
+        NetworkManagerStatic::set_network_scene_name(self.offline_scene().to_string());
 
         self.start_server();
     }
@@ -617,11 +639,11 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn update(&mut self) {
         self.apply_configuration();
     }
-
     fn late_update(&mut self) {
         self.update_scene();
     }
     fn on_start_server(&mut self) {}
+
     fn on_destroy(&mut self) {
         self.stop_server();
     }
@@ -642,7 +664,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             return;
         }
 
-        if !NetworkServerStatic::active() && new_scene_name == self.network_manager.online_scene {
+        if !NetworkServerStatic::active() && new_scene_name == self.online_scene() {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );

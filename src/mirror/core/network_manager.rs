@@ -344,7 +344,7 @@ impl NetworkManager {
     }
 
     fn is_server_online_scene_change_needed(&self) -> bool {
-        self.online_scene != self.offline_scene
+        self.online_scene() != self.offline_scene()
     }
 
     fn apply_configuration(&mut self) {
@@ -417,6 +417,8 @@ pub trait NetworkManagerTrait {
     fn network_address(&self) -> &str;
     fn offline_scene(&self) -> &str;
     fn set_offline_scene(&mut self, scene_name: &'static str);
+    fn online_scene(&self) -> &str;
+    fn set_online_scene(&mut self, scene_name: &'static str);
     fn auto_create_player(&self) -> bool;
     fn set_auto_create_player(&mut self, auto_create_player: bool);
     fn player_obj(&self) -> &GameObject;
@@ -532,6 +534,14 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn set_offline_scene(&mut self, scene_name: &'static str) {
         self.offline_scene = scene_name.to_string();
+    }
+
+    fn online_scene(&self) -> &str {
+        self.online_scene.as_str()
+    }
+
+    fn set_online_scene(&mut self, scene_name: &'static str) {
+        self.online_scene = scene_name.to_string();
     }
 
     fn auto_create_player(&self) -> bool {
@@ -664,7 +674,7 @@ impl NetworkManagerTrait for NetworkManager {
         }
         self.apply_configuration();
 
-        NetworkManagerStatic::set_network_scene_name(self.online_scene.to_string());
+        NetworkManagerStatic::set_network_scene_name(self.online_scene().to_string());
 
         self.start_server();
     }
@@ -697,7 +707,7 @@ impl NetworkManagerTrait for NetworkManager {
             return;
         }
 
-        if !NetworkServerStatic::active() && new_scene_name == self.online_scene {
+        if !NetworkServerStatic::active() && new_scene_name == self.offline_scene() {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
