@@ -1144,7 +1144,7 @@ impl NetworkServer {
         });
     }
 
-    fn init_identity_by_game_obj(conn_id: u64, mut player: &mut GameObject) -> Option<NetworkIdentity> {
+    fn init_identity_by_game_obj(conn_id: u64, player: &mut GameObject) -> Option<NetworkIdentity> {
         if let Some(mut identity) = player.get_identity_by_prefab() {
             match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
                 TryResult::Present(mut connection) => {
