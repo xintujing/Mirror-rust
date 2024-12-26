@@ -3,7 +3,7 @@ use crate::mirror::authenticators::network_authenticator::{
 };
 use crate::mirror::components::network_room_player::NetworkRoomPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
-use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
+use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::mirror::core::network_behaviour::{
@@ -100,7 +100,7 @@ impl NetworkRoomManager {
         self.network_manager.on_start_server();
 
         if self.is_server_online_scene_change_needed() {
-            self.server_change_scene(self.online_scene().to_string());
+            self.server_change_scene(self.network_manager.online_scene.to_string());
         } else {
             // TODO NetworkServer.SpawnObjects();
             NetworkServer::spawn_objects();
@@ -118,7 +118,7 @@ impl NetworkRoomManager {
         );
         NetworkServerStatic::set_exceptions_disconnect(self.network_manager.exceptions_disconnect);
 
-        if let Some(ref mut authenticator) = self.authenticator() {
+        if let Some(authenticator) = self.network_manager.authenticator() {
             authenticator.on_start_server();
             NetworkAuthenticatorTraitStatic::set_on_server_authenticated(
                 Self::on_server_authenticated,
@@ -174,9 +174,10 @@ impl NetworkRoomManager {
         conn.set_authenticated(true);
 
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
         // offline_scene
-        let offline_scene = network_manager.offline_scene();
+        let offline_scene = network_manager.offline_scene.to_string();
 
         // 获取 场景名称
         let network_scene_name = NetworkManagerStatic::network_scene_name();
@@ -247,8 +248,9 @@ impl NetworkRoomManager {
     }
 
     fn scene_loaded_for_player(conn_id: u64, mut room_player: GameObject) {
-        let network_manager = NetworkManagerStatic::network_manager_singleton();
-        let room_scene = network_manager.online_scene();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let room_scene = network_manager.online_scene.to_string();
         if NetworkManagerStatic::network_scene_name() == room_scene {
             let pending_player = PendingPlayer {
                 conn: conn_id,
@@ -276,19 +278,20 @@ impl NetworkRoomManager {
         _channel: TransportChannel,
     ) {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
-        if network_manager.auto_create_player() && network_manager.player_obj().prefab == "" {
+        if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
             log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
-        if network_manager.auto_create_player() {
+        if network_manager.auto_create_player {
             // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
             if let Some(asset_id) = BackendDataStatic::get_backend_data()
-                .get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str())
+                .get_asset_id_by_asset_name(network_manager.player_obj.prefab.as_str())
             {
                 if let None = BackendDataStatic::get_backend_data()
                     .get_network_identity_data_by_asset_id(asset_id)
@@ -327,7 +330,7 @@ impl NetworkRoomManager {
     }
 
     fn is_server_online_scene_change_needed(&self) -> bool {
-        self.online_scene() != self.offline_scene()
+        self.network_manager.online_scene != self.network_manager.offline_scene
     }
 
     fn apply_configuration(&mut self) {
@@ -395,8 +398,9 @@ impl NetworkRoomManager {
             return;
         }
 
-        if let Some(ref mut authenticator) =
-            NetworkManagerStatic::network_manager_singleton().authenticator()
+        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton()
+            .as_mut_network_manager()
+            .authenticator()
         {
             authenticator.on_stop_server();
         }
@@ -450,95 +454,53 @@ impl NetworkRoomManager {
 
 impl NetworkManagerTrait for NetworkRoomManager {
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>> {
-        &mut self.network_manager.authenticator
+        self.network_manager.authenticator()
     }
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.network_manager.set_authenticator(authenticator);
     }
 
-    fn network_address(&self) -> &str {
-        self.network_manager.network_address()
-    }
+    fn on_validate(&mut self) {
+        self.network_manager.max_connections = self.network_manager.max_connections.max(0);
 
-    fn offline_scene(&self) -> &str {
-        self.network_manager.offline_scene()
-    }
+        if !self.network_manager.player_obj.is_null()
+            && !self.network_manager.player_obj.is_has_component()
+        {
+            log_error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
+        }
 
-    fn set_offline_scene(&mut self, scene_name: &'static str) {
-        self.network_manager.set_offline_scene(scene_name);
-    }
+        if !self.network_manager.player_obj.is_null()
+            && self
+            .network_manager
+            .spawn_prefabs
+            .contains(&self.network_manager.player_obj)
+        {
+            log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
+            self.network_manager
+                .spawn_prefabs
+                .retain(|x| x != &self.network_manager.player_obj);
+        }
 
-    fn online_scene(&self) -> &str {
-        self.network_manager.online_scene()
-    }
+        // NetworkRoomManager start
 
-    fn set_online_scene(&mut self, scene_name: &'static str) {
-        self.network_manager.set_online_scene(scene_name);
-    }
+        // always <= maxConnections
+        self.min_players = self
+            .network_manager
+            .max_connections
+            .max(self.min_players as usize) as i32;
+        // always >= 0
+        self.min_players = self.min_players.max(0);
 
-    fn auto_create_player(&self) -> bool {
-        self.network_manager.auto_create_player()
-    }
-
-    fn set_auto_create_player(&mut self, auto_create_player: bool) {
-        self.network_manager
-            .set_auto_create_player(auto_create_player);
-    }
-
-    fn player_obj(&self) -> &GameObject {
-        self.network_manager.player_obj()
-    }
-
-    fn set_player_obj(&mut self, player_obj: GameObject) {
-        self.network_manager.set_player_obj(player_obj);
-    }
-
-    fn player_spawn_method(&self) -> &PlayerSpawnMethod {
-        self.network_manager.player_spawn_method()
-    }
-
-    fn set_player_spawn_method(&mut self, player_spawn_method: PlayerSpawnMethod) {
-        self.network_manager
-            .set_player_spawn_method(player_spawn_method);
-    }
-
-    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
-        self.network_manager.snapshot_interpolation_settings()
-    }
-
-    // OnServerConnectInternal
-    fn on_server_connect_internal(
-        conn: &mut NetworkConnectionToClient,
-        _transport_error: TransportError,
-    ) where
-        Self: Sized,
-    {
-        // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton();
-
-        // 如果 NetworkManager 的 authenticator 不为空
-        if let Some(authenticator) = network_manager.authenticator() {
-            // 调用 NetworkAuthenticatorTrait 的 on_server_connect 方法
-            authenticator.on_server_authenticate(conn);
-        } else {
-            // 如果 NetworkManager 的 authenticator 为空
-            Self::on_server_authenticated(conn);
+        if !self.room_player_prefab.game_object().is_null() {
+            if !self.room_player_prefab.game_object().is_has_component() {
+                log_error!("NetworkRoomManager - RoomPlayer Prefab must have a NetworkIdentity.");
+            }
         }
     }
 
-    // OnServerDisconnect
-    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
-    where
-        Self: Sized,
-    {
-        let network_room_manager = NetworkManagerStatic::network_manager_singleton()
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap();
-        network_room_manager
-            .room_slots
-            .retain(|&x| x != conn.net_id());
+    fn reset(&mut self) {
+        log_debug!("NetworkManager reset");
     }
 
     fn awake() {
@@ -620,80 +582,15 @@ impl NetworkManagerTrait for NetworkRoomManager {
         NetworkManagerStatic::set_network_manager_singleton(Box::new(network_room_manager));
     }
 
-    fn on_server_add_player(&mut self, conn_id: u64) {
-        self.client_index += 1;
-        self.set_all_players_ready(false);
-
-        // 拿到 player_obj
-        let mut player_obj = self.room_player_prefab.game_object().clone();
-        if player_obj.is_null() {
-            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
-            return;
-        }
-
-        // 修改 player_obj 的 transform 属性
-        player_obj.transform = self.get_start_position();
-
-        NetworkServer::add_player_for_connection(conn_id, player_obj);
-    }
-
-    fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
-        self.network_manager.set_network_manager_mode(mode);
-    }
-
-    fn get_network_manager_mode(&mut self) -> &NetworkManagerMode {
-        &self.network_manager.get_network_manager_mode()
-    }
-
-    fn on_validate(&mut self) {
-        self.network_manager.max_connections = self.network_manager.max_connections.max(0);
-
-        if !self.network_manager.player_obj.is_null()
-            && !self.network_manager.player_obj.is_has_component()
-        {
-            log_error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
-        }
-
-        if !self.network_manager.player_obj.is_null()
-            && self
-            .network_manager
-            .spawn_prefabs
-            .contains(&self.network_manager.player_obj)
-        {
-            log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
-            self.network_manager
-                .spawn_prefabs
-                .retain(|x| x != &self.network_manager.player_obj);
-        }
-
-        // NetworkRoomManager start
-
-        // always <= maxConnections
-        self.min_players = self
-            .network_manager
-            .max_connections
-            .max(self.min_players as usize) as i32;
-        // always >= 0
-        self.min_players = self.min_players.max(0);
-
-        if !self.room_player_prefab.game_object().is_null() {
-            if !self.room_player_prefab.game_object().is_has_component() {
-                log_error!("NetworkRoomManager - RoomPlayer Prefab must have a NetworkIdentity.");
-            }
-        }
-    }
-
-    fn reset(&mut self) {
-        log_debug!("NetworkManager reset");
-    }
-
     fn start(&mut self) {
         if !self.initialize_singleton() {
             return;
         }
         self.apply_configuration();
 
-        NetworkManagerStatic::set_network_scene_name(self.offline_scene().to_string());
+        NetworkManagerStatic::set_network_scene_name(
+            self.network_manager.offline_scene.to_string(),
+        );
 
         self.start_server();
     }
@@ -701,10 +598,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn update(&mut self) {
         self.apply_configuration();
     }
+
     fn late_update(&mut self) {
         self.update_scene();
     }
-    fn on_start_server(&mut self) {}
 
     fn on_destroy(&mut self) {
         self.stop_server();
@@ -726,7 +623,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             return;
         }
 
-        if !NetworkServerStatic::active() && new_scene_name == self.online_scene() {
+        if !NetworkServerStatic::active() && new_scene_name == self.network_manager.online_scene {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
@@ -747,6 +644,66 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 false,
             );
         }
+    }
+
+    // OnServerDisconnect
+    fn on_server_disconnect(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
+    where
+        Self: Sized,
+    {
+        let network_room_manager = NetworkManagerStatic::network_manager_singleton()
+            .as_any_mut()
+            .downcast_mut::<Self>()
+            .unwrap();
+        network_room_manager
+            .room_slots
+            .retain(|&x| x != conn.net_id());
+    }
+
+    fn on_server_add_player(&mut self, conn_id: u64) {
+        self.client_index += 1;
+        self.set_all_players_ready(false);
+
+        // 拿到 player_obj
+        let mut player_obj = self.room_player_prefab.game_object().clone();
+        if player_obj.is_null() {
+            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+            return;
+        }
+
+        // 修改 player_obj 的 transform 属性
+        player_obj.transform = self.get_start_position();
+
+        NetworkServer::add_player_for_connection(conn_id, player_obj);
+    }
+    fn on_start_server(&mut self) {}
+    // OnServerConnectInternal
+    fn on_server_connect_internal(
+        conn: &mut NetworkConnectionToClient,
+        _transport_error: TransportError,
+    ) where
+        Self: Sized,
+    {
+        // 获取 NetworkManagerTrait 的单例
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+
+        // 如果 NetworkManager 的 authenticator 不为空
+        if let Some(authenticator) = network_manager.authenticator() {
+            // 调用 NetworkAuthenticatorTrait 的 on_server_connect 方法
+            authenticator.on_server_authenticate(conn);
+        } else {
+            // 如果 NetworkManager 的 authenticator 为空
+            Self::on_server_authenticated(conn);
+        }
+    }
+
+    fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
+        self.network_manager.set_network_manager_mode(mode);
+    }
+
+    fn get_network_manager_mode(&mut self) -> &NetworkManagerMode {
+        &self.network_manager.get_network_manager_mode()
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {

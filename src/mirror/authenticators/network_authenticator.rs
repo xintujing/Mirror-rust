@@ -1,6 +1,6 @@
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
-use crate::mirror::core::network_manager::NetworkManagerStatic;
+use crate::mirror::core::network_manager::{NetworkManagerStatic, NetworkManagerTrait};
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::transport::TransportChannel;
 use lazy_static::lazy_static;
@@ -60,7 +60,7 @@ pub trait NetworkAuthenticatorTrait: Send + Sync {
     {
         let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
 
-        if let Some(authenticator) = network_manager_singleton.authenticator() {
+        if let Some(authenticator) = network_manager_singleton.as_mut_network_manager().authenticator() {
             return Some(authenticator.as_any_mut());
         }
         None
