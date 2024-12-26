@@ -710,3 +710,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         self
     }
 }
+
+pub trait NetworkRoomManagerTrait: NetworkManagerTrait {}
+
+impl NetworkRoomManagerTrait for NetworkRoomManager {}
