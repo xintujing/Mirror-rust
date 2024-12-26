@@ -1178,6 +1178,7 @@ impl NetworkServer {
         if let Some(identity) = Self::init_identity_by_game_obj(conn_id, &mut player) {
             Self::set_client_ready(conn_id);
             Self::respawn(identity);
+            return true;
         }
         log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
         false
