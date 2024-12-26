@@ -698,14 +698,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
     }
 
-    fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
-        self.network_manager.set_network_manager_mode(mode);
-    }
-
-    fn get_network_manager_mode(&mut self) -> &NetworkManagerMode {
-        &self.network_manager.get_network_manager_mode()
-    }
-
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }

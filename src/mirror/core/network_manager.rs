@@ -241,7 +241,8 @@ impl NetworkManager {
         conn.set_authenticated(true);
 
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
         // offline_scene
         let offline_scene = network_manager.offline_scene.to_string();
 
@@ -280,7 +281,8 @@ impl NetworkManager {
         _channel: TransportChannel,
     ) {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
         if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
@@ -357,8 +359,9 @@ impl NetworkManager {
             return;
         }
 
-        if let Some(ref mut authenticator) =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager().authenticator
+        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton()
+            .as_mut_network_manager()
+            .authenticator
         {
             authenticator.on_stop_server();
         }
@@ -466,11 +469,6 @@ pub trait NetworkManagerTrait: Any {
         transport_error: TransportError,
     ) where
         Self: Sized;
-    fn is_network_active(&self) -> bool {
-        NetworkServerStatic::active()
-    }
-    fn set_network_manager_mode(&mut self, mode: NetworkManagerMode);
-    fn get_network_manager_mode(&mut self) -> &NetworkManagerMode;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn as_mut_network_manager(&mut self) -> &mut NetworkManager {
         self.as_any_mut().downcast_mut::<NetworkManager>().unwrap()
@@ -667,7 +665,8 @@ impl NetworkManagerTrait for NetworkManager {
         Self: Sized,
     {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager = NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager =
+            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
 
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
@@ -677,14 +676,6 @@ impl NetworkManagerTrait for NetworkManager {
             // 如果 NetworkManager 的 authenticator 为空
             Self::on_server_authenticated(conn);
         }
-    }
-
-    fn set_network_manager_mode(&mut self, mode: NetworkManagerMode) {
-        self.mode = mode;
-    }
-
-    fn get_network_manager_mode(&mut self) -> &NetworkManagerMode {
-        &self.mode
     }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
