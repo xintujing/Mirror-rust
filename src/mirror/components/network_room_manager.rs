@@ -462,19 +462,19 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn offline_scene(&self) -> &str {
-        self.room_scene.as_str()
+        self.network_manager.offline_scene()
     }
 
     fn set_offline_scene(&mut self, scene_name: &'static str) {
-        self.room_scene = scene_name.to_string();
+        self.network_manager.set_offline_scene(scene_name);
     }
 
     fn online_scene(&self) -> &str {
-        self.gameplay_scene.as_str()
+        self.network_manager.online_scene()
     }
 
     fn set_online_scene(&mut self, scene_name: &'static str) {
-        self.gameplay_scene = scene_name.to_string();
+        self.network_manager.set_online_scene(scene_name);
     }
 
     fn auto_create_player(&self) -> bool {
