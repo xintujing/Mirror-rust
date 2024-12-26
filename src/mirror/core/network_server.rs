@@ -1175,13 +1175,17 @@ impl NetworkServer {
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
-        if let Some(identity) = Self::init_identity_by_game_obj(conn_id, &mut player) {
-            Self::set_client_ready(conn_id);
-            Self::respawn(identity);
-            return true;
+        match Self::init_identity_by_game_obj(conn_id, &mut player) {
+            None => {
+                log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
+                false
+            }
+            Some(identity) => {
+                Self::set_client_ready(conn_id);
+                Self::respawn(identity);
+                true
+            }
         }
-        log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
-        false
     }
 
     pub fn replace_player_for_connection(
@@ -1189,11 +1193,16 @@ impl NetworkServer {
         mut player: GameObject,
         replace_player_options: ReplacePlayerOptions,
     ) -> bool {
-        if let Some(identity) = Self::init_identity_by_game_obj(conn_id, &mut player) {
-            Self::spawn_observers_for_connection(conn_id);
-            Self::respawn(identity);
+        match Self::init_identity_by_game_obj(conn_id, &mut player) {
+            None => {
+                log_warn!(format!("ReplacePlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
+                return false;
+            }
+            Some(identity) => {
+                Self::set_client_ready(conn_id);
+                Self::respawn(identity);
+            }
         }
-
         // 处理旧的 NetworkIdentity
         match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
             TryResult::Present(mut conn) => {
@@ -1293,7 +1302,6 @@ impl NetworkServer {
                 ));
             }
         }
-
         true
     }
 
