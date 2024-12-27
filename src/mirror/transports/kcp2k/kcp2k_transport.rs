@@ -1,5 +1,6 @@
 use crate::log_error;
 use crate::mirror::core::backend_data::BackendDataStatic;
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
@@ -161,14 +162,12 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_start(&mut self) {
-        // TODO fix network_address
-        // let mut network_address = NetworkManagerStatic::network_manager_singleton()
-        //     .as_mut_network_manager()
-        //     .network_address.to_string();
-        // if network_address == "localhost"{
-        //     network_address="0.0.0.0"
-        // }
-        let network_address = "0.0.0.0";
+        let mut network_address = NetworkManagerStatic::network_manager_singleton()
+            .as_mut_network_manager()
+            .network_address.to_string();
+        if network_address == "localhost" {
+            network_address = "0.0.0.0".to_string()
+        }
         match Kcp2K::new_server(
             self.config,
             format!("{}:{}", network_address, self.port),
