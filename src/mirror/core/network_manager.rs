@@ -438,31 +438,20 @@ pub trait NetworkManagerTrait: Any {
     fn on_server_disconnect(conn: &mut NetworkConnectionToClient, transport_error: TransportError)
     where
         Self: Sized;
-    fn on_server_ready(_conn: &mut NetworkConnectionToClient)
+    fn on_server_ready(conn_id: u64)
     where
-        Self: Sized,
-    {
-        // TODO
-    }
-    fn on_server_add_player(&mut self, conn_id: u64) {
-        let _ = conn_id;
-    }
+        Self: Sized;
+    fn on_server_add_player(&mut self, conn_id: u64);
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
-        Self: Sized,
-    {
-        let (_, _) = (conn, error);
-    }
+        Self: Sized;
     fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
     where
-        Self: Sized,
-    {
-        let (_, _) = (conn, error);
-    }
-    fn on_server_change_scene(&mut self, _new_scene_name: String) {}
-    fn on_server_scene_changed(&mut self, _new_scene_name: String) {}
-    fn on_start_server(&mut self) {}
-    fn on_stop_server(&mut self) {}
+        Self: Sized;
+    fn on_server_change_scene(&mut self, new_scene_name: String);
+    fn on_server_scene_changed(&mut self, new_scene_name: String);
+    fn on_start_server(&mut self);
+    fn on_stop_server(&mut self);
 
     fn on_server_connect_internal(
         conn: &mut NetworkConnectionToClient,
@@ -643,6 +632,13 @@ impl NetworkManagerTrait for NetworkManager {
         NetworkServer::destroy_player_for_connection(conn);
     }
 
+    fn on_server_ready(conn_id: u64)
+    where
+        Self: Sized,
+    {
+        NetworkServer::set_client_ready(conn_id);
+    }
+
     fn on_server_add_player(&mut self, conn_id: u64) {
         let mut player_obj = self.player_obj.clone();
 
@@ -656,7 +652,29 @@ impl NetworkManagerTrait for NetworkManager {
 
         NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
+
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {
+        let (_, _) = (conn, error);
+    }
+
+    fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {
+        let (_, _) = (conn, error);
+    }
+
+    fn on_server_change_scene(&mut self, _new_scene_name: String) {}
+
+    fn on_server_scene_changed(&mut self, _new_scene_name: String) {}
+
     fn on_start_server(&mut self) {}
+
+    fn on_stop_server(&mut self) {}
+
     // OnServerConnectInternal
     fn on_server_connect_internal(
         conn: &mut NetworkConnectionToClient,

@@ -198,53 +198,11 @@ impl NetworkRoomManager {
 
     fn on_server_ready_message_internal(
         conn_id: u64,
-        _reader: &mut NetworkReader,
-        _channel: TransportChannel,
+        reader: &mut NetworkReader,
+        channel: TransportChannel,
     ) {
+        let (_, _) = (reader, channel);
         Self::on_server_ready(conn_id)
-    }
-
-    // OnServerReady(
-    fn on_server_ready(conn_id: u64) {
-        NetworkServer::set_client_ready(conn_id);
-
-        if conn_id != 0 {
-            let mut net_id = 0;
-            let mut room_player = GameObject::default();
-            match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
-                TryResult::Present(conn) => {
-                    net_id = conn.net_id();
-                }
-                TryResult::Absent => {
-                    log_error!(format!(
-                        "Failed to on_server_ready for conn {} because of absent",
-                        conn_id
-                    ));
-                }
-                TryResult::Locked => {
-                    log_error!(format!(
-                        "Failed to on_server_ready for conn {} because of locked",
-                        conn_id
-                    ));
-                }
-            }
-            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
-                TryResult::Present(mut identity) => {
-                    if identity.get_component::<NetworkRoomPlayer>().is_some() {
-                        room_player = identity.game_object().clone();
-                    }
-                }
-                TryResult::Absent => {
-                    log_error!("Failed to on_server_ready for identity because of absent");
-                }
-                TryResult::Locked => {
-                    log_error!("Failed to on_server_ready for identity because of locked");
-                }
-            }
-            if !room_player.is_null() {
-                Self::scene_loaded_for_player(conn_id, room_player);
-            }
-        }
     }
 
     fn scene_loaded_for_player(conn_id: u64, mut room_player: GameObject) {
@@ -452,6 +410,12 @@ impl NetworkRoomManager {
     }
 }
 
+pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
+    fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject>;
+    fn on_room_server_scene_changed(new_scene_name: String);
+    fn on_room_start_server();
+}
+
 impl NetworkManagerTrait for NetworkRoomManager {
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>> {
         self.network_manager.authenticator()
@@ -462,6 +426,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn on_validate(&mut self) {
+        // base.OnValidate();
         self.network_manager.max_connections = self.network_manager.max_connections.max(0);
 
         if !self.network_manager.player_obj.is_null()
@@ -646,6 +611,13 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
     }
 
+    fn on_server_connect(conn: &mut NetworkConnectionToClient)
+    where
+        Self: Sized,
+    {
+        // TODO on_server_connect
+    }
+
     // OnServerDisconnect
     fn on_server_disconnect(conn: &mut NetworkConnectionToClient, _transport_error: TransportError)
     where
@@ -660,23 +632,115 @@ impl NetworkManagerTrait for NetworkRoomManager {
             .retain(|&x| x != conn.net_id());
     }
 
+    fn on_server_ready(conn_id: u64)
+    where
+        Self: Sized,
+    {
+        // base OnServerReady
+        NetworkManager::on_server_ready(conn_id);
+
+        if conn_id != 0 {
+            let mut net_id = 0;
+            let mut room_player = GameObject::default();
+            match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+                TryResult::Present(conn) => {
+                    net_id = conn.net_id();
+                }
+                TryResult::Absent => {
+                    log_error!(format!(
+                        "Failed to on_server_ready for conn {} because of absent",
+                        conn_id
+                    ));
+                }
+                TryResult::Locked => {
+                    log_error!(format!(
+                        "Failed to on_server_ready for conn {} because of locked",
+                        conn_id
+                    ));
+                }
+            }
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+                TryResult::Present(mut identity) => {
+                    if identity.get_component::<NetworkRoomPlayer>().is_some() {
+                        room_player = identity.game_object().clone();
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to on_server_ready for identity because of absent");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to on_server_ready for identity because of locked");
+                }
+            }
+            if !room_player.is_null() {
+                Self::scene_loaded_for_player(conn_id, room_player);
+            }
+        }
+    }
+
     fn on_server_add_player(&mut self, conn_id: u64) {
         self.client_index += 1;
         self.set_all_players_ready(false);
 
-        // 拿到 player_obj
-        let mut player_obj = self.room_player_prefab.game_object().clone();
-        if player_obj.is_null() {
-            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
-            return;
+        // TODO fix Utils.IsSceneActive(RoomScene)
+
+        let mut player_obj: GameObject;
+        match Self::on_room_server_create_room_player(conn_id) {
+            None => {
+                // 拿到 player_obj
+                player_obj = self.room_player_prefab.game_object().clone();
+                if player_obj.is_null() {
+                    log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
+                    return;
+                }
+
+                // 修改 player_obj 的 transform 属性
+                player_obj.transform = self.get_start_position();
+            }
+            Some(player) => {
+                player_obj = player;
+            }
         }
-
-        // 修改 player_obj 的 transform 属性
-        player_obj.transform = self.get_start_position();
-
         NetworkServer::add_player_for_connection(conn_id, player_obj);
     }
-    fn on_start_server(&mut self) {}
+
+    fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {
+        NetworkManager::on_server_error(conn, error);
+    }
+
+    fn on_server_transport_exception(conn: &mut NetworkConnectionToClient, error: TransportError)
+    where
+        Self: Sized,
+    {
+        NetworkManager::on_server_transport_exception(conn, error);
+    }
+
+    fn on_server_change_scene(&mut self, new_scene_name: String) {
+        todo!()
+    }
+
+    fn on_server_scene_changed(&mut self, new_scene_name: String) {
+        if new_scene_name != self.room_scene {
+            for pp in self.pending_players.iter() {
+                Self::scene_loaded_for_player(pp.conn, pp.room_player.clone());
+            }
+            self.pending_players.clear();
+        }
+        Self::on_room_server_scene_changed(new_scene_name);
+    }
+
+    fn on_start_server(&mut self) {
+        self.network_manager.on_start_server();
+        Self::on_room_start_server();
+    }
+
+    fn on_stop_server(&mut self) {
+        self.network_manager.on_stop_server();
+    }
+
     // OnServerConnectInternal
     fn on_server_connect_internal(
         conn: &mut NetworkConnectionToClient,
@@ -703,6 +767,15 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 }
 
-pub trait NetworkRoomManagerTrait: NetworkManagerTrait {}
+impl NetworkRoomManagerTrait for NetworkRoomManager {
+    fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject> {
+        let _ = conn_id;
+        None
+    }
 
-impl NetworkRoomManagerTrait for NetworkRoomManager {}
+    fn on_room_server_scene_changed(new_scene_name: String) {
+        let _ = new_scene_name;
+    }
+
+    fn on_room_start_server() {}
+}
