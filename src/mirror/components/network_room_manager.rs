@@ -62,14 +62,6 @@ impl NetworkRoomManager {
         }
     }
 
-    // OnRoomServerPlayersReady
-    fn on_room_server_players_ready(&mut self) {
-        self.server_change_scene(self.gameplay_scene.to_string());
-    }
-
-    // OnRoomServerPlayersNotReady
-    fn on_room_server_players_not_ready(&mut self) {}
-
     fn initialize_singleton(&self) -> bool {
         if NetworkManagerStatic::network_manager_singleton_exists() {
             return true;
@@ -88,23 +80,7 @@ impl NetworkRoomManager {
     }
 
     pub fn start_server(&mut self) {
-        if NetworkServerStatic::active() {
-            log_warn!("Server already started.");
-            return;
-        }
-
-        self.network_manager.mode = NetworkManagerMode::ServerOnly;
-
-        self.network_manager.setup_server();
-
-        self.network_manager.on_start_server();
-
-        if self.is_server_online_scene_change_needed() {
-            self.server_change_scene(self.network_manager.online_scene.to_string());
-        } else {
-            // TODO NetworkServer.SpawnObjects();
-            NetworkServer::spawn_objects();
-        }
+        self.network_manager.start_server();
     }
 
     fn setup_server(&mut self) {
@@ -393,27 +369,24 @@ impl NetworkRoomManager {
     }
 
     fn finish_load_scene(&mut self) {
-        NetworkServerStatic::set_is_loading_scene(false);
-
-        match self.network_manager.mode {
-            NetworkManagerMode::ServerOnly => {
-                self.finish_load_scene_server_only();
-            }
-            _ => {}
-        }
+        self.network_manager.on_server_scene_changed(self.network_manager.online_scene.to_string());
     }
 
     fn finish_load_scene_server_only(&mut self) {
-        // TODO NetworkServer.SpawnObjects();
-        NetworkServer::spawn_objects();
-        self.on_server_change_scene(NetworkManagerStatic::network_scene_name());
+        self.network_manager.on_server_scene_changed(self.network_manager.online_scene.to_string());
     }
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject>;
     fn on_room_server_scene_changed(new_scene_name: String);
-    fn on_room_start_server();
+    fn on_room_start_server(&mut self);
+    fn on_room_server_connect(conn: &mut NetworkConnectionToClient);
+    // OnRoomServerPlayersReady
+    fn on_room_server_players_ready(&mut self);
+
+    // OnRoomServerPlayersNotReady
+    fn on_room_server_players_not_ready(&mut self);
 }
 
 impl NetworkManagerTrait for NetworkRoomManager {
@@ -615,7 +588,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
     where
         Self: Sized,
     {
-        // TODO on_server_connect
+        NetworkManager::on_server_connect(conn);
+        Self::on_room_server_connect(conn);
     }
 
     // OnServerDisconnect
@@ -719,7 +693,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn on_server_change_scene(&mut self, new_scene_name: String) {
-        todo!()
+        self.network_manager.on_server_change_scene(new_scene_name);
     }
 
     fn on_server_scene_changed(&mut self, new_scene_name: String) {
@@ -733,8 +707,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn on_start_server(&mut self) {
-        self.network_manager.on_start_server();
-        Self::on_room_start_server();
+        self.on_room_start_server();
     }
 
     fn on_stop_server(&mut self) {
@@ -777,5 +750,15 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
         let _ = new_scene_name;
     }
 
-    fn on_room_start_server() {}
+    fn on_room_start_server(&mut self) {}
+
+    fn on_room_server_connect(conn: &mut NetworkConnectionToClient) {
+        todo!()
+    }
+
+    fn on_room_server_players_ready(&mut self) {
+        self.server_change_scene(self.gameplay_scene.to_string());
+    }
+
+    fn on_room_server_players_not_ready(&mut self) {}
 }
