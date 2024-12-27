@@ -370,7 +370,6 @@ impl NetworkManager {
     }
 
     fn finish_load_scene_server_only(&mut self) {
-        // TODO NetworkServer.SpawnObjects();
         NetworkServer::spawn_objects();
         self.on_server_change_scene(NetworkManagerStatic::network_scene_name());
     }
@@ -537,7 +536,6 @@ impl NetworkManagerTrait for NetworkManager {
         if self.is_server_online_scene_change_needed() {
             self.server_change_scene(self.online_scene.to_string());
         } else {
-            // TODO NetworkServer.SpawnObjects();
             NetworkServer::spawn_objects();
         }
     }
