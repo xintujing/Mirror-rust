@@ -381,8 +381,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
         self.network_manager.mode = NetworkManagerMode::ServerOnly;
 
-        Self::initialize_singleton();
-
         NetworkServerStatic::set_disconnect_inactive_connections(
             self.network_manager.disconnect_inactive_connections,
         );
