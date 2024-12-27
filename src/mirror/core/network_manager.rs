@@ -124,7 +124,7 @@ pub struct NetworkManager {
     pub max_connections: usize,
     pub disconnect_inactive_connections: bool,
     pub disconnect_inactive_timeout: f32,
-    pub(crate) authenticator: Option<Box<dyn NetworkAuthenticatorTrait>>,
+    pub authenticator: Option<Box<dyn NetworkAuthenticatorTrait>>,
     pub auto_create_player: bool,
     pub player_spawn_method: PlayerSpawnMethod,
     pub spawn_prefabs: Vec<GameObject>,

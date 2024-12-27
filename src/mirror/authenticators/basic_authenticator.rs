@@ -2,7 +2,7 @@ use crate::log_error;
 use crate::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_manager::{NetworkManager, NetworkManagerStatic};
+use crate::mirror::core::network_manager::{NetworkManager, NetworkManagerStatic, NetworkManagerTrait};
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
@@ -27,7 +27,7 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
             .as_any_mut()
             .downcast_mut::<NetworkManager>()
             .unwrap();
-        network_manager_singleton.authenticator = Some(Box::new(self));
+        network_manager_singleton.set_authenticator(Box::new(self));
     }
 
     fn on_auth_request_message(
