@@ -19,7 +19,7 @@ use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{
     EventHandlerType, NetworkServer, NetworkServerStatic, ReplacePlayerOptions,
 };
-use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
+use crate::mirror::core::transport::{TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
 use dashmap::try_result::TryResult;
 use std::any::Any;
@@ -62,50 +62,6 @@ impl NetworkRoomManager {
         }
     }
 
-    fn initialize_singleton(&self) -> bool {
-        if NetworkManagerStatic::network_manager_singleton_exists() {
-            return true;
-        }
-        if self.network_manager.dont_destroy_on_load {
-            if NetworkManagerStatic::network_manager_singleton_exists() {
-                log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
-                return false;
-            }
-        }
-
-        if !Transport::active_transport_exists() {
-            panic!("No transport found, Add a transport component.");
-        }
-        true
-    }
-
-    pub fn start_server(&mut self) {
-        self.network_manager.start_server();
-    }
-
-    fn setup_server(&mut self) {
-        self.initialize_singleton();
-
-        NetworkServerStatic::set_disconnect_inactive_connections(
-            self.network_manager.disconnect_inactive_connections,
-        );
-        NetworkServerStatic::set_disconnect_inactive_timeout(
-            self.network_manager.disconnect_inactive_timeout,
-        );
-        NetworkServerStatic::set_exceptions_disconnect(self.network_manager.exceptions_disconnect);
-
-        if let Some(authenticator) = self.network_manager.authenticator() {
-            authenticator.on_start_server();
-            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(
-                Self::on_server_authenticated,
-            );
-        }
-
-        NetworkServer::listen(self.network_manager.max_connections);
-
-        Self::register_server_messages();
-    }
-
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
@@ -131,7 +87,7 @@ impl NetworkRoomManager {
 
         // 添加 AddPlayerMessage 消息处理
         NetworkServer::register_handler::<AddPlayerMessage>(
-            Self::on_server_add_player_internal,
+            NetworkManager::on_server_add_player_internal,
             true,
         );
         // 添加 ReadyMessage 消息处理
@@ -145,7 +101,7 @@ impl NetworkRoomManager {
         let (_, _) = (conn, error);
     }
 
-    pub fn on_server_authenticated(conn: &mut NetworkConnectionToClient) {
+    fn on_server_authenticated(conn: &mut NetworkConnectionToClient) {
         // 获取 NetworkManagerTrait 的单例
         conn.set_authenticated(true);
 
@@ -206,69 +162,8 @@ impl NetworkRoomManager {
         );
     }
 
-    fn on_server_add_player_internal(
-        conn_id: u64,
-        _reader: &mut NetworkReader,
-        _channel: TransportChannel,
-    ) {
-        // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
-
-        // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
-        if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
-            log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
-            return;
-        }
-
-        // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
-        if network_manager.auto_create_player {
-            // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
-            if let Some(asset_id) = BackendDataStatic::get_backend_data()
-                .get_asset_id_by_asset_name(network_manager.player_obj.prefab.as_str())
-            {
-                if let None = BackendDataStatic::get_backend_data()
-                    .get_network_identity_data_by_asset_id(asset_id)
-                {
-                    log_error!("The PlayerPrefab does not have a NetworkIdentity. Please add a NetworkIdentity to the player prefab.");
-                    return;
-                }
-            }
-        }
-
-        // 如果 NetworkManager 的 auto_create_player 为 false
-        match NetworkServerStatic::network_connections().try_get(&conn_id) {
-            TryResult::Present(coon) => {
-                if coon.net_id() != 0 {
-                    log_error!("There is already a player for this connection.");
-                    return;
-                }
-            }
-            TryResult::Absent => {
-                log_error!(format!(
-                    "Failed to on_server_add_player_internal for coon {} because of absent",
-                    conn_id
-                ));
-                return;
-            }
-            TryResult::Locked => {
-                log_error!(format!(
-                    "Failed to on_server_add_player_internal for coon {} because of locked",
-                    conn_id
-                ));
-                return;
-            }
-        }
-        // 调用 NetworkManagerTrait 的 on_server_add_player 方法
-        network_manager.on_server_add_player(conn_id);
-    }
-
     fn is_server_online_scene_change_needed(&self) -> bool {
         self.network_manager.online_scene != self.network_manager.offline_scene
-    }
-
-    fn apply_configuration(&mut self) {
-        NetworkServerStatic::set_tick_rate(self.network_manager.send_rate);
     }
 
     pub fn ready_status_changed(&mut self) {
@@ -325,56 +220,6 @@ impl NetworkRoomManager {
             }
         }
     }
-
-    fn stop_server(&mut self) {
-        if !NetworkServerStatic::active() {
-            log_warn!("Server already stopped.");
-            return;
-        }
-
-        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton()
-            .as_mut_network_manager()
-            .authenticator()
-        {
-            authenticator.on_stop_server();
-        }
-
-        self.on_stop_server();
-
-        NetworkManagerStatic::start_positions()
-            .write()
-            .unwrap()
-            .clear();
-        NetworkManagerStatic::set_start_positions_index(0);
-        NetworkManagerStatic::set_network_scene_name("".to_string());
-
-        NetworkServer::shutdown();
-
-        self.network_manager.mode = NetworkManagerMode::Offline;
-
-        NetworkManagerStatic::set_start_positions_index(0);
-
-        NetworkManagerStatic::set_network_scene_name("".to_string());
-
-        #[allow(warnings)]
-        unsafe {
-            // NetworkManagerStatic::network_manager_singleton().take();
-        }
-    }
-
-    fn update_scene(&mut self) {
-        if NetworkServerStatic::is_loading_scene() {
-            self.finish_load_scene();
-        }
-    }
-
-    fn finish_load_scene(&mut self) {
-        self.network_manager.on_server_scene_changed(self.network_manager.online_scene.to_string());
-    }
-
-    fn finish_load_scene_server_only(&mut self) {
-        self.network_manager.on_server_scene_changed(self.network_manager.online_scene.to_string());
-    }
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
@@ -384,7 +229,6 @@ pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient);
     // OnRoomServerPlayersReady
     fn on_room_server_players_ready(&mut self);
-
     // OnRoomServerPlayersNotReady
     fn on_room_server_players_not_ready(&mut self);
 }
@@ -521,28 +365,62 @@ impl NetworkManagerTrait for NetworkRoomManager {
     }
 
     fn start(&mut self) {
-        if !self.initialize_singleton() {
+        if !Self::initialize_singleton() {
             return;
         }
-        self.apply_configuration();
+        self.network_manager.apply_configuration();
 
         NetworkManagerStatic::set_network_scene_name(
             self.network_manager.offline_scene.to_string(),
         );
 
-        self.start_server();
+        if NetworkServerStatic::active() {
+            log_warn!("Server already started.");
+            return;
+        }
+
+        self.network_manager.mode = NetworkManagerMode::ServerOnly;
+
+        Self::initialize_singleton();
+
+        NetworkServerStatic::set_disconnect_inactive_connections(
+            self.network_manager.disconnect_inactive_connections,
+        );
+        NetworkServerStatic::set_disconnect_inactive_timeout(
+            self.network_manager.disconnect_inactive_timeout,
+        );
+        NetworkServerStatic::set_exceptions_disconnect(self.network_manager.exceptions_disconnect);
+
+        if let Some(authenticator) = self.network_manager.authenticator() {
+            authenticator.on_start_server();
+            NetworkAuthenticatorTraitStatic::set_on_server_authenticated(
+                Self::on_server_authenticated,
+            );
+        }
+
+        NetworkServer::listen(self.network_manager.max_connections);
+
+        Self::register_server_messages();
+
+        self.on_start_server();
+
+        if self.is_server_online_scene_change_needed() {
+            self.server_change_scene(self.network_manager.online_scene.to_string());
+        } else {
+            NetworkServer::spawn_objects();
+        }
     }
 
     fn update(&mut self) {
-        self.apply_configuration();
+        self.network_manager.apply_configuration();
     }
 
     fn late_update(&mut self) {
-        self.update_scene();
+        self.network_manager.late_update();
     }
 
     fn on_destroy(&mut self) {
-        self.stop_server();
+        self.network_manager.stop_server();
     }
 
     fn server_change_scene(&mut self, new_scene_name: String) {
@@ -753,7 +631,7 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
     fn on_room_start_server(&mut self) {}
 
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient) {
-        todo!()
+        let _ = conn;
     }
 
     fn on_room_server_players_ready(&mut self) {

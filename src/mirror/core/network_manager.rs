@@ -139,23 +139,6 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
-    fn initialize_singleton(&self) -> bool {
-        if NetworkManagerStatic::network_manager_singleton_exists() {
-            return true;
-        }
-        if self.dont_destroy_on_load {
-            if NetworkManagerStatic::network_manager_singleton_exists() {
-                log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
-                return false;
-            }
-        }
-
-        if !Transport::active_transport_exists() {
-            panic!("No transport found, Add a transport component.");
-        }
-        true
-    }
-
     pub fn start_server(&mut self) {
         if NetworkServerStatic::active() {
             log_warn!("Server already started.");
@@ -177,7 +160,7 @@ impl NetworkManager {
     }
 
     pub fn setup_server(&mut self) {
-        self.initialize_singleton();
+        Self::initialize_singleton();
 
         NetworkServerStatic::set_disconnect_inactive_connections(
             self.disconnect_inactive_connections,
@@ -275,7 +258,7 @@ impl NetworkManager {
         NetworkServer::set_client_ready(conn_id);
     }
 
-    fn on_server_add_player_internal(
+    pub fn on_server_add_player_internal(
         conn_id: u64,
         _reader: &mut NetworkReader,
         _channel: TransportChannel,
@@ -349,11 +332,11 @@ impl NetworkManager {
         self.online_scene != self.offline_scene
     }
 
-    fn apply_configuration(&mut self) {
+    pub fn apply_configuration(&mut self) {
         NetworkServerStatic::set_tick_rate(self.send_rate);
     }
 
-    fn stop_server(&mut self) {
+    pub fn stop_server(&mut self) {
         if !NetworkServerStatic::active() {
             log_warn!("Server already stopped.");
             return;
@@ -414,6 +397,25 @@ impl NetworkManager {
 }
 
 pub trait NetworkManagerTrait: Any {
+    fn initialize_singleton() -> bool
+    where
+        Self: Sized,
+    {
+        if NetworkManagerStatic::network_manager_singleton_exists() {
+            return true;
+        }
+        if NetworkManagerStatic::network_manager_singleton().as_mut_network_manager().dont_destroy_on_load {
+            if NetworkManagerStatic::network_manager_singleton_exists() {
+                log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
+                return false;
+            }
+        }
+
+        if !Transport::active_transport_exists() {
+            panic!("No transport found, Add a transport component.");
+        }
+        true
+    }
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
     fn on_validate(&mut self);
@@ -534,7 +536,7 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     fn start(&mut self) {
-        if !self.initialize_singleton() {
+        if !Self::initialize_singleton() {
             return;
         }
         self.apply_configuration();
