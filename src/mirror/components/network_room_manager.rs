@@ -42,10 +42,6 @@ pub struct NetworkRoomManager {
 }
 
 impl NetworkRoomManager {
-    pub fn all_players_ready(&self) -> bool {
-        self._all_players_ready
-    }
-
     pub fn set_all_players_ready(&mut self, value: bool) {
         let was_ready = self._all_players_ready;
         let now_ready = value;

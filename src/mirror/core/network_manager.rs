@@ -139,26 +139,6 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
-    pub fn start_server(&mut self) {
-        if NetworkServerStatic::active() {
-            log_warn!("Server already started.");
-            return;
-        }
-
-        self.mode = NetworkManagerMode::ServerOnly;
-
-        self.setup_server();
-
-        self.on_start_server();
-
-        if self.is_server_online_scene_change_needed() {
-            self.server_change_scene(self.online_scene.to_string());
-        } else {
-            // TODO NetworkServer.SpawnObjects();
-            NetworkServer::spawn_objects();
-        }
-    }
-
     pub fn setup_server(&mut self) {
         Self::initialize_singleton();
 
@@ -543,7 +523,23 @@ impl NetworkManagerTrait for NetworkManager {
 
         NetworkManagerStatic::set_network_scene_name(self.online_scene.to_string());
 
-        self.start_server();
+        if NetworkServerStatic::active() {
+            log_warn!("Server already started.");
+            return;
+        }
+
+        self.mode = NetworkManagerMode::ServerOnly;
+
+        self.setup_server();
+
+        self.on_start_server();
+
+        if self.is_server_online_scene_change_needed() {
+            self.server_change_scene(self.online_scene.to_string());
+        } else {
+            // TODO NetworkServer.SpawnObjects();
+            NetworkServer::spawn_objects();
+        }
     }
 
     fn update(&mut self) {
