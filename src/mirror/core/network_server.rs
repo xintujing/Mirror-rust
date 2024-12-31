@@ -11,6 +11,7 @@ use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_identity::Visibility::ForceShown;
 use crate::mirror::core::network_identity::{NetworkIdentity, Visibility};
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_messages::NetworkMessages;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
@@ -1313,7 +1314,11 @@ impl NetworkServer {
 
         let mut deque = BackendDataStatic::get_backend_data().find_scene_network_identity_all();
         while let Some(mut identity) = deque.pop_front() {
-            if identity.scene_id != 0 && identity.valid_parent {
+            // 获取活动的场景id
+            let scene_id = BackendDataStatic::get_backend_data()
+                .get_scene_id_by_scene_name(NetworkManagerStatic::network_scene_name().as_str())
+                .unwrap_or_else(|| 0);
+            if identity.scene_id != 0 && identity.scene_id == scene_id {
                 identity.set_active(true);
                 let conn_id = identity.connection_to_client();
                 Self::spawn(identity, conn_id);

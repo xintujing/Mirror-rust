@@ -364,8 +364,6 @@ pub struct NetworkIdentityData {
     /// need fix  dont need use KeyValue
     #[serde(rename = "networkBehaviourComponents")]
     pub network_behaviour_components: Vec<KeyValue<u8, NetworkBehaviourComponent>>,
-    #[serde(rename = "validParent")]
-    pub valid_parent: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -491,7 +489,7 @@ impl BackendData {
         }
         network_behaviour_components
     }
-    #[allow(dead_code)]
+
     pub fn get_scene_id_by_scene_name(&self, scene_name: &str) -> Option<u64> {
         for scene_id in self.scene_ids.iter() {
             if scene_id.key == scene_name {
