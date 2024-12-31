@@ -332,6 +332,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     sync_direction: SyncDirection::ServerToClient,
                     sync_mode: SyncMode::Observers,
                     index: 0,
+                    sub_class: "".to_string(),
                     sync_var_dirty_bits: 0,
                     sync_object_dirty_bits: 0,
                     net_id: 0,

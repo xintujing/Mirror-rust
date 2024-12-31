@@ -523,7 +523,7 @@ impl NetworkIdentity {
         sub_class: &str,
     ) -> Option<&mut Box<dyn NetworkBehaviourTrait>> {
         for component in self.network_behaviours.iter_mut() {
-            if component.get_sub_class() == sub_class {
+            if sub_class == component.sub_class() {
                 return Some(component);
             }
         }

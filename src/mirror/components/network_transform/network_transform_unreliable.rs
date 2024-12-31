@@ -740,6 +740,7 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
                 network_behaviour_component.network_transform_base_setting,
                 network_behaviour_component.network_behaviour_setting,
                 network_behaviour_component.index,
+                network_behaviour_component.sub_class.clone(),
             ),
             buffer_reset_multiplier: network_behaviour_component
                 .network_transform_unreliable_setting
@@ -848,6 +849,14 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
 
     fn set_index(&mut self, value: u8) {
         self.network_transform_base.network_behaviour.index = value
+    }
+
+    fn sub_class(&self) -> String {
+        self.network_transform_base.network_behaviour.sub_class.clone()
+    }
+
+    fn set_sub_class(&mut self, value: String) {
+        self.network_transform_base.network_behaviour.sub_class = value
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {

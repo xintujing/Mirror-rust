@@ -62,6 +62,7 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
                 game_object,
                 network_behaviour_component.network_behaviour_setting,
                 network_behaviour_component.index,
+                network_behaviour_component.sub_class.clone(),
             ),
             ready_to_begin: false,
             index: 0,
@@ -126,6 +127,14 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
 
     fn set_index(&mut self, value: u8) {
         self.network_behaviour.index = value;
+    }
+
+    fn sub_class(&self) -> String {
+        self.network_behaviour.sub_class.clone()
+    }
+
+    fn set_sub_class(&mut self, value: String) {
+        self.network_behaviour.sub_class = value;
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {

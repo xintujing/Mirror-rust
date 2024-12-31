@@ -203,6 +203,7 @@ pub struct NetworkBehaviour {
     pub sync_mode: SyncMode,
     // ComponentIndex
     pub index: u8,
+    pub sub_class: String,
     // syncVarDirtyBits
     pub sync_var_dirty_bits: u64,
     // syncObjectDirtyBits
@@ -220,6 +221,7 @@ impl NetworkBehaviour {
         game_object: GameObject,
         network_behaviour_setting: NetworkBehaviourSetting,
         component_index: u8,
+        sub_class: String,
     ) -> Self {
         NetworkBehaviour {
             sync_interval: 0.0,
@@ -227,6 +229,7 @@ impl NetworkBehaviour {
             sync_direction: SyncDirection::from_u8(network_behaviour_setting.sync_direction),
             sync_mode: SyncMode::Observers,
             index: component_index,
+            sub_class,
             sync_var_dirty_bits: u64::MAX,
             sync_object_dirty_bits: u64::MAX,
             net_id: 0,
@@ -301,6 +304,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_sync_mode(&mut self, value: SyncMode);
     fn index(&self) -> u8;
     fn set_index(&mut self, value: u8);
+    fn sub_class(&self) -> String;
+    fn set_sub_class(&mut self, value: String);
     fn sync_var_dirty_bits(&self) -> u64;
     // SetSyncVarDirtyBit
     fn set_sync_var_dirty_bits(&mut self, dirty_bit: u64) {

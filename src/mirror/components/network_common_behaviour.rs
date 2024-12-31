@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::backend_data::{
     BackendDataStatic, NetworkBehaviourComponent, SyncVarData,
 };
@@ -14,7 +15,6 @@ use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
-use crate::log_error;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -23,7 +23,6 @@ use std::sync::Once;
 #[derive(Debug)]
 pub struct NetworkCommonBehaviour {
     pub network_behaviour: NetworkBehaviour,
-    pub sub_class: String,
     pub sync_vars: DashMap<u8, SyncVarData>,
 }
 
@@ -197,8 +196,8 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
                     .network_behaviour_setting
                     .clone(),
                 network_behaviour_component.index,
+                network_behaviour_component.sub_class.clone(),
             ),
-            sub_class: network_behaviour_component.sub_class.clone(),
             sync_vars,
         }
     }
@@ -271,6 +270,14 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
 
     fn set_index(&mut self, value: u8) {
         self.network_behaviour.index = value
+    }
+
+    fn sub_class(&self) -> String {
+        self.network_behaviour.sub_class.clone()
+    }
+
+    fn set_sub_class(&mut self, value: String) {
+        self.network_behaviour.sub_class = value
     }
 
     fn sync_var_dirty_bits(&self) -> u64 {

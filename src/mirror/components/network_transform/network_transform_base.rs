@@ -47,9 +47,9 @@ pub struct NetworkTransformBase {
 }
 
 impl NetworkTransformBase {
-    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8) -> Self {
+    pub fn new(game_object: GameObject, network_transform_base_setting: NetworkTransformBaseSetting, network_behaviour_setting: NetworkBehaviourSetting, component_index: u8, sub_class: String) -> Self {
         let mut base = Self {
-            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_setting, component_index),
+            network_behaviour: NetworkBehaviour::new(game_object, network_behaviour_setting, component_index, sub_class),
             is_client_with_authority: false,
             server_snapshots: Default::default(),
             time_stamp_adjustment: 0.0,
