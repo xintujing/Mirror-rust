@@ -518,7 +518,7 @@ impl NetworkIdentity {
         None
     }
 
-    fn get_component_by_sub_class(
+    pub fn get_component_by_sub_class(
         &mut self,
         sub_class: &str,
     ) -> Option<&mut Box<dyn NetworkBehaviourTrait>> {
