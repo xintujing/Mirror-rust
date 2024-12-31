@@ -503,6 +503,33 @@ impl NetworkIdentity {
         None
     }
 
+    pub fn get_component_by_index(
+        &mut self,
+        index: u8,
+    ) -> Option<&mut Box<dyn NetworkBehaviourTrait>> {
+        if index as usize >= self.network_behaviours.len() {
+            return None;
+        }
+        for component in self.network_behaviours.iter_mut() {
+            if index == component.index() {
+                return Some(component);
+            }
+        }
+        None
+    }
+
+    fn get_component_by_sub_class(
+        &mut self,
+        sub_class: &str,
+    ) -> Option<&mut Box<dyn NetworkBehaviourTrait>> {
+        for component in self.network_behaviours.iter_mut() {
+            if component.get_sub_class() == sub_class {
+                return Some(component);
+            }
+        }
+        None
+    }
+
     pub fn remove_client_authority(&mut self) {
         if self.conn_to_client == 0 {
             return;

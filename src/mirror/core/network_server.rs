@@ -27,7 +27,7 @@ use crate::{log_error, log_info, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use lazy_static::lazy_static;
 use std::sync::atomic::Ordering;
 use std::sync::RwLock;
@@ -84,6 +84,7 @@ lazy_static! {
     static ref LATE_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref FULL_UPDATE_DURATION: RwLock<TimeSample> = RwLock::new(TimeSample::new(0));
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
+    static ref SPAWNED_NETWORK_IDS: DashSet<u32> = DashSet::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
     static ref TRANSPORT_DATA_UN_BATCHER: RwLock<UnBatcher> = RwLock::new(UnBatcher::new());
@@ -113,9 +114,6 @@ impl NetworkServerStatic {
     }
     pub fn set_max_connections(value: usize) {
         MAX_CONNECTIONS.store(value, Ordering::Relaxed);
-    }
-    pub fn spawned_size() -> usize {
-        NetworkServerStatic::spawned_network_identities().len()
     }
     pub fn network_connections_size() -> usize {
         NETWORK_CONNECTIONS.len()
@@ -236,8 +234,19 @@ impl NetworkServerStatic {
         NETWORK_CONNECTIONS.insert(connection.connection_id(), connection);
         true
     }
+    pub fn spawned_network_ids() -> &'static DashSet<u32> {
+        &SPAWNED_NETWORK_IDS
+    }
     pub fn spawned_network_identities() -> &'static DashMap<u32, NetworkIdentity> {
         &SPAWNED_NETWORK_IDENTITIES
+    }
+    pub fn add_spawned_network_identity(identity: NetworkIdentity) {
+        Self::spawned_network_ids().insert(identity.net_id());
+        SPAWNED_NETWORK_IDENTITIES.insert(identity.net_id(), identity);
+    }
+    pub fn remove_spawned_network_identity(net_id: &u32) {
+        SPAWNED_NETWORK_IDENTITIES.remove(net_id);
+        SPAWNED_NETWORK_IDS.remove(net_id);
     }
     // 遍历NETWORK_CONNECTIONS
     pub fn for_each_network_connection<F>(mut f: F)
@@ -340,6 +349,7 @@ impl NetworkServer {
         }
         NETWORK_MESSAGE_HANDLERS.clear();
         NetworkServerStatic::network_connections().clear();
+        NetworkServerStatic::spawned_network_ids().clear();
         NetworkServerStatic::spawned_network_identities().clear();
         NetworkServerStatic::transport_data_un_batcher()
             .write()
@@ -1366,7 +1376,7 @@ impl NetworkServer {
             Self::rebuild_observers(&mut identity, true);
 
             // 添加到 SPAWNED 中
-            NetworkServerStatic::spawned_network_identities().insert(identity.net_id(), identity);
+            NetworkServerStatic::add_spawned_network_identity(identity);
 
             return;
         }

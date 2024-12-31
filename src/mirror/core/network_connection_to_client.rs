@@ -285,7 +285,7 @@ impl NetworkConnectionToClient {
                 }
             }
             // 移除spawned_network_identities中的net_id
-            NetworkServerStatic::spawned_network_identities().remove(&owned_net_id);
+            NetworkServerStatic::remove_spawned_network_identity(owned_net_id);
         }
         // 清空owned
         self.owned().clear();
