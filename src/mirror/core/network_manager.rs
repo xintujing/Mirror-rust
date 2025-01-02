@@ -139,6 +139,16 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
+    pub fn num_players(&self) -> usize {
+        let mut num_players = 0;
+        NetworkServerStatic::for_each_network_connection(|conn| {
+            if conn.net_id() != 0 {
+                num_players += 1;
+            }
+        });
+        num_players
+    }
+
     pub fn setup_server(&mut self) {
         Self::initialize_singleton();
 
@@ -378,7 +388,10 @@ pub trait NetworkManagerTrait: Any {
         if NetworkManagerStatic::network_manager_singleton_exists() {
             return true;
         }
-        if NetworkManagerStatic::network_manager_singleton().as_mut_network_manager().dont_destroy_on_load {
+        if NetworkManagerStatic::network_manager_singleton()
+            .as_mut_network_manager()
+            .dont_destroy_on_load
+        {
             if NetworkManagerStatic::network_manager_singleton_exists() {
                 log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;

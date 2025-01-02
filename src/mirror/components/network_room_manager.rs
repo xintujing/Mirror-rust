@@ -223,6 +223,7 @@ pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn on_room_server_scene_changed(new_scene_name: String);
     fn on_room_start_server(&mut self);
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient);
+    fn on_room_server_disconnect(conn: &mut NetworkConnectionToClient);
     // OnRoomServerPlayersReady
     fn on_room_server_players_ready(&mut self);
     // OnRoomServerPlayersNotReady
@@ -477,6 +478,39 @@ impl NetworkManagerTrait for NetworkRoomManager {
         network_room_manager
             .room_slots
             .retain(|&x| x != conn.net_id());
+
+        for net_id in conn.owned().iter() {
+            network_room_manager.room_slots.retain(|x| x != net_id);
+        }
+
+        network_room_manager.set_all_players_ready(false);
+
+        for net_id in network_room_manager.room_slots.iter() {
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
+                TryResult::Present(mut identity) => {
+                    if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
+                        player.ready_to_begin = false;
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to on_server_disconnect for identity because of absent");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to on_server_disconnect for identity because of locked");
+                }
+            }
+        }
+
+        if NetworkManagerStatic::network_scene_name() == network_room_manager.room_scene {
+            network_room_manager.recalculate_room_player_indices();
+        }
+
+        Self::on_room_server_disconnect(conn);
+        NetworkManager::on_server_disconnect(conn, _transport_error);
+
+        if network_room_manager.network_manager.num_players() < 1 {
+            network_room_manager.network_manager.stop_server();
+        }
     }
 
     fn on_server_ready(conn_id: u64)
@@ -626,6 +660,10 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
     fn on_room_start_server(&mut self) {}
 
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient) {
+        let _ = conn;
+    }
+
+    fn on_room_server_disconnect(conn: &mut NetworkConnectionToClient) {
         let _ = conn;
     }
 
