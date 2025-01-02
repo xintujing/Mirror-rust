@@ -341,7 +341,7 @@ impl NetworkServer {
             Self::disconnect_all();
 
             if let Some(transport) = Transport::active_transport() {
-                transport.shutdown();
+                transport.server_stop();
             }
 
             NetworkServerStatic::set_active(false);
