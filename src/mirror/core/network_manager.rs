@@ -408,9 +408,16 @@ pub trait NetworkManagerTrait: Any {
     fn network_address(&self) -> &String;
     fn on_validate(&mut self);
     fn reset(&mut self);
-    fn awake()
+    fn new() -> Self
     where
         Self: Sized;
+    fn awake()
+    where
+        Self: Sized,
+    {
+        let manager = Self::new();
+        NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));
+    }
     fn start(&mut self);
     fn update(&mut self);
     fn late_update(&mut self);
@@ -505,7 +512,10 @@ impl NetworkManagerTrait for NetworkManager {
         log_debug!("NetworkManager reset");
     }
 
-    fn awake() {
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
         let backend_data = BackendDataStatic::get_backend_data();
         if backend_data.network_manager_settings.len() == 0 {
             panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
@@ -517,8 +527,7 @@ impl NetworkManagerTrait for NetworkManager {
         for spawn_prefab in &network_manager_setting.spawn_prefabs {
             spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
         }
-
-        let manager = Self {
+        Self {
             mode: NetworkManagerMode::Offline,
             dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
             editor_auto_start: network_manager_setting.editor_auto_start,
@@ -543,9 +552,7 @@ impl NetworkManagerTrait for NetworkManager {
             snapshot_interpolation_settings: network_manager_setting
                 .snapshot_interpolation_setting
                 .clone(),
-        };
-
-        NetworkManagerStatic::set_network_manager_singleton(Box::new(manager));
+        }
     }
 
     fn start(&mut self) {

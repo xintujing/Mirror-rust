@@ -3,8 +3,7 @@ use crate::mirror::authenticators::network_authenticator::{
 };
 use crate::mirror::components::network_room_player::NetworkRoomPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
-use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
-use crate::mirror::core::connection_quality::ConnectionQualityMethod;
+use crate::mirror::core::backend_data::SnapshotInterpolationSetting;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -13,7 +12,6 @@ use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerMode, NetworkManagerStatic, NetworkManagerTrait,
-    PlayerSpawnMethod,
 };
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{
@@ -241,6 +239,30 @@ impl NetworkManagerTrait for NetworkRoomManager {
         self.network_manager.snapshot_interpolation_settings()
     }
 
+    fn offline_scene(&self) -> &String {
+        self.network_manager.offline_scene()
+    }
+
+    fn online_scene(&self) -> &String {
+        self.network_manager.online_scene()
+    }
+
+    fn auto_create_player(&self) -> bool {
+        self.network_manager.auto_create_player()
+    }
+
+    fn player_obj(&self) -> &GameObject {
+        self.network_manager.player_obj()
+    }
+
+    fn dont_destroy_on_load(&self) -> bool {
+        self.network_manager.dont_destroy_on_load()
+    }
+
+    fn network_address(&self) -> &String {
+        self.network_manager.network_address()
+    }
+
     fn on_validate(&mut self) {
         // base.OnValidate();
         self.network_manager.max_connections = self.network_manager.max_connections.max(0);
@@ -284,47 +306,12 @@ impl NetworkManagerTrait for NetworkRoomManager {
         log_debug!("NetworkManager reset");
     }
 
-    fn awake() {
-        let backend_data = BackendDataStatic::get_backend_data();
-        if backend_data.network_manager_settings.len() == 0 {
-            panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
-        }
-
-        let network_manager_setting = backend_data.network_manager_settings[0].clone();
-
-        let mut spawn_prefabs = Vec::new();
-        for spawn_prefab in &network_manager_setting.spawn_prefabs {
-            spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
-        }
-
-        let network_manager = NetworkManager {
-            mode: NetworkManagerMode::Offline,
-            dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
-            editor_auto_start: network_manager_setting.editor_auto_start,
-            send_rate: network_manager_setting.send_rate,
-            offline_scene: network_manager_setting.offline_scene,
-            online_scene: network_manager_setting.online_scene,
-            offline_scene_load_delay: 0.0,
-            network_address: network_manager_setting.network_address.clone(),
-            max_connections: network_manager_setting.max_connections,
-            disconnect_inactive_connections: network_manager_setting
-                .disconnect_inactive_connections,
-            disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
-            authenticator: None,
-            player_obj: GameObject::new_with_prefab(network_manager_setting.player_prefab.clone()),
-            auto_create_player: network_manager_setting.auto_create_player,
-            player_spawn_method: PlayerSpawnMethod::Random,
-            spawn_prefabs,
-            exceptions_disconnect: network_manager_setting.exceptions_disconnect,
-            evaluation_method: ConnectionQualityMethod::Simple,
-            evaluation_interval: network_manager_setting.evaluation_interval,
-            time_interpolation_gui: network_manager_setting.time_interpolation_gui,
-            snapshot_interpolation_settings: network_manager_setting
-                .snapshot_interpolation_setting
-                .clone(),
-        };
-
-        let network_room_manager = NetworkRoomManager {
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        let network_manager = NetworkManager::new();
+        Self {
             network_manager,
             min_players: 1,
             // TODO fix
@@ -359,9 +346,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             _all_players_ready: false,
             room_slots: vec![],
             client_index: 0,
-        };
-
-        NetworkManagerStatic::set_network_manager_singleton(Box::new(network_room_manager));
+        }
     }
 
     fn start(&mut self) {
@@ -645,30 +630,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn offline_scene(&self) -> &String {
-        self.network_manager.offline_scene()
-    }
-
-    fn online_scene(&self) -> &String {
-        self.network_manager.online_scene()
-    }
-
-    fn auto_create_player(&self) -> bool {
-        self.network_manager.auto_create_player()
-    }
-
-    fn player_obj(&self) -> &GameObject {
-        self.network_manager.player_obj()
-    }
-
-    fn dont_destroy_on_load(&self) -> bool {
-        self.network_manager.dont_destroy_on_load()
-    }
-
-    fn network_address(&self) -> &String {
-        self.network_manager.network_address()
     }
 }
 
