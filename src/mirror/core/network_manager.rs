@@ -214,10 +214,9 @@ impl NetworkManager {
         conn.set_authenticated(true);
 
         // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
         // offline_scene
-        let offline_scene = network_manager.offline_scene.to_string();
+        let offline_scene = network_manager.offline_scene().to_string();
 
         // 获取 场景名称
         let network_scene_name = NetworkManagerStatic::network_scene_name();
@@ -254,20 +253,19 @@ impl NetworkManager {
         _channel: TransportChannel,
     ) {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 为空
-        if network_manager.auto_create_player && network_manager.player_obj.prefab == "" {
+        if network_manager.auto_create_player() && network_manager.player_obj().prefab == "" {
             log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
         // 如果 NetworkManager 的 auto_create_player 为 true 且 player_obj.prefab 不为空
-        if network_manager.auto_create_player {
+        if network_manager.auto_create_player() {
             // 如果 player_obj.prefab 不为空，且 player_obj.prefab 不存在于 BACKEND_DATA 的 asset_id 中
             if let Some(asset_id) = BackendDataStatic::get_backend_data()
-                .get_asset_id_by_asset_name(network_manager.player_obj.prefab.as_str())
+                .get_asset_id_by_asset_name(network_manager.player_obj().prefab.as_str())
             {
                 if let None = BackendDataStatic::get_backend_data()
                     .get_network_identity_data_by_asset_id(asset_id)
@@ -332,9 +330,8 @@ impl NetworkManager {
             return;
         }
 
-        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton()
-            .as_mut_network_manager()
-            .authenticator
+        if let Some(ref mut authenticator) =
+            NetworkManagerStatic::network_manager_singleton().authenticator()
         {
             authenticator.on_stop_server();
         }
@@ -388,10 +385,7 @@ pub trait NetworkManagerTrait: Any {
         if NetworkManagerStatic::network_manager_singleton_exists() {
             return true;
         }
-        if NetworkManagerStatic::network_manager_singleton()
-            .as_mut_network_manager()
-            .dont_destroy_on_load
-        {
+        if NetworkManagerStatic::network_manager_singleton().dont_destroy_on_load() {
             if NetworkManagerStatic::network_manager_singleton_exists() {
                 log_warn!("NetworkManager already exists in the scene. Deleting the new one.");
                 return false;
@@ -405,6 +399,13 @@ pub trait NetworkManagerTrait: Any {
     }
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
+    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting;
+    fn offline_scene(&self) -> &String;
+    fn online_scene(&self) -> &String;
+    fn auto_create_player(&self) -> bool;
+    fn player_obj(&self) -> &GameObject;
+    fn dont_destroy_on_load(&self) -> bool;
+    fn network_address(&self) -> &String;
     fn on_validate(&mut self);
     fn reset(&mut self);
     fn awake()
@@ -448,9 +449,6 @@ pub trait NetworkManagerTrait: Any {
     ) where
         Self: Sized;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn as_mut_network_manager(&mut self) -> &mut NetworkManager {
-        self.as_any_mut().downcast_mut::<NetworkManager>().unwrap()
-    }
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -460,6 +458,34 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.authenticator.replace(authenticator);
+    }
+
+    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
+        &self.snapshot_interpolation_settings
+    }
+
+    fn offline_scene(&self) -> &String {
+        &self.offline_scene
+    }
+
+    fn online_scene(&self) -> &String {
+        &self.online_scene
+    }
+
+    fn auto_create_player(&self) -> bool {
+        self.auto_create_player
+    }
+
+    fn player_obj(&self) -> &GameObject {
+        &self.player_obj
+    }
+
+    fn dont_destroy_on_load(&self) -> bool {
+        self.dont_destroy_on_load
+    }
+
+    fn network_address(&self) -> &String {
+        &self.network_address
     }
 
     fn on_validate(&mut self) {
@@ -678,7 +704,6 @@ impl NetworkManagerTrait for NetworkManager {
     fn on_start_server(&mut self) {}
 
     fn on_stop_server(&mut self) {}
-
     // OnServerConnectInternal
     fn on_server_connect_internal(
         conn: &mut NetworkConnectionToClient,
@@ -687,8 +712,7 @@ impl NetworkManagerTrait for NetworkManager {
         Self: Sized,
     {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
 
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
@@ -699,6 +723,7 @@ impl NetworkManagerTrait for NetworkManager {
             Self::on_server_authenticated(conn);
         }
     }
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }

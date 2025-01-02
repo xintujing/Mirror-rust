@@ -162,9 +162,7 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_start(&mut self) {
-        let mut network_address = NetworkManagerStatic::network_manager_singleton()
-            .as_mut_network_manager()
-            .network_address.to_string();
+        let mut network_address = NetworkManagerStatic::network_manager_singleton().network_address().to_string();
         if network_address == "localhost" {
             network_address = "0.0.0.0".to_string()
         }

@@ -1,6 +1,6 @@
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
-use crate::mirror::core::network_manager::{NetworkManagerStatic, NetworkManagerTrait};
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::transport::TransportChannel;
 use lazy_static::lazy_static;
@@ -28,8 +28,11 @@ impl NetworkAuthenticatorTraitStatic {
 
 pub trait NetworkAuthenticatorTrait: Send + Sync {
     fn enable(self);
-    fn on_auth_request_message(connection_id: u64, reader: &mut NetworkReader, channel: TransportChannel)
-    where
+    fn on_auth_request_message(
+        connection_id: u64,
+        reader: &mut NetworkReader,
+        channel: TransportChannel,
+    ) where
         Self: Sized;
     fn on_start_server(&mut self) {
         // NetworkServer::register_handler::<AuthRequestMessage>(Box::new(Self::on_auth_request_message), false);
@@ -60,7 +63,7 @@ pub trait NetworkAuthenticatorTrait: Send + Sync {
     {
         let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
 
-        if let Some(authenticator) = network_manager_singleton.as_mut_network_manager().authenticator() {
+        if let Some(authenticator) = network_manager_singleton.authenticator() {
             return Some(authenticator.as_any_mut());
         }
         None

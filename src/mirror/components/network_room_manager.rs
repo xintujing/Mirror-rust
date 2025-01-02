@@ -3,7 +3,7 @@ use crate::mirror::authenticators::network_authenticator::{
 };
 use crate::mirror::components::network_room_player::NetworkRoomPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
-use crate::mirror::core::backend_data::BackendDataStatic;
+use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::mirror::core::network_behaviour::{
@@ -102,10 +102,9 @@ impl NetworkRoomManager {
         conn.set_authenticated(true);
 
         // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
         // offline_scene
-        let offline_scene = network_manager.offline_scene.to_string();
+        let offline_scene = network_manager.offline_scene().to_string();
 
         // 获取 场景名称
         let network_scene_name = NetworkManagerStatic::network_scene_name();
@@ -134,9 +133,8 @@ impl NetworkRoomManager {
     }
 
     fn scene_loaded_for_player(conn_id: u64, mut room_player: GameObject) {
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
-        let room_scene = network_manager.online_scene.to_string();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        let room_scene = network_manager.online_scene().to_string();
         if NetworkManagerStatic::network_scene_name() == room_scene {
             let pending_player = PendingPlayer {
                 conn: conn_id,
@@ -237,6 +235,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.network_manager.set_authenticator(authenticator);
+    }
+
+    fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
+        self.network_manager.snapshot_interpolation_settings()
     }
 
     fn on_validate(&mut self) {
@@ -629,8 +631,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         Self: Sized,
     {
         // 获取 NetworkManagerTrait 的单例
-        let network_manager =
-            NetworkManagerStatic::network_manager_singleton().as_mut_network_manager();
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
 
         // 如果 NetworkManager 的 authenticator 不为空
         if let Some(authenticator) = network_manager.authenticator() {
@@ -644,6 +645,30 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn offline_scene(&self) -> &String {
+        self.network_manager.offline_scene()
+    }
+
+    fn online_scene(&self) -> &String {
+        self.network_manager.online_scene()
+    }
+
+    fn auto_create_player(&self) -> bool {
+        self.network_manager.auto_create_player()
+    }
+
+    fn player_obj(&self) -> &GameObject {
+        self.network_manager.player_obj()
+    }
+
+    fn dont_destroy_on_load(&self) -> bool {
+        self.network_manager.dont_destroy_on_load()
+    }
+
+    fn network_address(&self) -> &String {
+        self.network_manager.network_address()
     }
 }
 

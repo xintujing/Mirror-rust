@@ -167,9 +167,7 @@ impl NetworkConnectionToClient {
             return;
         }
 
-        let snapshot_settings = &NetworkManagerStatic::network_manager_singleton()
-            .as_mut_network_manager()
-            .snapshot_interpolation_settings;
+        let snapshot_settings = &NetworkManagerStatic::network_manager_singleton().snapshot_interpolation_settings();
 
         // dynamic adjustment
         if snapshot_settings.dynamic_adjustment {
