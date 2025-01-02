@@ -1,8 +1,6 @@
 use crate::log_error;
 use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
-use crate::mirror::core::network_manager::{
-    NetworkManager, NetworkManagerStatic, NetworkManagerTrait,
-};
+use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
 use crate::mirror::core::network_time::NetworkTime;
 use lazy_static::lazy_static;
@@ -231,7 +229,6 @@ impl NetworkLoop {
 
     // 1
     fn awake() {
-        NetworkManager::awake();
         match Self::awake_functions().try_read() {
             Ok(awake_functions) => {
                 for func in awake_functions.iter() {
