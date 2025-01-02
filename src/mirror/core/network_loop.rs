@@ -385,17 +385,21 @@ impl NetworkLoop {
         // 注册 NetworkBehaviourFactory
         Self::register_network_behaviour_factory();
 
-        // 1
-        Self::awake();
-        // 2
-        Self::on_enable();
-        // 3
-        Self::start();
-
         // 每一帧的目标时间
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 循环
         while !Self::stop_signal() {
+
+            // 初始化
+            if !NetworkServerStatic::active() {
+                // 1
+                Self::awake();
+                // 2
+                Self::on_enable();
+                // 3
+                Self::start();
+            }
+
             // 4
             Self::early_update();
             // 5
