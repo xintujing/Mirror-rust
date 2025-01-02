@@ -584,7 +584,7 @@ dependencies = [
 [[package]]
 name = "kcp2k_rust"
 version = "0.1.0"
-source = "git+https://github.com/xtjsk/kcp2k-rust.git#1ff828fbec6d09b79cb6824fa9716a0cb2eb7897"
+source = "git+https://github.com/xtjsk/kcp2k-rust.git#3d62564ef47e25f5efeeae079be41ab321d60c9e"
 dependencies = [
  "bytes",
  "dashmap",

@@ -1,5 +1,4 @@
 use crate::log_error;
-use crate::mirror::components::network_room_manager::NetworkRoomManager;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -43,11 +42,7 @@ impl NetworkRoomPlayer {
 
     fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
         self.ready_to_begin = value;
-        let network_room_manager = NetworkManagerStatic::network_manager_singleton()
-            .as_any_mut()
-            .downcast_mut::<NetworkRoomManager>()
-            .unwrap();
-        network_room_manager.ready_status_changed();
+        NetworkManagerStatic::network_manager_singleton().ready_status_changed();
     }
 }
 
@@ -217,19 +212,13 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
     fn start(&mut self) {
         static ONCE: Once = Once::new();
         let _ = &ONCE.call_once(|| {
-            match NetworkManagerStatic::network_manager_singleton().as_any_mut().downcast_mut::<NetworkRoomManager>() {
-                None => {
-                    log_error!("RoomPlayer could not find a NetworkRoomManager. The RoomPlayer requires a NetworkRoomManager object to function. Make sure that there is one in the scene.")
-                }
-                Some(room) => {
-                    if room.network_manager.dont_destroy_on_load {}
+            let network_manager = NetworkManagerStatic::network_manager_singleton();
+            if network_manager.dont_destroy_on_load() {}
 
-                    room.room_slots.push(self.net_id());
+            network_manager.room_slots().push(self.net_id());
 
-                    if NetworkServerStatic::active() {
-                        room.recalculate_room_player_indices();
-                    }
-                }
+            if NetworkServerStatic::active() {
+                network_manager.recalculate_room_player_indices();
             }
         });
     }

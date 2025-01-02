@@ -1,10 +1,10 @@
-use crate::log_error;
 use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
     TransportFunc, TransportTrait,
 };
+use crate::log_error;
 use bytes::Bytes;
 use kcp2k_rust::error_code::ErrorCode;
 use kcp2k_rust::kcp2k::Kcp2K;
@@ -162,7 +162,9 @@ impl TransportTrait for Kcp2kTransport {
     }
 
     fn server_start(&mut self) {
-        let mut network_address = NetworkManagerStatic::network_manager_singleton().network_address().to_string();
+        let mut network_address = NetworkManagerStatic::network_manager_singleton()
+            .network_address()
+            .to_string();
         if network_address == "localhost" {
             network_address = "0.0.0.0".to_string()
         }
@@ -235,11 +237,6 @@ impl TransportTrait for Kcp2kTransport {
 
     fn server_stop(&mut self) {
         let _ = self.kcp_serv.as_ref().unwrap().stop();
-    }
-
-    fn shutdown(&mut self) {
-        self.server_stop();
-        Transport::active_transport().take();
     }
 
     fn transport_cb_fn(&self) -> Option<TransportFunc> {

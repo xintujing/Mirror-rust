@@ -96,7 +96,6 @@ pub trait TransportTrait {
     fn server_early_update(&mut self);
     fn server_late_update(&mut self);
     fn server_stop(&mut self);
-    fn shutdown(&mut self);
     fn transport_cb_fn(&self) -> Option<TransportFunc>;
     fn set_transport_cb_fn(&mut self, func: TransportFunc);
     fn get_max_packet_size(&self, channel: TransportChannel) -> usize;

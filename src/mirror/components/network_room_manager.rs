@@ -20,7 +20,6 @@ use crate::mirror::core::network_server::{
 use crate::mirror::core::transport::{TransportChannel, TransportError};
 use crate::{log_debug, log_error, log_warn};
 use dashmap::try_result::TryResult;
-use std::any::Any;
 
 pub struct PendingPlayer {
     pub conn: u64,
@@ -40,22 +39,6 @@ pub struct NetworkRoomManager {
 }
 
 impl NetworkRoomManager {
-    pub fn set_all_players_ready(&mut self, value: bool) {
-        let was_ready = self._all_players_ready;
-        let now_ready = value;
-        if was_ready != now_ready {
-            self._all_players_ready = value;
-            match now_ready {
-                true => {
-                    self.on_room_server_players_ready();
-                }
-                false => {
-                    self.on_room_server_players_not_ready();
-                }
-            }
-        }
-    }
-
     // zhuce
     fn register_server_messages() {
         // 添加连接事件
@@ -139,8 +122,7 @@ impl NetworkRoomManager {
                 room_player: room_player.clone(),
             };
 
-            let network_room_manager = network_manager.as_any_mut().downcast_mut::<Self>().unwrap();
-            network_room_manager.pending_players.push(pending_player);
+            network_manager.pending_players().push(pending_player);
             return;
         }
 
@@ -158,60 +140,7 @@ impl NetworkRoomManager {
         self.network_manager.online_scene != self.network_manager.offline_scene
     }
 
-    pub fn ready_status_changed(&mut self) {
-        let mut current_players = 0;
-        let mut ready_players = 0;
-
-        for net_id in self.room_slots.to_vec().iter() {
-            match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
-                TryResult::Present(mut identity) => {
-                    let room_player = identity.get_component::<NetworkRoomPlayer>();
-                    if room_player.is_some() {
-                        current_players += 1;
-                        if room_player.unwrap().ready_to_begin {
-                            ready_players += 1;
-                        }
-                    }
-                }
-                TryResult::Absent => {
-                    log_error!("Failed to on_server_disconnect for identity because of absent");
-                }
-                TryResult::Locked => {
-                    log_error!("Failed to on_server_disconnect for identity because of locked");
-                }
-            }
-
-            if current_players == ready_players {
-                self.check_ready_to_begin();
-            } else {
-                self.set_all_players_ready(false);
-            }
-        }
-    }
-
     fn check_ready_to_begin(&mut self) {}
-
-    pub fn recalculate_room_player_indices(&mut self) {
-        for (i, net_id) in self.room_slots.iter().enumerate() {
-            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
-                TryResult::Present(mut identity) => {
-                    if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
-                        player.index = i as i32
-                    }
-                }
-                TryResult::Absent => {
-                    log_error!(
-                        "Failed to recalculate_room_player_indices for identity because of absent"
-                    );
-                }
-                TryResult::Locked => {
-                    log_error!(
-                        "Failed to recalculate_room_player_indices for identity because of locked"
-                    );
-                }
-            }
-        }
-    }
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
@@ -230,9 +159,12 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>> {
         self.network_manager.authenticator()
     }
-
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.network_manager.set_authenticator(authenticator);
+    }
+
+    fn set_mode(&mut self, mode: NetworkManagerMode) {
+        self.network_manager.set_mode(mode);
     }
 
     fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
@@ -298,6 +230,87 @@ impl NetworkManagerTrait for NetworkRoomManager {
         if !self.room_player_prefab.game_object().is_null() {
             if !self.room_player_prefab.game_object().is_has_component() {
                 log_error!("NetworkRoomManager - RoomPlayer Prefab must have a NetworkIdentity.");
+            }
+        }
+    }
+
+    fn ready_status_changed(&mut self) {
+        let mut current_players = 0;
+        let mut ready_players = 0;
+
+        for net_id in self.room_slots.to_vec().iter() {
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
+                TryResult::Present(mut identity) => {
+                    let room_player = identity.get_component::<NetworkRoomPlayer>();
+                    if room_player.is_some() {
+                        current_players += 1;
+                        if room_player.unwrap().ready_to_begin {
+                            ready_players += 1;
+                        }
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to on_server_disconnect for identity because of absent");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to on_server_disconnect for identity because of locked");
+                }
+            }
+
+            if current_players == ready_players {
+                self.check_ready_to_begin();
+            } else {
+                self.set_all_players_ready(false);
+            }
+        }
+    }
+
+    fn room_slots(&mut self) -> &mut Vec<u32> {
+        &mut self.room_slots
+    }
+
+    fn recalculate_room_player_indices(&mut self) {
+        for (i, net_id) in self.room_slots.iter().enumerate() {
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+                TryResult::Present(mut identity) => {
+                    if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
+                        player.index = i as i32
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!(
+                        "Failed to recalculate_room_player_indices for identity because of absent"
+                    );
+                }
+                TryResult::Locked => {
+                    log_error!(
+                        "Failed to recalculate_room_player_indices for identity because of locked"
+                    );
+                }
+            }
+        }
+    }
+
+    fn pending_players(&mut self) -> &mut Vec<PendingPlayer> {
+        &mut self.pending_players
+    }
+
+    fn room_scene(&mut self) -> &String {
+        &self.room_scene
+    }
+
+    fn set_all_players_ready(&mut self, value: bool) {
+        let was_ready = self._all_players_ready;
+        let now_ready = value;
+        if was_ready != now_ready {
+            self._all_players_ready = value;
+            match now_ready {
+                true => {
+                    self.on_room_server_players_ready();
+                }
+                false => {
+                    self.on_room_server_players_not_ready();
+                }
             }
         }
     }
@@ -458,21 +471,16 @@ impl NetworkManagerTrait for NetworkRoomManager {
     where
         Self: Sized,
     {
-        let network_room_manager = NetworkManagerStatic::network_manager_singleton()
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap();
-        network_room_manager
-            .room_slots
-            .retain(|&x| x != conn.net_id());
+        let network_room_manager = NetworkManagerStatic::network_manager_singleton();
+        network_room_manager.room_slots().retain(|&x| x != conn.net_id());
 
         for net_id in conn.owned().iter() {
-            network_room_manager.room_slots.retain(|x| x != net_id);
+            network_room_manager.room_slots().retain(|x| x != net_id);
         }
 
         network_room_manager.set_all_players_ready(false);
 
-        for net_id in network_room_manager.room_slots.iter() {
+        for net_id in network_room_manager.room_slots().iter() {
             match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
                 TryResult::Present(mut identity) => {
                     if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
@@ -488,15 +496,15 @@ impl NetworkManagerTrait for NetworkRoomManager {
             }
         }
 
-        if NetworkManagerStatic::network_scene_name() == network_room_manager.room_scene {
+        if NetworkManagerStatic::network_scene_name() == *network_room_manager.room_scene() {
             network_room_manager.recalculate_room_player_indices();
         }
 
         Self::on_room_server_disconnect(conn);
         NetworkManager::on_server_disconnect(conn, _transport_error);
 
-        if network_room_manager.network_manager.num_players() < 1 {
-            network_room_manager.network_manager.stop_server();
+        if network_room_manager.num_players() < 1 {
+            network_room_manager.stop_server();
         }
     }
 
@@ -626,10 +634,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
             // 如果 NetworkManager 的 authenticator 为空
             Self::on_server_authenticated(conn);
         }
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
 

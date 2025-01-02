@@ -1,6 +1,7 @@
 use crate::mirror::authenticators::network_authenticator::{
     NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic,
 };
+use crate::mirror::components::network_room_manager::PendingPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
@@ -139,16 +140,6 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
-    pub fn num_players(&self) -> usize {
-        let mut num_players = 0;
-        NetworkServerStatic::for_each_network_connection(|conn| {
-            if conn.net_id() != 0 {
-                num_players += 1;
-            }
-        });
-        num_players
-    }
-
     pub fn setup_server(&mut self) {
         Self::initialize_singleton();
 
@@ -324,36 +315,6 @@ impl NetworkManager {
         NetworkServerStatic::set_tick_rate(self.send_rate);
     }
 
-    pub fn stop_server(&mut self) {
-        if !NetworkServerStatic::active() {
-            log_warn!("Server already stopped.");
-            return;
-        }
-
-        if let Some(ref mut authenticator) =
-            NetworkManagerStatic::network_manager_singleton().authenticator()
-        {
-            authenticator.on_stop_server();
-        }
-
-        self.on_stop_server();
-
-        NetworkManagerStatic::start_positions()
-            .write()
-            .unwrap()
-            .clear();
-        NetworkManagerStatic::set_start_positions_index(0);
-        NetworkManagerStatic::set_network_scene_name("".to_string());
-
-        NetworkServer::shutdown();
-
-        self.mode = NetworkManagerMode::Offline;
-
-        NetworkManagerStatic::set_start_positions_index(0);
-
-        NetworkManagerStatic::set_network_scene_name("".to_string());
-    }
-
     fn update_scene(&mut self) {
         if NetworkServerStatic::is_loading_scene() {
             self.finish_load_scene();
@@ -399,6 +360,7 @@ pub trait NetworkManagerTrait: Any {
     }
     fn authenticator(&mut self) -> &mut Option<Box<dyn NetworkAuthenticatorTrait>>;
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>);
+    fn set_mode(&mut self, mode: NetworkManagerMode);
     fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting;
     fn offline_scene(&self) -> &String;
     fn online_scene(&self) -> &String;
@@ -407,6 +369,49 @@ pub trait NetworkManagerTrait: Any {
     fn dont_destroy_on_load(&self) -> bool;
     fn network_address(&self) -> &String;
     fn on_validate(&mut self);
+    fn ready_status_changed(&mut self);
+    fn room_slots(&mut self) -> &mut Vec<u32>;
+    fn recalculate_room_player_indices(&mut self);
+    fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
+    fn room_scene(&mut self) -> &String;
+    fn set_all_players_ready(&mut self, value: bool);
+    fn num_players(&self) -> usize {
+        let mut num_players = 0;
+        NetworkServerStatic::for_each_network_connection(|conn| {
+            if conn.net_id() != 0 {
+                num_players += 1;
+            }
+        });
+        num_players
+    }
+    fn stop_server(&mut self) {
+        if !NetworkServerStatic::active() {
+            log_warn!("Server already stopped.");
+            return;
+        }
+
+        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton().authenticator() {
+            authenticator.on_stop_server();
+        }
+
+        self.on_stop_server();
+
+        NetworkManagerStatic::start_positions()
+            .write()
+            .unwrap()
+            .clear();
+        NetworkManagerStatic::set_start_positions_index(0);
+        NetworkManagerStatic::set_network_scene_name("".to_string());
+
+
+        NetworkServer::shutdown();
+
+        self.set_mode(NetworkManagerMode::Offline);
+
+        NetworkManagerStatic::set_start_positions_index(0);
+
+        NetworkManagerStatic::set_network_scene_name("".to_string());
+    }
     fn reset(&mut self);
     fn new() -> Self
     where
@@ -455,7 +460,6 @@ pub trait NetworkManagerTrait: Any {
         transport_error: TransportError,
     ) where
         Self: Sized;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -465,6 +469,10 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.authenticator.replace(authenticator);
+    }
+
+    fn set_mode(&mut self, mode: NetworkManagerMode) {
+        self.mode = mode;
     }
 
     fn snapshot_interpolation_settings(&self) -> &SnapshotInterpolationSetting {
@@ -506,6 +514,30 @@ impl NetworkManagerTrait for NetworkManager {
             log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
             self.spawn_prefabs.retain(|x| x != &self.player_obj);
         }
+    }
+
+    fn ready_status_changed(&mut self) {}
+
+    #[allow(warnings)]
+    fn room_slots(&mut self) -> &mut Vec<u32> {
+        static mut ROOM_SLOTS: Vec<u32> = Vec::new();
+        unsafe { &mut ROOM_SLOTS }
+    }
+
+    fn recalculate_room_player_indices(&mut self) {}
+
+    #[allow(warnings)]
+    fn pending_players(&mut self) -> &mut Vec<PendingPlayer> {
+        static mut PENDING_PLAYERS: Vec<PendingPlayer> = Vec::new();
+        unsafe { &mut PENDING_PLAYERS }
+    }
+
+    fn room_scene(&mut self) -> &String {
+        &self.offline_scene
+    }
+
+    fn set_all_players_ready(&mut self, value: bool) {
+        let _ = value;
     }
 
     fn reset(&mut self) {
@@ -729,9 +761,5 @@ impl NetworkManagerTrait for NetworkManager {
             // 如果 NetworkManager 的 authenticator 为空
             Self::on_server_authenticated(conn);
         }
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
     }
 }
