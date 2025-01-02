@@ -345,11 +345,6 @@ impl NetworkManager {
         NetworkManagerStatic::set_start_positions_index(0);
 
         NetworkManagerStatic::set_network_scene_name("".to_string());
-
-        #[allow(warnings)]
-        unsafe {
-            NETWORK_MANAGER_SINGLETON.take();
-        }
     }
 
     fn update_scene(&mut self) {
