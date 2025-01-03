@@ -2,12 +2,9 @@ use crate::mirror::authenticators::network_authenticator::{
     NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic,
 };
 use crate::mirror::components::network_room_player::NetworkRoomPlayer;
-use crate::mirror::components::network_transform::network_transform_base::Transform;
-use crate::mirror::core::backend_data::SnapshotInterpolationSetting;
+use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
-use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
-};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourTrait};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_manager::{
@@ -29,9 +26,9 @@ pub struct PendingPlayer {
 pub struct NetworkRoomManager {
     pub network_manager: NetworkManager,
     pub min_players: i32,
-    pub room_player_prefab: NetworkRoomPlayer,
     pub room_scene: String,
     pub gameplay_scene: String,
+    pub room_player_prefab: NetworkRoomPlayer,
     pub pending_players: Vec<PendingPlayer>,
     _all_players_ready: bool,
     pub room_slots: Vec<u32>,
@@ -323,43 +320,62 @@ impl NetworkManagerTrait for NetworkRoomManager {
     where
         Self: Sized,
     {
+        // 新建 NetworkManager
         let network_manager = NetworkManager::new();
-        Self {
-            network_manager,
-            min_players: 1,
-            // TODO fix
-            room_player_prefab: NetworkRoomPlayer {
-                network_behaviour: NetworkBehaviour {
-                    sync_interval: 0.0,
-                    last_sync_time: 0.0,
-                    sync_direction: SyncDirection::ServerToClient,
-                    sync_mode: SyncMode::Observers,
-                    index: 0,
-                    sub_class: "".to_string(),
-                    sync_var_dirty_bits: 0,
-                    sync_object_dirty_bits: 0,
-                    net_id: 0,
-                    connection_to_client: 0,
-                    observers: vec![],
-                    game_object: GameObject {
-                        scene_name: "".to_string(),
-                        prefab: "".to_string(),
-                        transform: Transform::default(),
-                        active: false,
-                    },
-                    sync_objects: vec![],
-                    sync_var_hook_guard: 0,
-                },
-                ready_to_begin: false,
-                index: 0,
-            },
-            room_scene: "".to_string(),
-            gameplay_scene: "".to_string(),
-            pending_players: vec![],
-            _all_players_ready: false,
-            room_slots: vec![],
-            client_index: 0,
+
+        // 获取 BackendData
+        let backend_data = BackendDataStatic::get_backend_data();
+        if backend_data.network_manager_settings.len() == 0 {
+            panic!("No NetworkRoomManager settings found in the BackendData. Please add a NetworkRoomManager setting.");
         }
+
+        // 获取 NetworkRoomManagerSetting
+        let network_room_manager_setting = backend_data.network_room_manager_settings[0].clone();
+
+        // 获取 room_player_prefab_game_object
+        let room_player_prefab_game_object =
+            GameObject::new_with_prefab(network_room_manager_setting.room_player_prefab.clone());
+
+        // 获取 asset_id
+        let asset_id = match BackendDataStatic::get_backend_data()
+            .get_asset_id_by_asset_name(room_player_prefab_game_object.prefab.as_str())
+        {
+            None => {
+                panic!(
+                    "No asset id found for asset name: {}",
+                    network_room_manager_setting.room_player_prefab
+                );
+            }
+            Some(id) => id,
+        };
+
+        // 获取 NetworkBehaviourComponent 并且创建 NetworkRoomPlayer
+        for component in BackendDataStatic::get_backend_data()
+            .get_network_identity_data_network_behaviour_components_by_asset_id(asset_id)
+        {
+            if &component.sub_class == "Mirror.NetworkRoomPlayer" {
+                // 新建 NetworkRoomPlayer
+                let room_player_prefab =
+                    NetworkRoomPlayer::new(room_player_prefab_game_object, &component);
+
+                // 返回 NetworkRoomManager
+                return Self {
+                    network_manager,
+                    min_players: network_room_manager_setting.min_players,
+                    room_player_prefab,
+                    room_scene: "".to_string(),
+                    gameplay_scene: "".to_string(),
+                    pending_players: Vec::new(),
+                    _all_players_ready: false,
+                    room_slots: Vec::new(),
+                    client_index: 0,
+                };
+            }
+        }
+        panic!(
+            "No NetworkBehaviourComponent found for asset id: {}",
+            asset_id
+        );
     }
 
     fn start(&mut self) {
@@ -472,7 +488,9 @@ impl NetworkManagerTrait for NetworkRoomManager {
         Self: Sized,
     {
         let network_room_manager = NetworkManagerStatic::network_manager_singleton();
-        network_room_manager.room_slots().retain(|&x| x != conn.net_id());
+        network_room_manager
+            .room_slots()
+            .retain(|&x| x != conn.net_id());
 
         for net_id in conn.owned().iter() {
             network_room_manager.room_slots().retain(|x| x != net_id);

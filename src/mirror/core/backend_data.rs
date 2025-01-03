@@ -34,6 +34,7 @@ impl BackendDataStatic {
                         methods: Vec::new(),
                         network_identities: Vec::new(),
                         network_manager_settings: Vec::new(),
+                        network_room_manager_settings: Vec::new(),
                         scene_ids: Vec::new(),
                         sync_vars: Vec::new(),
                         assets: Vec::new(),
@@ -356,6 +357,22 @@ pub struct NetworkManagerSetting {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct NetworkRoomManagerSetting {
+    #[serde(rename = "showRoomGUI")]
+    pub show_room_gui: bool,
+    #[serde(rename = "minPlayers")]
+    pub min_players: i32,
+    #[serde(rename = "roomPlayerPrefab")]
+    pub room_player_prefab: String,
+    // #[serde(rename = "roomScene")]
+    // pub room_scene: String,
+    // #[serde(rename = "GameplayScene")]
+    // pub gameplay_scene: String,
+    #[serde(rename = "networkManagerSetting")]
+    pub network_manager_setting: NetworkManagerSetting,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NetworkIdentityData {
     #[serde(rename = "assetId")]
     pub asset_id: u32,
@@ -376,6 +393,8 @@ pub struct BackendData {
     pub network_identities: Vec<NetworkIdentityData>,
     #[serde(rename = "networkManagerSettings")]
     pub network_manager_settings: Vec<NetworkManagerSetting>,
+    #[serde(rename = "networkRoomManagerSettings")]
+    pub network_room_manager_settings: Vec<NetworkRoomManagerSetting>,
     #[serde(rename = "sceneIds")]
     pub scene_ids: Vec<KeyValue<String, String>>,
     #[serde(rename = "syncVars")]
