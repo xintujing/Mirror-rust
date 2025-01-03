@@ -247,10 +247,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     }
                 }
                 TryResult::Absent => {
-                    log_error!("Failed to on_server_disconnect for identity because of absent");
+                    log_error!("Failed to ready_status_changed for identity because of absent");
                 }
                 TryResult::Locked => {
-                    log_error!("Failed to on_server_disconnect for identity because of locked");
+                    log_error!("Failed to ready_status_changed for identity because of locked");
                 }
             }
 
@@ -365,8 +365,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     network_manager,
                     min_players: network_room_manager_setting.min_players,
                     room_player_prefab,
-                    room_scene: "".to_string(),
-                    gameplay_scene: "".to_string(),
+                    room_scene: network_room_manager_setting.room_scene.to_string(),
+                    gameplay_scene: network_room_manager_setting.gameplay_scene.to_string(),
                     pending_players: Vec::new(),
                     _all_players_ready: false,
                     room_slots: Vec::new(),
@@ -535,42 +535,58 @@ impl NetworkManagerTrait for NetworkRoomManager {
         // base OnServerReady
         NetworkManager::on_server_ready(conn_id);
 
-        if conn_id != 0 {
-            let mut net_id = 0;
-            let mut room_player = GameObject::default();
-            match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
-                TryResult::Present(conn) => {
-                    net_id = conn.net_id();
-                }
-                TryResult::Absent => {
-                    log_error!(format!(
-                        "Failed to on_server_ready for conn {} because of absent",
-                        conn_id
-                    ));
-                }
-                TryResult::Locked => {
-                    log_error!(format!(
-                        "Failed to on_server_ready for conn {} because of locked",
-                        conn_id
-                    ));
+        // 如果 conn_id 为 0
+        if conn_id == 0 {
+            return;
+        }
+
+        let mut net_id = 0;
+        let mut room_player = GameObject::default();
+        // 获取 NetworkConnectionToClient
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(conn) => {
+                net_id = conn.net_id();
+            }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "Failed to on_server_ready for conn {} because of absent",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                log_error!(format!(
+                    "Failed to on_server_ready for conn {} because of locked",
+                    conn_id
+                ));
+            }
+        }
+        // 如果 net_id 为 0
+        if net_id == 0 {
+            return;
+        }
+        // 获取 NetworkIdentity
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+            TryResult::Present(mut identity) => {
+                if identity.get_component::<NetworkRoomPlayer>().is_some() {
+                    room_player = identity.game_object().clone();
                 }
             }
-            match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
-                TryResult::Present(mut identity) => {
-                    if identity.get_component::<NetworkRoomPlayer>().is_some() {
-                        room_player = identity.game_object().clone();
-                    }
-                }
-                TryResult::Absent => {
-                    log_error!("Failed to on_server_ready for identity because of absent");
-                }
-                TryResult::Locked => {
-                    log_error!("Failed to on_server_ready for identity because of locked");
-                }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "Failed to on_server_ready for identity {} because of absent",
+                    net_id
+                ));
             }
-            if !room_player.is_null() {
-                Self::scene_loaded_for_player(conn_id, room_player);
+            TryResult::Locked => {
+                log_error!(format!(
+                    "Failed to on_server_ready for identity {} because of locked",
+                    net_id
+                ));
             }
+        }
+        // 如果 room_player 不为空
+        if !room_player.is_null() {
+            Self::scene_loaded_for_player(conn_id, room_player);
         }
     }
 
@@ -581,6 +597,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         // TODO fix Utils.IsSceneActive(RoomScene)
 
         let mut player_obj: GameObject;
+        // 自定义方法创建 player_obj
         match Self::on_room_server_create_room_player(conn_id) {
             None => {
                 // 拿到 player_obj

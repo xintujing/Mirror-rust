@@ -93,7 +93,7 @@ impl NetworkBehaviourFactory {
         Self::add_network_behaviour_factory(
             NetworkRoomPlayer::COMPONENT_TAG.to_string(),
             |game_object: GameObject, component: &NetworkBehaviourComponent| {
-                Box::new(NetworkCommonBehaviour::new(game_object, component))
+                Box::new(NetworkRoomPlayer::new(game_object, component))
             },
         );
     }

@@ -3,8 +3,9 @@ use mirror_rust::log_debug;
 use mirror_rust::mirror::authenticators::basic_authenticator::BasicAuthenticator;
 use mirror_rust::mirror::authenticators::network_authenticator::NetworkAuthenticatorTrait;
 use mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
+use mirror_rust::mirror::components::network_room_manager::NetworkRoomManager;
 use mirror_rust::mirror::core::network_loop::NetworkLoop;
-use mirror_rust::mirror::core::network_manager::{NetworkManager, NetworkManagerTrait};
+use mirror_rust::mirror::core::network_manager::NetworkManagerTrait;
 use mirror_rust::mirror::core::network_server::NetworkServerStatic;
 use mirror_rust::mirror::core::network_start_position::NetworkStartPosition;
 use mirror_rust::mirror::core::remote_calls::RemoteProcedureCalls;
@@ -37,7 +38,7 @@ fn awake() {
     // 传输层初始化
     Kcp2kTransport::awake();
     NetworkStartPosition::awake();
-    NetworkManager::awake();
+    NetworkRoomManager::awake();
 }
 
 fn on_enable() {

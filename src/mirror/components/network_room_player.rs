@@ -1,4 +1,3 @@
-use crate::log_error;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -10,6 +9,7 @@ use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
+use crate::log_error;
 use std::any::Any;
 use std::sync::Once;
 
