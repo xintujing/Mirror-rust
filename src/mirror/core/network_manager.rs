@@ -3,7 +3,9 @@ use crate::mirror::authenticators::network_authenticator::{
 };
 use crate::mirror::components::network_room_manager::PendingPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
-use crate::mirror::core::backend_data::{BackendDataStatic, SnapshotInterpolationSetting};
+use crate::mirror::core::backend_data::{
+    BackendDataStatic, NetworkManagerSetting, SnapshotInterpolationSetting,
+};
 use crate::mirror::core::connection_quality::ConnectionQualityMethod;
 use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage, SceneOperation};
 use crate::mirror::core::network_behaviour::GameObject;
@@ -145,6 +147,39 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
+    pub fn new_with_network_manager_setting(network_manager_setting: NetworkManagerSetting) -> Self {
+        let mut spawn_prefabs = Vec::new();
+        for spawn_prefab in &network_manager_setting.spawn_prefabs {
+            spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
+        }
+        Self {
+            mode: NetworkManagerMode::Offline,
+            dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
+            editor_auto_start: network_manager_setting.editor_auto_start,
+            send_rate: network_manager_setting.send_rate,
+            offline_scene: network_manager_setting.offline_scene,
+            online_scene: network_manager_setting.online_scene,
+            offline_scene_load_delay: 0.0,
+            network_address: network_manager_setting.network_address.clone(),
+            max_connections: network_manager_setting.max_connections,
+            disconnect_inactive_connections: network_manager_setting
+                .disconnect_inactive_connections,
+            disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
+            authenticator: None,
+            player_obj: GameObject::new_with_prefab(network_manager_setting.player_prefab.clone()),
+            auto_create_player: network_manager_setting.auto_create_player,
+            player_spawn_method: PlayerSpawnMethod::Random,
+            spawn_prefabs,
+            exceptions_disconnect: network_manager_setting.exceptions_disconnect,
+            evaluation_method: ConnectionQualityMethod::Simple,
+            evaluation_interval: network_manager_setting.evaluation_interval,
+            time_interpolation_gui: network_manager_setting.time_interpolation_gui,
+            snapshot_interpolation_settings: network_manager_setting
+                .snapshot_interpolation_setting
+                .clone(),
+        }
+    }
+
     pub fn setup_server(&mut self) {
         Self::initialize_singleton();
 
@@ -395,7 +430,9 @@ pub trait NetworkManagerTrait: Any {
             return;
         }
 
-        if let Some(ref mut authenticator) = NetworkManagerStatic::network_manager_singleton().authenticator() {
+        if let Some(ref mut authenticator) =
+            NetworkManagerStatic::network_manager_singleton().authenticator()
+        {
             authenticator.on_stop_server();
         }
 
@@ -407,7 +444,6 @@ pub trait NetworkManagerTrait: Any {
             .clear();
         NetworkManagerStatic::set_start_positions_index(0);
         NetworkManagerStatic::set_network_scene_name("".to_string());
-
 
         NetworkServer::shutdown();
 
@@ -557,39 +593,8 @@ impl NetworkManagerTrait for NetworkManager {
         if backend_data.network_manager_settings.len() == 0 {
             panic!("No NetworkManager settings found in the BackendData. Please add a NetworkManager setting.");
         }
-
         let network_manager_setting = backend_data.network_manager_settings[0].clone();
-
-        let mut spawn_prefabs = Vec::new();
-        for spawn_prefab in &network_manager_setting.spawn_prefabs {
-            spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
-        }
-        Self {
-            mode: NetworkManagerMode::Offline,
-            dont_destroy_on_load: network_manager_setting.dont_destroy_on_load,
-            editor_auto_start: network_manager_setting.editor_auto_start,
-            send_rate: network_manager_setting.send_rate,
-            offline_scene: network_manager_setting.offline_scene,
-            online_scene: network_manager_setting.online_scene,
-            offline_scene_load_delay: 0.0,
-            network_address: network_manager_setting.network_address.clone(),
-            max_connections: network_manager_setting.max_connections,
-            disconnect_inactive_connections: network_manager_setting
-                .disconnect_inactive_connections,
-            disconnect_inactive_timeout: network_manager_setting.disconnect_inactive_timeout,
-            authenticator: None,
-            player_obj: GameObject::new_with_prefab(network_manager_setting.player_prefab.clone()),
-            auto_create_player: network_manager_setting.auto_create_player,
-            player_spawn_method: PlayerSpawnMethod::Random,
-            spawn_prefabs,
-            exceptions_disconnect: network_manager_setting.exceptions_disconnect,
-            evaluation_method: ConnectionQualityMethod::Simple,
-            evaluation_interval: network_manager_setting.evaluation_interval,
-            time_interpolation_gui: network_manager_setting.time_interpolation_gui,
-            snapshot_interpolation_settings: network_manager_setting
-                .snapshot_interpolation_setting
-                .clone(),
-        }
+        Self::new_with_network_manager_setting(network_manager_setting)
     }
 
     fn start(&mut self) {

@@ -320,9 +320,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
     where
         Self: Sized,
     {
-        // 新建 NetworkManager
-        let network_manager = NetworkManager::new();
-
         // 获取 BackendData
         let backend_data = BackendDataStatic::get_backend_data();
         if backend_data.network_manager_settings.len() == 0 {
@@ -331,6 +328,11 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
         // 获取 NetworkRoomManagerSetting
         let network_room_manager_setting = backend_data.network_room_manager_settings[0].clone();
+
+        // 新建 NetworkManager
+        let network_manager = NetworkManager::new_with_network_manager_setting(
+            network_room_manager_setting.network_manager_setting,
+        );
 
         // 获取 room_player_prefab_game_object
         let room_player_prefab_game_object =
