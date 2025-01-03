@@ -21,6 +21,7 @@ pub struct NetworkRoomPlayer {
 }
 
 impl NetworkRoomPlayer {
+    pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRoomPlayer";
     fn invoke_user_code_cmd_change_ready_state_boolean(
         identity: &mut NetworkIdentity,
         component_index: u8,
