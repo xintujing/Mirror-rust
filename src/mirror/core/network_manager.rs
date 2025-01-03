@@ -110,11 +110,6 @@ pub enum NetworkManagerMode {
     ServerOnly,
 }
 
-pub enum NetworkManagerType {
-    NetworkManager,
-    NetworkRoomManager,
-}
-
 // NetworkManager
 pub struct NetworkManager {
     pub player_obj: GameObject,
