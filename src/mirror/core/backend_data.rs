@@ -364,10 +364,10 @@ pub struct NetworkRoomManagerSetting {
     pub min_players: i32,
     #[serde(rename = "roomPlayerPrefab")]
     pub room_player_prefab: String,
-    // #[serde(rename = "roomScene")]
-    // pub room_scene: String,
-    // #[serde(rename = "GameplayScene")]
-    // pub gameplay_scene: String,
+    #[serde(rename = "roomScene")]
+    pub room_scene: String,
+    #[serde(rename = "gameplayScene")]
+    pub gameplay_scene: String,
     #[serde(rename = "networkManagerSetting")]
     pub network_manager_setting: NetworkManagerSetting,
 }
