@@ -11,6 +11,7 @@ use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage
 use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
+use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::network_server::{EventHandlerType, NetworkServer, NetworkServerStatic};
 use crate::mirror::core::transport::{Transport, TransportChannel, TransportError};
@@ -404,7 +405,7 @@ pub trait NetworkManagerTrait: Any {
     fn dont_destroy_on_load(&self) -> bool;
     fn network_address(&self) -> &String;
     fn on_validate(&mut self);
-    fn ready_status_changed(&mut self);
+    fn ready_status_changed(&mut self, identity: &mut NetworkIdentity);
     fn room_slots(&mut self) -> &mut Vec<u32>;
     fn recalculate_room_player_indices(&mut self);
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
@@ -552,7 +553,9 @@ impl NetworkManagerTrait for NetworkManager {
         }
     }
 
-    fn ready_status_changed(&mut self) {}
+    fn ready_status_changed(&mut self, identity: &mut NetworkIdentity) {
+        let _ = identity;
+    }
 
     #[allow(warnings)]
     fn room_slots(&mut self) -> &mut Vec<u32> {

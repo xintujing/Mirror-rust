@@ -1,3 +1,4 @@
+use crate::log_error;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
@@ -9,7 +10,6 @@ use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
-use crate::log_error;
 use std::any::Any;
 use std::sync::Once;
 
@@ -39,11 +39,12 @@ impl NetworkRoomPlayer {
             .unwrap()
             .user_code_cmd_change_ready_state_boolean(reader.read_bool());
         NetworkBehaviour::late_invoke(identity, component_index);
+        NetworkManagerStatic::network_manager_singleton().ready_status_changed(identity);
     }
 
     fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
         self.ready_to_begin = value;
-        NetworkManagerStatic::network_manager_singleton().ready_status_changed();
+        self.set_sync_var_dirty_bits(1 << 0);
     }
 }
 

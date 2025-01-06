@@ -7,6 +7,7 @@ use crate::mirror::core::messages::{AddPlayerMessage, ReadyMessage, SceneMessage
 use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourTrait};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
+use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::{
     NetworkManager, NetworkManagerMode, NetworkManagerStatic, NetworkManagerTrait,
 };
@@ -231,7 +232,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
     }
 
-    fn ready_status_changed(&mut self) {
+    fn ready_status_changed(&mut self, identity: &mut NetworkIdentity) {
         let mut current_players = 0;
         let mut ready_players = 0;
 
@@ -249,9 +250,20 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 TryResult::Absent => {
                     log_error!("Failed to ready_status_changed for identity because of absent");
                 }
-                TryResult::Locked => {
-                    log_error!("Failed to ready_status_changed for identity because of locked");
-                }
+                TryResult::Locked => match net_id == &identity.net_id() {
+                    true => {
+                        let room_player = identity.get_component::<NetworkRoomPlayer>();
+                        if room_player.is_some() {
+                            current_players += 1;
+                            if room_player.unwrap().ready_to_begin {
+                                ready_players += 1;
+                            }
+                        }
+                    }
+                    false => {
+                        log_error!("Failed to ready_status_changed for identity because of locked");
+                    }
+                },
             }
 
             if current_players == ready_players {
