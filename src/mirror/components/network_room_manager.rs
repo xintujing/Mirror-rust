@@ -307,8 +307,12 @@ impl NetworkManagerTrait for NetworkRoomManager {
         &mut self.pending_players
     }
 
-    fn room_scene(&mut self) -> &String {
+    fn room_scene(&self) -> &String {
         &self.room_scene
+    }
+
+    fn gameplay_scene(&self) -> &String {
+        &self.gameplay_scene
     }
 
     fn set_all_players_ready(&mut self, value: bool) {
