@@ -1545,31 +1545,6 @@ impl NetworkServer {
         // 为连接生成观察者
         Self::spawn_observers_for_connection(conn_id);
     }
-    // 设置客户端未准备就绪
-    pub fn set_client_not_ready(conn_id: u64) {
-        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
-            TryResult::Present(mut connection) => {
-                connection.set_ready(false);
-                connection.remove_from_observings_observers();
-                connection.send_network_message(
-                    &mut NotReadyMessage::default(),
-                    TransportChannel::Reliable,
-                );
-            }
-            TryResult::Absent => {
-                log_error!(format!(
-                    "Server.SetClientNotReady: connectionId {} not found in connections",
-                    conn_id
-                ));
-            }
-            TryResult::Locked => {
-                log_error!(format!(
-                    "Server.SetClientNotReady: connectionId {} is locked",
-                    conn_id
-                ));
-            }
-        }
-    }
     // 发送给所有客户端
     pub fn send_to_all<T>(message: &mut T, channel: TransportChannel, send_to_ready_only: bool)
     where
@@ -1597,8 +1572,11 @@ impl NetworkServer {
     }
     // 设置所有客户端未准备就绪
     pub fn set_all_clients_not_ready() {
-        NetworkServerStatic::for_each_network_connection(|connection| {
-            Self::set_client_not_ready(connection.connection_id());
+        NetworkServerStatic::for_each_network_connection(|mut connection| {
+            connection.set_ready(false);
+            connection.remove_from_observings_observers();
+            connection
+                .send_network_message(&mut NotReadyMessage::default(), TransportChannel::Reliable);
         });
     }
     // 为连接生成观察者

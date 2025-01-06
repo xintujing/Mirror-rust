@@ -225,7 +225,6 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         if NetworkServerStatic::active() {
             let (index, net_id) = network_manager.recalculate_room_player_indices();
             if net_id == self.net_id() {
-                log_error!(format!("Set index {} for player {}", index, self.net_id()));
                 self.index = index;
                 self.set_sync_var_dirty_bits(1 << 1);
             }
