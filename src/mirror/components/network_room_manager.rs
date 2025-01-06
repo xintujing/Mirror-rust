@@ -283,7 +283,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
             match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
                 TryResult::Present(mut identity) => {
                     if let Some(player) = identity.get_component::<NetworkRoomPlayer>() {
-                        player.index = i as i32
+                        player.index = i as i32;
+                        player.set_sync_var_dirty_bits(1 << 1);
                     }
                 }
                 TryResult::Absent => {
