@@ -167,7 +167,8 @@ impl NetworkConnectionToClient {
             return;
         }
 
-        let snapshot_settings = &NetworkManagerStatic::network_manager_singleton().snapshot_interpolation_settings();
+        let snapshot_settings =
+            &NetworkManagerStatic::network_manager_singleton().snapshot_interpolation_settings();
 
         // dynamic adjustment
         if snapshot_settings.dynamic_adjustment {
@@ -213,7 +214,11 @@ impl NetworkConnectionToClient {
     // void RemoveFromObservingsObservers()
     pub fn remove_from_observings_observers(&mut self) {
         let conn_id = self.connection_id();
+        let self_net_id = &self.net_id();
         for net_id in self.observing.iter_mut() {
+            if net_id == self_net_id {
+                continue;
+            }
             match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
                 TryResult::Present(mut identity) => {
                     identity.remove_observer(conn_id);
