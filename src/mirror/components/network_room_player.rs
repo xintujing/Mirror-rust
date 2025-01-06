@@ -212,6 +212,7 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
 
     // 在第一次 update 之前仅调用一次
     fn start(&mut self) {
+        //  如果已经运行过 start 方法，则直接返回
         if !self.network_behaviour.run_start {
             return;
         }
@@ -229,20 +230,21 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
                 self.set_sync_var_dirty_bits(1 << 1);
             }
         }
+        // 设置为 false，表示已经运行过 start 方法
         self.network_behaviour.run_start = false;
     }
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {
         if initial_state {
             writer.write_bool(self.ready_to_begin);
-            writer.write_int(self.index);
+            writer.compress_var_int(self.index);
         } else {
             writer.compress_var_ulong(self.sync_var_dirty_bits());
             if self.sync_var_dirty_bits() & (1 << 0) != 0 {
                 writer.write_bool(self.ready_to_begin);
             }
             if self.sync_var_dirty_bits() & (1 << 1) != 0 {
-                writer.write_int(self.index);
+                writer.compress_var_int(self.index);
             }
         }
     }
