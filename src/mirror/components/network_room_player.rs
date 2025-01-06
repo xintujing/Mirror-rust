@@ -38,8 +38,8 @@ impl NetworkRoomPlayer {
             .downcast_mut::<Self>()
             .unwrap()
             .user_code_cmd_change_ready_state_boolean(reader.read_bool());
-        NetworkBehaviour::late_invoke(identity, component_index);
         NetworkManagerStatic::network_manager_singleton().ready_status_changed(identity);
+        NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
