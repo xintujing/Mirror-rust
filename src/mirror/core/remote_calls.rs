@@ -138,6 +138,7 @@ impl RemoteProcedureCalls {
         reader: &mut NetworkReader,
         conn_id: u64,
     ) -> bool {
+        // 找到对应的委托
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {
@@ -146,6 +147,7 @@ impl RemoteProcedureCalls {
             }
         }
 
+        // 找不到对应的委托，尝试调用INVOKE_USER_CODE_CMD
         let (has, invoker_option) = Self::get_invoker_for_hash(
             NetworkCommonBehaviour::INVOKE_USER_CODE_CMD.get_fn_stable_hash_code(),
             remote_call_type,
