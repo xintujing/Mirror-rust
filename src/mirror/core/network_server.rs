@@ -1156,15 +1156,11 @@ impl NetworkServer {
         });
     }
 
-    fn init_identity_by_game_obj(
-        conn_id: u64,
-        player: &mut GameObject,
-        is_rep: bool,
-    ) -> Option<NetworkIdentity> {
+    fn init_identity_by_game_obj(conn_id: u64, player: &mut GameObject) -> Option<NetworkIdentity> {
         if let Some(mut identity) = player.get_identity_by_prefab() {
             match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
                 TryResult::Present(mut connection) => {
-                    if connection.net_id() != 0 && !is_rep {
+                    if connection.net_id() != 0 {
                         log_warn!(format!("AddPlayer: connection already has a player GameObject. Please remove the current player GameObject from {}", connection.is_ready()));
                         return None;
                     }
@@ -1191,7 +1187,7 @@ impl NetworkServer {
     }
 
     pub fn add_player_for_connection(conn_id: u64, mut player: GameObject) -> bool {
-        match Self::init_identity_by_game_obj(conn_id, &mut player, false) {
+        match Self::init_identity_by_game_obj(conn_id, &mut player) {
             None => {
                 log_warn!(format!("AddPlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
                 false
@@ -1209,7 +1205,7 @@ impl NetworkServer {
         mut player: GameObject,
         replace_player_options: ReplacePlayerOptions,
     ) -> bool {
-        match Self::init_identity_by_game_obj(conn_id, &mut player, true) {
+        match Self::init_identity_by_game_obj(conn_id, &mut player) {
             None => {
                 log_warn!(format!("ReplacePlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
                 return false;

@@ -140,7 +140,7 @@ impl NetworkRoomManager {
 
     fn check_ready_to_begin(&mut self) {}
 
-    pub fn server_change_scene(identity: &mut NetworkIdentity) {
+    fn server_change_scene(identity: &mut NetworkIdentity) {
         match identity.get_component::<NetworkRoomPlayer>() {
             None => {
                 log_error!("Failed to get NetworkRoomPlayer for identity");
@@ -483,7 +483,9 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     TryResult::Absent => {
                         log_error!("Failed to on_server_disconnect for identity because of absent");
                     }
-                    TryResult::Locked => {}
+                    TryResult::Locked => {
+                        log_error!("Failed to on_server_disconnect for identity because of locked");
+                    }
                 }
             }
         }

@@ -14,7 +14,7 @@ pub trait PlayerScript {
         _conn_id: u64,
     );
     fn user_code_cmd_send_player_message_string(
-        network_common_behaviour: &mut NetworkCommonBehaviour,
+        &mut self,
         reader: &mut NetworkReader,
         func_hash: u16,
         conn_id: u64,
@@ -37,23 +37,18 @@ impl PlayerScript for NetworkCommonBehaviour {
             .as_any_mut()
             .downcast_mut::<Self>()
             .unwrap()
-            .user_code_cmd_common_update_func(
-                reader,
-                _func_hash,
-                _conn_id,
-                Self::user_code_cmd_send_player_message_string,
-            );
+            .user_code_cmd_send_player_message_string(reader, _func_hash, _conn_id);
         NetworkBehaviour::late_invoke(identity, component_index);
     }
 
     fn user_code_cmd_send_player_message_string(
-        network_common_behaviour: &mut NetworkCommonBehaviour,
+        &mut self,
         reader: &mut NetworkReader,
         func_hash: u16,
         conn_id: u64,
     ) {
         println!("{}, {} {}", reader.to_string(), func_hash, conn_id);
-        for x in network_common_behaviour.sync_vars.iter() {
+        for x in self.sync_vars.iter() {
             println!("key: {}, value: {:?}", x.key(), x.value());
         }
     }
