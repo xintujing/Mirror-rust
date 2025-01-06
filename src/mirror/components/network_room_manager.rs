@@ -473,8 +473,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         self.network_manager.stop_server();
     }
 
-    fn server_change_scene(&mut self, new_scene_name: String) -> u32 {
-        let mut id = 0;
+    fn server_change_scene(&mut self, new_scene_name: String) {
         if new_scene_name == self.room_scene {
             for net_id in self.room_slots.to_vec().iter() {
                 match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
@@ -484,16 +483,14 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     TryResult::Absent => {
                         log_error!("Failed to on_server_disconnect for identity because of absent");
                     }
-                    TryResult::Locked => {
-                        id = *net_id;
-                    }
+                    TryResult::Locked => {}
                 }
             }
         }
 
         if new_scene_name == "" {
             log_error!("ServerChangeScene newSceneName is empty");
-            return 0;
+            return;
         }
 
         if NetworkServerStatic::is_loading_scene()
@@ -503,14 +500,14 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 "Scene change is already in progress for scene: {}",
                 new_scene_name
             ));
-            return 0;
+            return;
         }
 
         if !NetworkServerStatic::active() && new_scene_name == self.network_manager.online_scene {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
-            return 0;
+            return;
         }
 
         NetworkServer::set_all_clients_not_ready();
@@ -527,7 +524,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 false,
             );
         }
-        id
     }
 
     fn on_server_connect(conn: &mut NetworkConnectionToClient)

@@ -467,7 +467,7 @@ pub trait NetworkManagerTrait: Any {
     fn update(&mut self);
     fn late_update(&mut self);
     fn on_destroy(&mut self);
-    fn server_change_scene(&mut self, new_scene_name: String) -> u32;
+    fn server_change_scene(&mut self, new_scene_name: String);
     fn get_start_position(&mut self) -> Transform {
         Transform::default()
     }
@@ -642,10 +642,10 @@ impl NetworkManagerTrait for NetworkManager {
         self.stop_server();
     }
 
-    fn server_change_scene(&mut self, new_scene_name: String) -> u32 {
+    fn server_change_scene(&mut self, new_scene_name: String) {
         if new_scene_name == "" {
             log_error!("ServerChangeScene newSceneName is empty");
-            return 0;
+            return;
         }
 
         if NetworkServerStatic::is_loading_scene()
@@ -655,14 +655,14 @@ impl NetworkManagerTrait for NetworkManager {
                 "Scene change is already in progress for scene: {}",
                 new_scene_name
             ));
-            return 0;
+            return;
         }
 
         if !NetworkServerStatic::active() && new_scene_name == self.offline_scene {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
-            return 0;
+            return;
         }
 
         NetworkServer::set_all_clients_not_ready();
@@ -679,7 +679,6 @@ impl NetworkManagerTrait for NetworkManager {
                 false,
             );
         }
-        0
     }
 
     fn get_start_position(&mut self) -> Transform {
