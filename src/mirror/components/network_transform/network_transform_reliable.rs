@@ -4,7 +4,9 @@ use crate::mirror::components::network_transform::network_transform_base::{
 };
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
@@ -162,7 +164,15 @@ impl NetworkTransformReliable {
             }
         }
 
-        if self.network_transform_base.only_sync_on_change && Self::needs_correction(&mut self.network_transform_base.server_snapshots, timestamp, NetworkServerStatic::send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64, self.only_sync_on_change_correction_multiplier as f64) {
+        if self.network_transform_base.only_sync_on_change
+            && Self::needs_correction(
+            &mut self.network_transform_base.server_snapshots,
+            timestamp,
+            NetworkServerStatic::send_interval() as f64
+                * self.network_transform_base.send_interval_multiplier as f64,
+            self.only_sync_on_change_correction_multiplier as f64,
+        )
+        {
             let position = self.get_position();
             let rotation = self.get_rotation();
             let scale = self.get_scale();
@@ -170,7 +180,8 @@ impl NetworkTransformReliable {
                 &mut self.network_transform_base.server_snapshots,
                 timestamp,
                 NetworkTime::local_time(),
-                NetworkServerStatic::send_interval() as f64 * self.network_transform_base.send_interval_multiplier as f64,
+                NetworkServerStatic::send_interval() as f64
+                    * self.network_transform_base.send_interval_multiplier as f64,
                 position,
                 rotation,
                 scale,
@@ -442,7 +453,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn sub_class(&self) -> String {
-        self.network_transform_base.network_behaviour.sub_class.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sub_class
+            .clone()
     }
 
     fn set_sub_class(&mut self, value: String) {
@@ -518,7 +532,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
-        self.network_transform_base.network_behaviour.sync_objects.push(value);
+        self.network_transform_base
+            .network_behaviour
+            .sync_objects
+            .push(value);
     }
 
     fn sync_var_hook_guard(&self) -> u64 {

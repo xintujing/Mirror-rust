@@ -212,8 +212,8 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
 
     // 在第一次 update 之前仅调用一次
     fn start(&mut self) {
-        static ONCE: Once = Once::new();
-        let _ = &ONCE.call_once(|| {
+        let once: Once = Once::new();
+        let _ = &once.call_once(|| {
             let network_manager = NetworkManagerStatic::network_manager_singleton();
             if network_manager.dont_destroy_on_load() {}
 
@@ -222,6 +222,7 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
             if NetworkServerStatic::active() {
                 let (index, net_id) = network_manager.recalculate_room_player_indices();
                 if net_id == self.net_id() {
+                    log_error!(format!("Set index {} for player {}", index, self.net_id()));
                     self.index = index;
                     self.set_sync_var_dirty_bits(1 << 1);
                 }

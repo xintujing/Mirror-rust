@@ -404,7 +404,6 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         static ONCE: Once = Once::new();
         &ONCE
     }
-
     fn sync_interval(&self) -> f64 {
         self.network_behaviour.sync_interval
     }
