@@ -490,42 +490,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
             }
         }
 
-        if new_scene_name == "" {
-            log_error!("ServerChangeScene newSceneName is empty");
-            return;
-        }
-
-        if NetworkServerStatic::is_loading_scene()
-            && new_scene_name == NetworkManagerStatic::network_scene_name()
-        {
-            log_error!(format!(
-                "Scene change is already in progress for scene: {}",
-                new_scene_name
-            ));
-            return;
-        }
-
-        if !NetworkServerStatic::active() && new_scene_name == self.network_manager.online_scene {
-            log_error!(
-                "ServerChangeScene called when server is not active. Call StartServer first."
-            );
-            return;
-        }
-
-        NetworkServer::set_all_clients_not_ready();
-        NetworkManagerStatic::set_network_scene_name(new_scene_name.to_string());
-
-        self.on_server_change_scene(new_scene_name.to_string());
-
-        NetworkServerStatic::set_is_loading_scene(true);
-
-        if NetworkServerStatic::active() {
-            NetworkServer::send_to_all(
-                &mut SceneMessage::new(new_scene_name.to_string(), SceneOperation::Normal, true),
-                TransportChannel::Reliable,
-                false,
-            );
-        }
+        // base.OnServerChangeScene(newSceneName);
+        self.network_manager.server_change_scene(new_scene_name);
     }
 
     fn on_server_connect(conn: &mut NetworkConnectionToClient)
