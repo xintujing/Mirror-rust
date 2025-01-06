@@ -139,6 +139,23 @@ impl NetworkRoomManager {
     }
 
     fn check_ready_to_begin(&mut self) {}
+
+    pub fn server_change_scene(identity: &mut NetworkIdentity) {
+        match identity.get_component::<NetworkRoomPlayer>() {
+            None => {
+                log_error!("Failed to get NetworkRoomPlayer for identity");
+            }
+            Some(network_room_player) => {
+                network_room_player.ready_to_begin = false;
+                network_room_player.set_sync_var_dirty_bits(1 << 0);
+                NetworkServer::replace_player_for_connection(
+                    identity.connection_to_client(),
+                    identity.game_object().clone(),
+                    ReplacePlayerOptions::KeepAuthority,
+                );
+            }
+        };
+    }
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
@@ -456,10 +473,27 @@ impl NetworkManagerTrait for NetworkRoomManager {
         self.network_manager.stop_server();
     }
 
-    fn server_change_scene(&mut self, new_scene_name: String) {
+    fn server_change_scene(&mut self, new_scene_name: String) -> u32 {
+        let mut id = 0;
+        if new_scene_name == self.room_scene {
+            for net_id in self.room_slots.to_vec().iter() {
+                match NetworkServerStatic::spawned_network_identities().try_get_mut(net_id) {
+                    TryResult::Present(mut identity) => {
+                        Self::server_change_scene(&mut identity);
+                    }
+                    TryResult::Absent => {
+                        log_error!("Failed to on_server_disconnect for identity because of absent");
+                    }
+                    TryResult::Locked => {
+                        id = *net_id;
+                    }
+                }
+            }
+        }
+
         if new_scene_name == "" {
             log_error!("ServerChangeScene newSceneName is empty");
-            return;
+            return 0;
         }
 
         if NetworkServerStatic::is_loading_scene()
@@ -469,14 +503,14 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 "Scene change is already in progress for scene: {}",
                 new_scene_name
             ));
-            return;
+            return 0;
         }
 
         if !NetworkServerStatic::active() && new_scene_name == self.network_manager.online_scene {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
-            return;
+            return 0;
         }
 
         NetworkServer::set_all_clients_not_ready();
@@ -493,6 +527,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 false,
             );
         }
+        id
     }
 
     fn on_server_connect(conn: &mut NetworkConnectionToClient)

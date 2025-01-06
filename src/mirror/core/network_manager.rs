@@ -143,7 +143,9 @@ pub struct NetworkManager {
 
 // NetworkManager 的默认实现
 impl NetworkManager {
-    pub fn new_with_network_manager_setting(network_manager_setting: NetworkManagerSetting) -> Self {
+    pub fn new_with_network_manager_setting(
+        network_manager_setting: NetworkManagerSetting,
+    ) -> Self {
         let mut spawn_prefabs = Vec::new();
         for spawn_prefab in &network_manager_setting.spawn_prefabs {
             spawn_prefabs.push(GameObject::new_with_prefab(spawn_prefab.clone()));
@@ -465,7 +467,7 @@ pub trait NetworkManagerTrait: Any {
     fn update(&mut self);
     fn late_update(&mut self);
     fn on_destroy(&mut self);
-    fn server_change_scene(&mut self, new_scene_name: String);
+    fn server_change_scene(&mut self, new_scene_name: String) -> u32;
     fn get_start_position(&mut self) -> Transform {
         Transform::default()
     }
@@ -640,10 +642,10 @@ impl NetworkManagerTrait for NetworkManager {
         self.stop_server();
     }
 
-    fn server_change_scene(&mut self, new_scene_name: String) {
+    fn server_change_scene(&mut self, new_scene_name: String) -> u32 {
         if new_scene_name == "" {
             log_error!("ServerChangeScene newSceneName is empty");
-            return;
+            return 0;
         }
 
         if NetworkServerStatic::is_loading_scene()
@@ -653,14 +655,14 @@ impl NetworkManagerTrait for NetworkManager {
                 "Scene change is already in progress for scene: {}",
                 new_scene_name
             ));
-            return;
+            return 0;
         }
 
         if !NetworkServerStatic::active() && new_scene_name == self.offline_scene {
             log_error!(
                 "ServerChangeScene called when server is not active. Call StartServer first."
             );
-            return;
+            return 0;
         }
 
         NetworkServer::set_all_clients_not_ready();
@@ -677,6 +679,7 @@ impl NetworkManagerTrait for NetworkManager {
                 false,
             );
         }
+        0
     }
 
     fn get_start_position(&mut self) -> Transform {
