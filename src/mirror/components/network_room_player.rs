@@ -220,7 +220,11 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
             network_manager.room_slots().push(self.net_id());
 
             if NetworkServerStatic::active() {
-                network_manager.recalculate_room_player_indices();
+                let (index, net_id) = network_manager.recalculate_room_player_indices();
+                if net_id == self.net_id() {
+                    self.index = index;
+                    self.set_sync_var_dirty_bits(1 << 1);
+                }
             }
         });
     }

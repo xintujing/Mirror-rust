@@ -407,7 +407,7 @@ pub trait NetworkManagerTrait: Any {
     fn on_validate(&mut self);
     fn ready_status_changed(&mut self, identity: &mut NetworkIdentity);
     fn room_slots(&mut self) -> &mut Vec<u32>;
-    fn recalculate_room_player_indices(&mut self);
+    fn recalculate_room_player_indices(&mut self) -> (i32, u32);
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
     fn room_scene(&mut self) -> &String;
     fn set_all_players_ready(&mut self, value: bool);
@@ -563,7 +563,9 @@ impl NetworkManagerTrait for NetworkManager {
         unsafe { &mut ROOM_SLOTS }
     }
 
-    fn recalculate_room_player_indices(&mut self) {}
+    fn recalculate_room_player_indices(&mut self) -> (i32, u32) {
+        (0, 0)
+    }
 
     #[allow(warnings)]
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer> {

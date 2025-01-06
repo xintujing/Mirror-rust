@@ -278,7 +278,9 @@ impl NetworkManagerTrait for NetworkRoomManager {
         &mut self.room_slots
     }
 
-    fn recalculate_room_player_indices(&mut self) {
+    fn recalculate_room_player_indices(&mut self) -> (i32, u32) {
+        let mut index = 0;
+        let mut id = 0;
         for (i, net_id) in self.room_slots.iter().enumerate() {
             match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
                 TryResult::Present(mut identity) => {
@@ -293,12 +295,12 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     );
                 }
                 TryResult::Locked => {
-                    log_error!(
-                        "Failed to recalculate_room_player_indices for identity because of locked"
-                    );
+                    index = i as i32;
+                    id = *net_id;
                 }
             }
         }
+        (index, id)
     }
 
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer> {
