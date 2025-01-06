@@ -212,22 +212,24 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
 
     // 在第一次 update 之前仅调用一次
     fn start(&mut self) {
-        let once: Once = Once::new();
-        let _ = &once.call_once(|| {
-            let network_manager = NetworkManagerStatic::network_manager_singleton();
-            if network_manager.dont_destroy_on_load() {}
+        if !self.network_behaviour.run_start {
+            return;
+        }
 
-            network_manager.room_slots().push(self.net_id());
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        if network_manager.dont_destroy_on_load() {}
 
-            if NetworkServerStatic::active() {
-                let (index, net_id) = network_manager.recalculate_room_player_indices();
-                if net_id == self.net_id() {
-                    log_error!(format!("Set index {} for player {}", index, self.net_id()));
-                    self.index = index;
-                    self.set_sync_var_dirty_bits(1 << 1);
-                }
+        network_manager.room_slots().push(self.net_id());
+
+        if NetworkServerStatic::active() {
+            let (index, net_id) = network_manager.recalculate_room_player_indices();
+            if net_id == self.net_id() {
+                log_error!(format!("Set index {} for player {}", index, self.net_id()));
+                self.index = index;
+                self.set_sync_var_dirty_bits(1 << 1);
             }
-        });
+        }
+        self.network_behaviour.run_start = false;
     }
 
     fn serialize_sync_vars(&mut self, writer: &mut NetworkWriter, initial_state: bool) {

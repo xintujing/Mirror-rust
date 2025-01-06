@@ -222,6 +222,7 @@ pub struct NetworkBehaviour {
     pub game_object: GameObject,
     pub sync_objects: Vec<Box<dyn SyncObject>>,
     pub sync_var_hook_guard: u64,
+    pub run_start: bool,
 }
 
 impl NetworkBehaviour {
@@ -246,6 +247,7 @@ impl NetworkBehaviour {
             game_object,
             sync_objects: Default::default(),
             sync_var_hook_guard: 0,
+            run_start: true,
         }
     }
     pub fn is_dirty(&self) -> bool {
