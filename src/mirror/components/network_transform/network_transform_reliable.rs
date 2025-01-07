@@ -4,9 +4,7 @@ use crate::mirror::components::network_transform::network_transform_base::{
 };
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode,
-};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
@@ -256,6 +254,7 @@ impl NetworkTransformReliable {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_teleport_vector3(reader.read_vector3());
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -325,6 +324,7 @@ impl NetworkTransformReliable {
                         reader.read_vector3(),
                         reader.read_quaternion(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(

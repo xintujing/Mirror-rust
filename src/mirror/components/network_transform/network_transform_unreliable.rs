@@ -6,9 +6,7 @@ use crate::mirror::components::network_transform::transform_snapshot::TransformS
 use crate::mirror::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::messages::NetworkMessageTrait;
-use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode,
-};
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
@@ -267,6 +265,7 @@ impl NetworkTransformUnreliable {
                         reader.read_quaternion_nullable(),
                         reader.read_vector3_nullable(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -323,6 +322,7 @@ impl NetworkTransformUnreliable {
                         reader.read_uint_nullable(),
                         reader.read_vector3_nullable(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -388,6 +388,7 @@ impl NetworkTransformUnreliable {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_client_to_server_sync_sync_data(sync_data);
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -692,6 +693,7 @@ impl NetworkTransformUnreliable {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_teleport_vector3(reader.read_vector3());
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -761,6 +763,7 @@ impl NetworkTransformUnreliable {
                         reader.read_vector3(),
                         reader.read_quaternion(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
