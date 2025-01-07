@@ -541,7 +541,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
 
         if NetworkManagerStatic::network_scene_name() == *network_room_manager.room_scene() {
-            network_room_manager.recalculate_room_player_indices();
+            let (index, net_id) = network_room_manager.recalculate_room_player_indices();
+            if index != 0 && net_id != 0 {
+                log_error!("Fix index for net_id: {},this should not happen", net_id);
+            }
         }
 
         Self::on_room_server_disconnect(conn);
