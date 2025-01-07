@@ -434,7 +434,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn server_change_scene(&mut self, new_scene_name: String) {
         if new_scene_name == self.room_scene {
-            for net_id in self.room_slots.to_vec().iter() {
+            for net_id in self.room_slots.iter() {
                 match NetworkServerStatic::spawned_network_identities().try_get(net_id) {
                     TryResult::Present(identity) => {
                         if !identity.get_component::<NetworkRoomPlayer, _>(|network_room_player| {
