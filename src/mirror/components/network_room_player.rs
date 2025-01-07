@@ -66,9 +66,9 @@ impl NetworkRoomPlayer {
     }
 
     fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
-        NetworkManagerStatic::network_manager_singleton().ready_status_changed(self);
         self.ready_to_begin = value;
         self.set_sync_var_dirty_bits(1 << 0);
+        NetworkManagerStatic::network_manager_singleton().ready_status_changed(self);
     }
 }
 
