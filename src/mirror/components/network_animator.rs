@@ -3,15 +3,15 @@ use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
-use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_reader_pool::NetworkReaderPool;
-use crate::mirror::core::network_server::NetworkServerStatic;
+use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::try_result::TryResult;
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::any::Any;
@@ -112,28 +112,47 @@ impl NetworkAnimator {
 
     // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
-                reader.decompress_var_int(),
-                reader.read_float(),
-                reader.decompress_var_int(),
-                reader.read_float(),
-                reader.read_bytes_and_size(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
+                        reader.decompress_var_int(),
+                        reader.read_float(),
+                        reader.decompress_var_int(),
+                        reader.read_float(),
+                        reader.read_bytes_and_size(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // 1 UserCode_CmdOnAnimationServerMessage__Int32__Single__Int32__Single__Byte\u005B\u005D
@@ -159,24 +178,42 @@ impl NetworkAnimator {
 
     // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_on_animation_parameters_server_message_byte(
-                reader.read_bytes_and_size(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_on_animation_parameters_server_message_byte(
+                        reader.read_bytes_and_size(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // 2 UserCode_CmdOnAnimationParametersServerMessage__Byte\u005B\u005D
@@ -189,22 +226,43 @@ impl NetworkAnimator {
 
     // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
     fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_on_animation_trigger_server_message_int32(reader.decompress_var_int());
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_on_animation_trigger_server_message_int32(
+                        reader.decompress_var_int(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // 3 UserCode_CmdOnAnimationTriggerServerMessage__Int32
@@ -217,24 +275,43 @@ impl NetworkAnimator {
 
     // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
     fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_on_animation_reset_trigger_server_message_int32(
-                reader.decompress_var_int(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_on_animation_reset_trigger_server_message_int32(
+                        reader.decompress_var_int(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // 4 UserCode_CmdOnAnimationResetTriggerServerMessage__Int32
@@ -247,22 +324,41 @@ impl NetworkAnimator {
 
     // 5 invoke_user_code_cmd_set_animator_speed_single
     fn invoke_user_code_cmd_set_animator_speed_single(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_set_animator_speed_single(reader.read_float());
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_set_animator_speed_single(reader.read_float());
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // 5 UserCode_CmdSetAnimatorSpeed__Single
