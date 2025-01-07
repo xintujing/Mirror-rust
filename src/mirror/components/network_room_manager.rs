@@ -28,7 +28,7 @@ pub struct NetworkRoomManager {
     pub min_players: i32,
     pub room_scene: String,
     pub gameplay_scene: String,
-    pub room_player_prefab: NetworkRoomPlayer,
+    pub room_player_prefab: GameObject,
     pub pending_players: Vec<PendingPlayer>,
     _all_players_ready: bool,
     pub room_slots: Vec<u32>,
@@ -224,8 +224,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
         // always >= 0
         self.min_players = self.min_players.max(0);
 
-        if !self.room_player_prefab.game_object().is_null() {
-            if !self.room_player_prefab.game_object().is_has_component() {
+        if !self.room_player_prefab.is_null() {
+            if !self.room_player_prefab.is_has_component() {
                 log_error!("NetworkRoomManager - RoomPlayer Prefab must have a NetworkIdentity.");
             }
         }
@@ -362,46 +362,17 @@ impl NetworkManagerTrait for NetworkRoomManager {
         let room_player_prefab_game_object =
             GameObject::new_with_prefab(network_room_manager_setting.room_player_prefab.clone());
 
-        // 获取 asset_id
-        let asset_id = match BackendDataStatic::get_backend_data()
-            .get_asset_id_by_asset_name(room_player_prefab_game_object.prefab.as_str())
-        {
-            None => {
-                panic!(
-                    "No asset id found for asset name: {}",
-                    network_room_manager_setting.room_player_prefab
-                );
-            }
-            Some(id) => id,
-        };
-
-        // 获取 NetworkBehaviourComponent 并且创建 NetworkRoomPlayer
-        for component in BackendDataStatic::get_backend_data()
-            .get_network_identity_data_network_behaviour_components_by_asset_id(asset_id)
-        {
-            if &component.sub_class == "Mirror.NetworkRoomPlayer" {
-                // 新建 NetworkRoomPlayer
-                let room_player_prefab =
-                    NetworkRoomPlayer::new(room_player_prefab_game_object, &component);
-
-                // 返回 NetworkRoomManager
-                return Self {
-                    network_manager,
-                    min_players: network_room_manager_setting.min_players,
-                    room_player_prefab,
-                    room_scene: network_room_manager_setting.room_scene.to_string(),
-                    gameplay_scene: network_room_manager_setting.gameplay_scene.to_string(),
-                    pending_players: Vec::new(),
-                    _all_players_ready: false,
-                    room_slots: Vec::new(),
-                    client_index: 0,
-                };
-            }
+        Self {
+            network_manager,
+            min_players: network_room_manager_setting.min_players,
+            room_player_prefab: room_player_prefab_game_object,
+            room_scene: network_room_manager_setting.room_scene.to_string(),
+            gameplay_scene: network_room_manager_setting.gameplay_scene.to_string(),
+            pending_players: Vec::new(),
+            _all_players_ready: false,
+            room_slots: Vec::new(),
+            client_index: 0,
         }
-        panic!(
-            "No NetworkBehaviourComponent found for asset id: {}",
-            asset_id
-        );
     }
 
     fn start(&mut self) {
@@ -633,7 +604,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         match Self::on_room_server_create_room_player(conn_id) {
             None => {
                 // 拿到 player_obj
-                player_obj = self.room_player_prefab.game_object().clone();
+                player_obj = self.room_player_prefab.clone();
                 if player_obj.is_null() {
                     log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
                     return;
