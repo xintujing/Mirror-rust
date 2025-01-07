@@ -6,7 +6,7 @@ use crate::mirror::core::messages::{
     NotReadyMessage, ObjectDestroyMessage, ObjectHideMessage, ObjectSpawnFinishedMessage,
     ObjectSpawnStartedMessage, ReadyMessage, SpawnMessage, TimeSnapshotMessage,
 };
-use crate::mirror::core::network_behaviour::GameObject;
+use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviourTrait};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
 use crate::mirror::core::network_identity::Visibility::ForceShown;
@@ -87,8 +87,46 @@ lazy_static! {
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDS: DashSet<u32> = DashSet::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
+    pub static ref NETWORK_BEHAVIOURS: DashMap<String, Box<dyn NetworkBehaviourTrait>> =
+        DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
     static ref TRANSPORT_DATA_UN_BATCHER: RwLock<UnBatcher> = RwLock::new(UnBatcher::new());
+}
+
+// Box<dyn NetworkBehaviourTrait> 静态变量方法
+impl NETWORK_BEHAVIOURS {
+    // 添加 NetworkBehaviour
+    pub fn add_behaviour(net_id: u32, index: u8, behaviour: Box<dyn NetworkBehaviourTrait>) {
+        NETWORK_BEHAVIOURS.insert(format!("{}_{}", net_id, index), behaviour);
+    }
+    // 更新 NetworkBehaviour 的 NetId
+    pub fn update_behaviour_net_id(o_net_id: u32, n_net_id: u32, count: u8) {
+        for i in 0..count {
+            let o_key = format!("{}_{}", o_net_id, i);
+            let n_key = format!("{}_{}", n_net_id, i);
+            if let Some((_, mut behaviour)) = NETWORK_BEHAVIOURS.remove(&o_key) {
+                behaviour.set_net_id(n_net_id);
+                NETWORK_BEHAVIOURS.insert(n_key, behaviour);
+            }
+        }
+    }
+    // 更新 NetworkBehaviour 的 ConnectionId
+    pub fn update_behaviour_conn_id(net_id: u32, conn_id: u64, count: u8) {
+        for i in 0..count {
+            if let Some((_, mut behaviour)) =
+                NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i))
+            {
+                behaviour.set_connection_to_client(conn_id);
+                NETWORK_BEHAVIOURS.insert(format!("{}_{}", net_id, i), behaviour);
+            }
+        }
+    }
+    // 移除 NetworkBehaviour
+    pub fn remove_behaviour(net_id: u32, count: u8) {
+        for i in 0..count {
+            NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i));
+        }
+    }
 }
 
 // NetworkServer 静态结构体
@@ -642,7 +680,7 @@ impl NetworkServer {
     fn create_spawn_message_payload(is_owner: bool, identity: &mut NetworkIdentity) -> Vec<u8> {
         let mut payload = Vec::new();
         // 如果没有 NetworkBehaviours
-        if identity.network_behaviours.len() == 0 {
+        if identity.network_behaviours_count == 0 {
             return payload;
         }
 
@@ -1652,6 +1690,7 @@ impl NetworkServer {
     ) {
         let message = CommandMessage::deserialize(reader);
 
+        // 如果 connection_id 在 NETWORK_CONNECTIONS 中
         match NetworkServerStatic::network_connections().try_get_mut(&connection_id) {
             TryResult::Present(connection) => {
                 // connection 没有准备好
@@ -1664,9 +1703,7 @@ impl NetworkServer {
                         {
                             TryResult::Present(identity) => {
                                 // 如果 message.component_index 小于 net_identity.network_behaviours.len()
-                                if (message.component_index as usize)
-                                    < identity.network_behaviours.len()
-                                {
+                                if message.component_index < identity.network_behaviours_count {
                                     // 如果 message.function_hash 在 RemoteProcedureCalls 中
                                     if let Some(method_name) =
                                         RemoteProcedureCalls::get_function_method_name(
@@ -1714,15 +1751,16 @@ impl NetworkServer {
             }
         }
 
-        match NetworkServerStatic::spawned_network_identities().try_get_mut(&message.net_id) {
-            TryResult::Present(mut identity) => {
+        // 如果 message.net_id 在 SPAWNED 中
+        match NetworkServerStatic::spawned_network_identities().try_get(&message.net_id) {
+            TryResult::Present(identity) => {
                 // 是否需要权限
                 let requires_authority =
                     RemoteProcedureCalls::command_requires_authority(message.function_hash);
                 // 如果需要权限并且 identity.connection_id_to_client != connection.connection_id
                 if requires_authority && identity.connection_to_client() != connection_id {
                     // Attempt to identify the component and method to narrow down the cause of the log_error.
-                    if identity.network_behaviours.len() > message.component_index as usize {
+                    if identity.network_behaviours_count > message.component_index {
                         if let Some(method_name) =
                             RemoteProcedureCalls::get_function_method_name(message.function_hash)
                         {
@@ -1737,16 +1775,6 @@ impl NetworkServer {
                     ));
                     return;
                 }
-
-                NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
-                    identity.handle_remote_call(
-                        message.component_index,
-                        message.function_hash,
-                        RemoteCallType::Command,
-                        reader,
-                        connection_id,
-                    );
-                });
             }
             TryResult::Absent => {
                 // over reliable channel, commands should always come after spawn.
@@ -1769,6 +1797,18 @@ impl NetworkServer {
                 return;
             }
         }
+
+        // 处理远程调用
+        NetworkReaderPool::get_with_bytes_return(message.payload, |reader| {
+            NetworkIdentity::handle_remote_call(
+                connection_id,
+                message.net_id,
+                message.component_index,
+                message.function_hash,
+                reader,
+                RemoteCallType::Command,
+            );
+        });
     }
 
     // 处理 OnEntityStateMessage 消息
