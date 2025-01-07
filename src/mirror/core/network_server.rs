@@ -284,7 +284,11 @@ impl NetworkServerStatic {
         SPAWNED_NETWORK_IDENTITIES.insert(identity.net_id(), identity);
     }
     pub fn remove_spawned_network_identity(net_id: &u32) {
-        SPAWNED_NETWORK_IDENTITIES.remove(net_id);
+        if let Some((net_id, sni)) = SPAWNED_NETWORK_IDENTITIES.remove(net_id) {
+            for i in 0..sni.network_behaviours_count {
+                NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i));
+            }
+        }
         SPAWNED_NETWORK_IDS.remove(net_id);
     }
     // 遍历NETWORK_CONNECTIONS
