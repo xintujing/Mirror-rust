@@ -1449,17 +1449,11 @@ impl NetworkServer {
     }
 
     fn add_all_ready_server_connections_to_observers(identity: &mut NetworkIdentity) {
-        let mut conn_ids = Vec::new();
-        NetworkServerStatic::network_connections()
-            .iter_mut()
-            .for_each(|connection| {
-                if connection.is_ready() {
-                    conn_ids.push(connection.connection_id());
-                }
-            });
-        for conn_id in conn_ids {
-            identity.add_observer(conn_id);
-        }
+        NetworkServerStatic::for_each_network_connection(|connection| {
+            if connection.is_ready() {
+                identity.add_observer(connection.connection_id());
+            }
+        });
     }
 
     fn respawn(mut identity: NetworkIdentity) {
@@ -1650,18 +1644,16 @@ impl NetworkServer {
 
         // add connection to each nearby NetworkIdentity's observers, which
         // internally sends a spawn message for each one to the connection.
-        NetworkServerStatic::spawned_network_identities()
-            .iter_mut()
-            .for_each(|mut identity| {
-                if identity.visibility == ForceShown {
-                    identity.add_observer(conn_id);
-                } else if identity.visibility == Visibility::ForceHidden {
-                    // do nothing
-                } else if identity.visibility == Visibility::Default {
-                    // TODO aoi system
-                    identity.add_observer(conn_id);
-                }
-            });
+        NetworkServerStatic::for_each_spawned(|mut identity| {
+            if identity.visibility == ForceShown {
+                identity.add_observer(conn_id);
+            } else if identity.visibility == Visibility::ForceHidden {
+                // do nothing
+            } else if identity.visibility == Visibility::Default {
+                // TODO aoi system
+                identity.add_observer(conn_id);
+            }
+        });
 
         // 发送 ObjectSpawnFinishedMessage 消息
         match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
