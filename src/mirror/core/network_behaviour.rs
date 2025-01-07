@@ -19,7 +19,6 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
 use crate::{log_error, log_warn};
-use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;

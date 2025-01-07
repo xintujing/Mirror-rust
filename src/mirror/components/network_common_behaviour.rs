@@ -128,6 +128,7 @@ impl NetworkCommonBehaviour {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_common_update_sync_var(reader, func_hash, conn_id);
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(

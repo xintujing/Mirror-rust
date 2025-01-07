@@ -137,6 +137,7 @@ impl NetworkAnimator {
                         reader.read_float(),
                         reader.read_bytes_and_size(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -198,6 +199,7 @@ impl NetworkAnimator {
                     .user_code_cmd_on_animation_parameters_server_message_byte(
                         reader.read_bytes_and_size(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -247,6 +249,7 @@ impl NetworkAnimator {
                     .user_code_cmd_on_animation_trigger_server_message_int32(
                         reader.decompress_var_int(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -296,6 +299,7 @@ impl NetworkAnimator {
                     .user_code_cmd_on_animation_reset_trigger_server_message_int32(
                         reader.decompress_var_int(),
                     );
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
@@ -343,6 +347,7 @@ impl NetworkAnimator {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_set_animator_speed_single(reader.read_float());
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(
