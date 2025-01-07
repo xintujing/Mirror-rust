@@ -1,7 +1,7 @@
 use crate::log_error;
 use crate::mirror::core::backend_data::BackendDataStatic;
 use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviourFactory, SyncDirection, SyncMode,
+    GameObject, NetworkBehaviourFactory, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_connection_to_client::NetworkConnectionToClient;
@@ -577,17 +577,24 @@ impl NetworkIdentity {
         self.game_object.set_active(active);
     }
 
-    // pub fn get_component<T>(&mut self) -> Option<&mut T>
-    // where
-    //     T: NetworkBehaviourTrait,
-    // {
-    //     for component in self.network_behaviours.iter_mut() {
-    //         if let Some(component) = component.as_any_mut().downcast_mut::<T>() {
-    //             return Some(component);
-    //         }
-    //     }
-    //     None
-    // }
+    pub fn get_component<T, F>(&self, mut func: F) -> bool
+    where
+        T: NetworkBehaviourTrait,
+        F: FnMut(&mut T),
+    {
+        for i in 0..self.network_behaviours_count {
+            if let TryResult::Present(mut component) =
+                NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i))
+            {
+                if let Some(component) = component.as_any_mut().downcast_mut::<T>() {
+                    func(component);
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     //
     // pub fn get_component_by_index(
     //     &mut self,

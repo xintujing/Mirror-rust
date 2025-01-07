@@ -38,7 +38,6 @@ impl NetworkRoomPlayer {
         //     .downcast_mut::<Self>()
         //     .unwrap()
         //     .user_code_cmd_change_ready_state_boolean(reader.read_bool());
-        // NetworkManagerStatic::network_manager_singleton().ready_status_changed(identity);
         // NetworkBehaviour::late_invoke(identity, component_index);
         // 获取 NetworkBehaviour
         match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
@@ -51,22 +50,23 @@ impl NetworkRoomPlayer {
             }
             TryResult::Absent => {
                 log_error!(
-            "NetworkBehaviour not found by net_id: {}, component_index: {}",
-            net_id,
-            component_index
-        );
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
             }
             TryResult::Locked => {
                 log_error!(
-            "NetworkBehaviour locked by net_id: {}, component_index: {}",
-            net_id,
-            component_index
-        );
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
             }
         }
     }
 
     fn user_code_cmd_change_ready_state_boolean(&mut self, value: bool) {
+        NetworkManagerStatic::network_manager_singleton().ready_status_changed(self);
         self.ready_to_begin = value;
         self.set_sync_var_dirty_bits(1 << 0);
     }
@@ -247,10 +247,16 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         network_manager.room_slots().push(self.net_id());
 
         if NetworkServerStatic::active() {
+            // 重新计算玩家索引
             let (index, net_id) = network_manager.recalculate_room_player_indices();
-            if net_id == self.net_id() {
-                self.index = index;
-                self.set_sync_var_dirty_bits(1 << 1);
+            match net_id == self.net_id() {
+                true => {
+                    self.index = index;
+                    self.set_sync_var_dirty_bits(1 << 1);
+                }
+                false => {
+                    log_error!("Please fix the code, this should not happen.");
+                }
             }
         }
         // 设置为 false，表示已经运行过 start 方法

@@ -1,18 +1,16 @@
 use dashmap::try_result::TryResult;
 use mirror_rust::log_error;
 use mirror_rust::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use mirror_rust::mirror::core::network_behaviour::NetworkBehaviour;
-use mirror_rust::mirror::core::network_identity::NetworkIdentity;
 use mirror_rust::mirror::core::network_reader::NetworkReader;
 use mirror_rust::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
 
 pub trait PlayerScript {
     fn invoke_user_code_cmd_send_player_message_string(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     );
     fn user_code_cmd_send_player_message_string(
         &mut self,
