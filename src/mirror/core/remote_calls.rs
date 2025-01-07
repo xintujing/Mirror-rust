@@ -1,6 +1,5 @@
 use crate::log_error;
 use crate::mirror::components::network_common_behaviour::NetworkCommonBehaviour;
-use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::NetworkReader;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use dashmap::mapref::one::RefMut;
@@ -133,8 +132,8 @@ impl RemoteProcedureCalls {
     pub fn invoke(
         conn_id: u64,
         net_id: u32,
-        func_hash: u16,
         component_index: u8,
+        func_hash: u16,
         reader: &mut NetworkReader,
         remote_call_type: RemoteCallType,
     ) -> bool {
