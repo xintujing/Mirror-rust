@@ -332,7 +332,8 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn connection_to_client(&self) -> u64;
     fn set_connection_to_client(&mut self, value: u64);
     fn observers(&self) -> &Vec<u64>;
-    fn set_observers(&mut self, value: Vec<u64>);
+    fn add_observer(&mut self, conn_id: u64);
+    fn remove_observer(&mut self, value: u64);
     fn game_object(&self) -> &GameObject;
     fn set_game_object(&mut self, value: GameObject);
     fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>>;

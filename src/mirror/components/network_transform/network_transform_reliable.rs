@@ -548,9 +548,20 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         &self.network_transform_base.network_behaviour.observers
     }
 
-    fn set_observers(&mut self, value: Vec<u64>) {
-        self.network_transform_base.network_behaviour.observers = value
+    fn add_observer(&mut self, conn_id: u64) {
+        self.network_transform_base
+            .network_behaviour
+            .observers
+            .push(conn_id);
     }
+
+    fn remove_observer(&mut self, value: u64) {
+        self.network_transform_base
+            .network_behaviour
+            .observers
+            .retain(|&x| x != value);
+    }
+
 
     fn game_object(&self) -> &GameObject {
         &self.network_transform_base.network_behaviour.game_object

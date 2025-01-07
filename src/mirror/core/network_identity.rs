@@ -62,7 +62,7 @@ pub struct NetworkIdentity {
     net_id: u32,
     had_authority: bool,
     game_object: GameObject,
-    pub observers: Vec<u64>,
+    observers: Vec<u64>,
     pub scene_id: u64,
     pub asset_id: u32,
     pub server_only: bool,
@@ -287,6 +287,9 @@ impl NetworkIdentity {
             self.spawned_from_instantiate = true;
         }
         self.has_spawned = true;
+    }
+    pub fn observers(&self) -> &Vec<u64> {
+        &self.observers
     }
     pub fn on_validate(&mut self) {
         self.has_spawned = false;
@@ -519,6 +522,21 @@ impl NetworkIdentity {
         if self.observers.len() == 0 {
             self.clear_all_components_dirty_bits()
         }
+
+        // 添加观察者
+        for i in 0..self.network_behaviours_count {
+            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+                TryResult::Present(mut component) => {
+                    component.add_observer(conn_id);
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to add observer because component is absent.");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to add observer because component is locked.");
+                }
+            }
+        }
         // 添加观察者
         self.observers.push(conn_id);
 
@@ -555,6 +573,20 @@ impl NetworkIdentity {
         }
     }
     pub fn remove_observer(&mut self, conn_id: u64) {
+        // 清理组件的 observer
+        for i in 0..self.network_behaviours_count {
+            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+                TryResult::Present(mut component) => {
+                    component.remove_observer(conn_id);
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to remove observer because component is absent.");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to remove observer because component is locked.");
+                }
+            }
+        }
         self.observers.retain(|id| *id != conn_id);
     }
     pub fn set_client_owner(&mut self, conn_id: u64) {

@@ -584,8 +584,12 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         &self.network_behaviour.observers
     }
 
-    fn set_observers(&mut self, value: Vec<u64>) {
-        self.network_behaviour.observers = value
+    fn add_observer(&mut self, conn_id: u64) {
+        self.network_behaviour.observers.push(conn_id)
+    }
+
+    fn remove_observer(&mut self, value: u64) {
+        self.network_behaviour.observers.retain(|&x| x != value);
     }
 
     fn game_object(&self) -> &GameObject {

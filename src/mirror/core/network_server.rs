@@ -1164,7 +1164,7 @@ impl NetworkServer {
         mut message: ObjectDestroyMessage,
         channel: TransportChannel,
     ) {
-        if identity.is_null() || identity.observers.len() == 0 {
+        if identity.is_null() || identity.observers().len() == 0 {
             return;
         }
 
@@ -1178,7 +1178,7 @@ impl NetworkServer {
                 return;
             }
 
-            for conn_id in identity.observers.iter() {
+            for conn_id in identity.observers().iter() {
                 match NetworkServerStatic::network_connections().try_get_mut(conn_id) {
                     TryResult::Present(mut connection) => {
                         connection.send(segment, channel);
