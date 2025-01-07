@@ -5,16 +5,16 @@ use crate::mirror::core::backend_data::{
 use crate::mirror::core::network_behaviour::{
     GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
-use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_loop::NetworkLoop;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
-use crate::mirror::core::network_server::NetworkServerStatic;
+use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
+use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use std::any::Any;
 use std::fmt::Debug;
@@ -110,22 +110,40 @@ impl NetworkCommonBehaviour {
     }
     // 通用更新同步变量
     fn invoke_user_code_cmd_common_update_sync_var(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
         func_hash: u16,
         reader: &mut NetworkReader,
-        conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_common_update_sync_var(reader, func_hash, conn_id);
-        NetworkBehaviour::late_invoke(identity, component_index);
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_common_update_sync_var(reader, func_hash, conn_id);
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
     // 通用更新同步变量
     fn user_code_cmd_common_update_sync_var(
