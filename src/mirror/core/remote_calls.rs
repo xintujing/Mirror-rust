@@ -15,7 +15,7 @@ pub enum RemoteCallType {
     ClientRpc,
 }
 
-pub type RemoteCallDelegate = fn(&mut NetworkIdentity, u8, u16, &mut NetworkReader, u64);
+pub type RemoteCallDelegate = fn(u64, u32, u8, u16, &mut NetworkReader);
 
 pub struct Invoker {
     pub type_id: TypeId,
@@ -131,18 +131,18 @@ impl RemoteProcedureCalls {
     }
 
     pub fn invoke(
+        conn_id: u64,
+        net_id: u32,
         func_hash: u16,
-        remote_call_type: RemoteCallType,
-        identity: &mut NetworkIdentity,
         component_index: u8,
         reader: &mut NetworkReader,
-        conn_id: u64,
+        remote_call_type: RemoteCallType,
     ) -> bool {
         // 找到对应的委托
         let (has, invoker_option) = Self::get_invoker_for_hash(func_hash, remote_call_type);
         if has {
             if let Some(invoker) = invoker_option {
-                (invoker.function)(identity, component_index, func_hash, reader, conn_id);
+                (invoker.function)(conn_id, net_id, component_index, func_hash, reader);
                 return has;
             }
         }
@@ -154,7 +154,7 @@ impl RemoteProcedureCalls {
         );
         if has {
             if let Some(invoker) = invoker_option {
-                (invoker.function)(identity, component_index, func_hash, reader, conn_id);
+                (invoker.function)(conn_id, net_id, component_index, func_hash, reader);
                 return has;
             }
         }
