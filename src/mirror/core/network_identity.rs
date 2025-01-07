@@ -188,16 +188,10 @@ impl NetworkIdentity {
     pub fn set_game_object(&mut self, game_object: GameObject) {
         self.game_object = game_object;
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
-                TryResult::Present(mut component) => {
-                    component.set_game_object(self.game_object.clone());
-                }
-                TryResult::Absent => {
-                    log_error!("Failed to set game object because component is absent.");
-                }
-                TryResult::Locked => {
-                    log_error!("Failed to set game object because component is locked.");
-                }
+            if let TryResult::Present(mut component) =
+                NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i))
+            {
+                component.set_game_object(self.game_object.clone());
             }
         }
     }
