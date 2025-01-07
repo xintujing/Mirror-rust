@@ -33,12 +33,6 @@ impl NetworkRoomPlayer {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        // NetworkBehaviour::early_invoke(identity, component_index)
-        //     .as_any_mut()
-        //     .downcast_mut::<Self>()
-        //     .unwrap()
-        //     .user_code_cmd_change_ready_state_boolean(reader.read_bool());
-        // NetworkBehaviour::late_invoke(identity, component_index);
         // 获取 NetworkBehaviour
         match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
             TryResult::Present(mut component) => {
@@ -47,6 +41,7 @@ impl NetworkRoomPlayer {
                     .downcast_mut::<Self>()
                     .unwrap()
                     .user_code_cmd_change_ready_state_boolean(reader.read_bool());
+                NetworkBehaviour::late_invoke(net_id, component.game_object().clone());
             }
             TryResult::Absent => {
                 log_error!(

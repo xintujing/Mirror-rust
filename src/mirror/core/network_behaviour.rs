@@ -19,6 +19,7 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::sync_object::SyncObject;
 use crate::mirror::core::transport::TransportChannel;
 use crate::{log_error, log_warn};
+use dashmap::mapref::one::RefMut;
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use lazy_static::lazy_static;
@@ -254,24 +255,19 @@ impl NetworkBehaviour {
         self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64
             && NetworkTime::local_time() - self.last_sync_time > self.sync_interval
     }
-    // pub fn early_invoke(
-    //     identity: &mut NetworkIdentity,
-    //     component_index: u8,
-    // ) -> &mut Box<dyn NetworkBehaviourTrait> {
-    //     // 需要传递给 component 的参数
-    //     let observers = identity.observers.clone();
-    //     // 获取 component
-    //     let component = &mut identity.network_behaviours[component_index as usize];
-    //     // 设置 component 的参数
-    //     component.set_observers(observers);
-    //     // 返回 component
-    //     component
-    // }
-    // pub fn late_invoke(identity: &mut NetworkIdentity, component_index: u8) {
-    //     // 获取 component
-    //     let component = &identity.network_behaviours[component_index as usize];
-    //     identity.set_game_object(component.game_object().clone());
-    // }
+    pub fn late_invoke(net_id: u32, game_object: GameObject) {
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+            TryResult::Present(mut identity) => {
+                identity.set_game_object(game_object);
+            }
+            TryResult::Absent => {
+                log_error!(format!("Failed because identity {} is absent.", net_id));
+            }
+            TryResult::Locked => {
+                log_error!(format!("Failed because identity {} is locked.", net_id));
+            }
+        }
+    }
     pub fn error_correction(size: usize, safety: u8) -> usize {
         let cleared = size & 0xFFFFFF00;
         cleared | safety as usize
