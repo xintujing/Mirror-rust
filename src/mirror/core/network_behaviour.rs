@@ -254,24 +254,24 @@ impl NetworkBehaviour {
         self.sync_var_dirty_bits | self.sync_object_dirty_bits != 0u64
             && NetworkTime::local_time() - self.last_sync_time > self.sync_interval
     }
-    pub fn early_invoke(
-        identity: &mut NetworkIdentity,
-        component_index: u8,
-    ) -> &mut Box<dyn NetworkBehaviourTrait> {
-        // 需要传递给 component 的参数
-        let observers = identity.observers.clone();
-        // 获取 component
-        let component = &mut identity.network_behaviours[component_index as usize];
-        // 设置 component 的参数
-        component.set_observers(observers);
-        // 返回 component
-        component
-    }
-    pub fn late_invoke(identity: &mut NetworkIdentity, component_index: u8) {
-        // 获取 component
-        let component = &identity.network_behaviours[component_index as usize];
-        identity.set_game_object(component.game_object().clone());
-    }
+    // pub fn early_invoke(
+    //     identity: &mut NetworkIdentity,
+    //     component_index: u8,
+    // ) -> &mut Box<dyn NetworkBehaviourTrait> {
+    //     // 需要传递给 component 的参数
+    //     let observers = identity.observers.clone();
+    //     // 获取 component
+    //     let component = &mut identity.network_behaviours[component_index as usize];
+    //     // 设置 component 的参数
+    //     component.set_observers(observers);
+    //     // 返回 component
+    //     component
+    // }
+    // pub fn late_invoke(identity: &mut NetworkIdentity, component_index: u8) {
+    //     // 获取 component
+    //     let component = &identity.network_behaviours[component_index as usize];
+    //     identity.set_game_object(component.game_object().clone());
+    // }
     pub fn error_correction(size: usize, safety: u8) -> usize {
         let cleared = size & 0xFFFFFF00;
         cleared | safety as usize
