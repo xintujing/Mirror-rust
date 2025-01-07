@@ -7,12 +7,11 @@ use crate::mirror::components::network_transform::transform_sync_data::{Changed,
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_behaviour::{
-    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+    GameObject, NetworkBehaviourTrait, SyncDirection, SyncMode,
 };
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
-use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
-use crate::mirror::core::network_server::NetworkServerStatic;
+use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
@@ -246,26 +245,44 @@ impl NetworkTransformUnreliable {
     }
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
     fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(
-                reader.read_vector3_nullable(),
-                reader.read_quaternion_nullable(),
-                reader.read_vector3_nullable(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(
+                        reader.read_vector3_nullable(),
+                        reader.read_quaternion_nullable(),
+                        reader.read_vector3_nullable(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // UserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
@@ -283,26 +300,45 @@ impl NetworkTransformUnreliable {
     }
 
     fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
-                reader.read_vector3_nullable(),
-                reader.read_uint_nullable(),
-                reader.read_vector3_nullable(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
+                        reader.read_vector3_nullable(),
+                        reader.read_uint_nullable(),
+                        reader.read_vector3_nullable(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     fn user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
@@ -332,23 +368,42 @@ impl NetworkTransformUnreliable {
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
     fn invoke_user_code_cmd_client_to_server_sync_sync_data(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdClientToServerSync called on client.");
             return;
         }
         let sync_data = SyncData::deserialize(reader);
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_client_to_server_sync_sync_data(sync_data);
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_client_to_server_sync_sync_data(sync_data);
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // UserCode_CmdClientToServerSync__SyncData
@@ -618,22 +673,41 @@ impl NetworkTransformUnreliable {
 
     // InvokeUserCode_CmdTeleport__Vector3
     fn invoke_user_code_cmd_teleport_vector3(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdTeleport called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_teleport_vector3(reader.read_vector3());
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_teleport_vector3(reader.read_vector3());
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // UserCode_CmdTeleport_Vector3
@@ -665,25 +739,44 @@ impl NetworkTransformUnreliable {
 
     // InvokeUserCode_CmdTeleport__Vector3__Quaternion
     fn invoke_user_code_cmd_teleport_vector3_quaternion(
-        identity: &mut NetworkIdentity,
+        conn_id: u64,
+        net_id: u32,
         component_index: u8,
-        _func_hash: u16,
+        func_hash: u16,
         reader: &mut NetworkReader,
-        _conn_id: u64,
     ) {
         if !NetworkServerStatic::active() {
             log_error!("Command CmdTeleport called on client.");
             return;
         }
-        NetworkBehaviour::early_invoke(identity, component_index)
-            .as_any_mut()
-            .downcast_mut::<Self>()
-            .unwrap()
-            .user_code_cmd_teleport_vector3_quaternion(
-                reader.read_vector3(),
-                reader.read_quaternion(),
-            );
-        NetworkBehaviour::late_invoke(identity, component_index);
+
+        // 获取 NetworkBehaviour
+        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+            TryResult::Present(mut component) => {
+                component
+                    .as_any_mut()
+                    .downcast_mut::<Self>()
+                    .unwrap()
+                    .user_code_cmd_teleport_vector3_quaternion(
+                        reader.read_vector3(),
+                        reader.read_quaternion(),
+                    );
+            }
+            TryResult::Absent => {
+                log_error!(
+                    "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+            TryResult::Locked => {
+                log_error!(
+                    "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                    net_id,
+                    component_index
+                );
+            }
+        }
     }
 
     // UserCode_CmdTeleport_Vector3_Quaternion
@@ -852,7 +945,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn sub_class(&self) -> String {
-        self.network_transform_base.network_behaviour.sub_class.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sub_class
+            .clone()
     }
 
     fn set_sub_class(&mut self, value: String) {
