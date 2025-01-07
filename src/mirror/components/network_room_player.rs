@@ -23,10 +23,10 @@ pub struct NetworkRoomPlayer {
 impl NetworkRoomPlayer {
     pub const COMPONENT_TAG: &'static str = "Mirror.NetworkRoomPlayer";
     fn invoke_user_code_cmd_change_ready_state_boolean(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {

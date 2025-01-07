@@ -243,10 +243,10 @@ impl NetworkTransformUnreliable {
     }
     // InvokeUserCode_CmdClientToServerSync__Nullable\u00601__Nullable\u00601__Nullable\u00601
     fn invoke_user_code_cmd_client_to_server_sync_nullable_1_nullable_1_nullable_1(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -299,10 +299,10 @@ impl NetworkTransformUnreliable {
     }
 
     fn invoke_user_code_cmd_client_to_server_sync_compress_rotation_nullable_1_nullable_1_nullable_1(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -368,10 +368,10 @@ impl NetworkTransformUnreliable {
 
     // &mut Box<dyn NetworkBehaviourTrait>, &mut NetworkReader, u64
     fn invoke_user_code_cmd_client_to_server_sync_sync_data(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -674,10 +674,10 @@ impl NetworkTransformUnreliable {
 
     // InvokeUserCode_CmdTeleport__Vector3
     fn invoke_user_code_cmd_teleport_vector3(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -741,10 +741,10 @@ impl NetworkTransformUnreliable {
 
     // InvokeUserCode_CmdTeleport__Vector3__Quaternion
     fn invoke_user_code_cmd_teleport_vector3_quaternion(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {

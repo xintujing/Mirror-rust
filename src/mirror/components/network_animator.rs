@@ -112,10 +112,10 @@ impl NetworkAnimator {
 
     // 1 CmdOnAnimationServerMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_server_message_int32_single_int32_single_byte(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -179,10 +179,10 @@ impl NetworkAnimator {
 
     // 2 RpcOnAnimationClientMessage(int stateHash, float normalizedTime, int layerId, float weight, byte[] parameters)
     fn invoke_user_code_cmd_on_animation_parameters_server_message_byte(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -228,10 +228,10 @@ impl NetworkAnimator {
 
     // 3 CmdOnAnimationTriggerServerMessage(int stateHash)
     fn invoke_user_code_cmd_on_animation_trigger_server_message_int32(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -278,10 +278,10 @@ impl NetworkAnimator {
 
     // 4 invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32
     fn invoke_user_code_cmd_on_animation_reset_trigger_server_message_int32(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -328,10 +328,10 @@ impl NetworkAnimator {
 
     // 5 invoke_user_code_cmd_set_animator_speed_single
     fn invoke_user_code_cmd_set_animator_speed_single(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {

@@ -235,10 +235,10 @@ impl NetworkTransformReliable {
 
     // InvokeUserCode_CmdTeleport__Vector3
     fn invoke_user_code_cmd_teleport_vector3(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
@@ -302,10 +302,10 @@ impl NetworkTransformReliable {
 
     // InvokeUserCode_CmdTeleport__Vector3__Quaternion
     fn invoke_user_code_cmd_teleport_vector3_quaternion(
-        conn_id: u64,
+        _conn_id: u64,
         net_id: u32,
         component_index: u8,
-        func_hash: u16,
+        _func_hash: u16,
         reader: &mut NetworkReader,
     ) {
         if !NetworkServerStatic::active() {
