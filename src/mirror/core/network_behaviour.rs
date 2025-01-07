@@ -145,7 +145,7 @@ impl GameObject {
         }
         true
     }
-    pub fn get_identity_by_prefab(&mut self) -> Option<NetworkIdentity> {
+    pub fn get_identity_by_prefab(&self) -> Option<NetworkIdentity> {
         // 如果 prefab 不为空
         if let Some(asset_id) =
             BackendDataStatic::get_backend_data().get_asset_id_by_asset_name(self.prefab.as_str())

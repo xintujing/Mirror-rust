@@ -729,17 +729,15 @@ impl NetworkManagerTrait for NetworkManager {
     }
 
     fn on_server_add_player(&mut self, conn_id: u64) {
-        let mut player_obj = self.player_obj.clone();
-
-        if player_obj.is_null() {
+        if self.player_obj.is_null() {
             log_error!("The PlayerPrefab is empty on the NetworkManager. Please setup a PlayerPrefab object.");
             return;
         }
 
         // 修改 player_obj 的 transform 属性
-        player_obj.transform = self.get_start_position();
+        self.player_obj.transform = self.get_start_position();
 
-        NetworkServer::add_player_for_connection(conn_id, player_obj);
+        NetworkServer::add_player_for_connection(conn_id, &self.player_obj);
     }
 
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)

@@ -128,7 +128,7 @@ impl NetworkRoomManager {
 
         NetworkServer::replace_player_for_connection(
             conn_id,
-            room_player,
+            &room_player,
             ReplacePlayerOptions::KeepAuthority,
         );
     }
@@ -442,7 +442,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
                             network_room_player.set_sync_var_dirty_bits(1 << 0);
                             NetworkServer::replace_player_for_connection(
                                 identity.connection_to_client(),
-                                identity.game_object().clone(),
+                                identity.game_object(),
                                 ReplacePlayerOptions::KeepAuthority,
                             );
                         }) {
@@ -617,7 +617,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
                 player_obj = player;
             }
         }
-        NetworkServer::add_player_for_connection(conn_id, player_obj);
+        NetworkServer::add_player_for_connection(conn_id, &player_obj);
     }
 
     fn on_server_error(conn: &mut NetworkConnectionToClient, error: TransportError)
