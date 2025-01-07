@@ -679,6 +679,9 @@ impl NetworkManagerTrait for NetworkManager {
                 false,
             );
         }
+
+        NetworkManagerStatic::set_start_positions_index(0);
+        NetworkManagerStatic::start_positions().write().unwrap().clear();
     }
 
     fn get_start_position(&mut self) -> Transform {
