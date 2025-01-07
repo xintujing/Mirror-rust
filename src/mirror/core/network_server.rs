@@ -1480,11 +1480,15 @@ impl NetworkServer {
     }
 
     fn add_all_ready_server_connections_to_observers(identity: &mut NetworkIdentity) {
+        let mut conn_ids = Vec::new();
         NetworkServerStatic::for_each_network_connection(|connection| {
             if connection.is_ready() {
-                identity.add_observer(connection.connection_id());
+                conn_ids.push(connection.connection_id());
             }
         });
+        for id in conn_ids {
+            identity.add_observer(id);
+        }
     }
 
     fn respawn(mut identity: NetworkIdentity) {
