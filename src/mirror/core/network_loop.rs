@@ -1,8 +1,9 @@
 use crate::log_error;
 use crate::mirror::core::network_behaviour::NetworkBehaviourFactory;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
-use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic};
+use crate::mirror::core::network_server::{NetworkServer, NetworkServerStatic, NETWORK_BEHAVIOURS};
 use crate::mirror::core::network_time::NetworkTime;
+use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -297,14 +298,29 @@ impl NetworkLoop {
 
         // NetworkBehaviour update  模拟
         NetworkServerStatic::spawned_network_identities()
-            .iter_mut()
-            .for_each(|mut identity| {
-                identity
-                    .network_behaviours
-                    .iter_mut()
-                    .for_each(|behaviour| {
-                        behaviour.update();
-                    });
+            .iter()
+            .for_each(|identity| {
+                for i in 0..identity.network_behaviours_count {
+                    match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", identity.net_id(), i)) {
+                        TryResult::Present(mut network_behaviour) => {
+                            network_behaviour.update();
+                        }
+                        TryResult::Absent => {
+                            log_error!(format!(
+                                "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                                identity.net_id(),
+                                i
+                            ));
+                        }
+                        TryResult::Locked => {
+                            log_error!(format!(
+                                "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                                identity.net_id(),
+                                i
+                            ));
+                        }
+                    }
+                }
             });
 
         match Self::update_functions().try_read() {
@@ -330,12 +346,29 @@ impl NetworkLoop {
 
         // NetworkBehaviour late_update
         NetworkServerStatic::spawned_network_identities()
-            .iter_mut()
-            .for_each(|mut identity| {
-                identity
-                    .network_behaviours
-                    .iter_mut()
-                    .for_each(|behaviour| behaviour.late_update());
+            .iter()
+            .for_each(|identity| {
+                for i in 0..identity.network_behaviours_count {
+                    match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", identity.net_id(), i)) {
+                        TryResult::Present(mut network_behaviour) => {
+                            network_behaviour.late_update();
+                        }
+                        TryResult::Absent => {
+                            log_error!(format!(
+                                "NetworkBehaviour not found by net_id: {}, component_index: {}",
+                                identity.net_id(),
+                                i
+                            ));
+                        }
+                        TryResult::Locked => {
+                            log_error!(format!(
+                                "NetworkBehaviour locked by net_id: {}, component_index: {}",
+                                identity.net_id(),
+                                i
+                            ));
+                        }
+                    }
+                }
             });
 
         match Self::late_update_functions().try_read() {
@@ -389,7 +422,6 @@ impl NetworkLoop {
         let target_frame_time = Duration::from_secs(1) / NetworkServerStatic::tick_rate();
         // 循环
         while !Self::stop_signal() {
-
             // 初始化
             if !NetworkServerStatic::active() {
                 // 1
