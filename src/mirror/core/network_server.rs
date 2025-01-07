@@ -1048,21 +1048,13 @@ impl NetworkServer {
                 }
             }
             RemovePlayerOptions::UnSpawn => {
-                match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id())
-                {
-                    TryResult::Present(mut identity) => {
+                match NetworkServerStatic::spawned_network_identities().remove(&conn.net_id()) {
+                    Some((_, mut identity)) => {
                         Self::un_spawn(conn, &mut identity);
                     }
-                    TryResult::Absent => {
+                    None => {
                         log_error!(format!(
                             "Server.RemovePlayer: netId {} not found in spawned.",
-                            conn.net_id()
-                        ));
-                        return;
-                    }
-                    TryResult::Locked => {
-                        log_error!(format!(
-                            "Server.RemovePlayer: netId {} is locked.",
                             conn.net_id()
                         ));
                         return;
@@ -1159,6 +1151,7 @@ impl NetworkServer {
 
         if reset_state {
             identity.reset_state();
+            identity.set_active(false);
         }
     }
 
@@ -1247,6 +1240,48 @@ impl NetworkServer {
         player: &GameObject,
         replace_player_options: ReplacePlayerOptions,
     ) -> bool {
+        // 确认 是本人
+        match NetworkServerStatic::network_connections().try_get(&conn_id) {
+            TryResult::Present(conn) => {
+                match NetworkServerStatic::spawned_network_identities().try_get(&conn.net_id()) {
+                    TryResult::Present(identity) => {
+                        if identity.connection_to_client() != 0
+                            && identity.connection_to_client() != conn_id
+                        {
+                            log_error!(format!(
+                                "Cannot replace player for connection. New player is already owned by a different connection. netId: {}, connId: {}",
+                                conn.net_id(),
+                                conn.is_ready()
+                            ));
+                            return false;
+                        }
+                    }
+                    TryResult::Absent => {
+                        log_error!(format!(
+                            "ReplacePlayer: netId {} not found in spawned",
+                            conn.net_id()
+                        ));
+                        return false;
+                    }
+                    TryResult::Locked => {
+                        log_error!(format!("ReplacePlayer: netId {} is locked", conn.net_id()));
+                        return false;
+                    }
+                }
+            }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "ReplacePlayer: connectionId {} not found in connections",
+                    conn_id
+                ));
+                return false;
+            }
+            TryResult::Locked => {
+                log_error!(format!("ReplacePlayer: connectionId {} is locked", conn_id));
+                return false;
+            }
+        }
+
         match Self::init_identity_by_game_obj(conn_id, &player) {
             None => {
                 log_warn!(format!("ReplacePlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
@@ -1257,6 +1292,7 @@ impl NetworkServer {
                 Self::respawn(identity);
             }
         }
+
         // 处理旧的 NetworkIdentity
         match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
             TryResult::Present(mut conn) => {
@@ -1304,19 +1340,14 @@ impl NetworkServer {
                     // 保留激活状态
                     ReplacePlayerOptions::UnSpawn => {
                         match NetworkServerStatic::spawned_network_identities()
-                            .try_get_mut(&conn.net_id())
+                            .remove(&conn.net_id())
                         {
-                            TryResult::Present(mut identity) => {
+                            Some((_, mut identity)) => {
                                 Self::un_spawn(conn.value_mut(), &mut identity);
                             }
-                            TryResult::Absent => {
+                            None => {
                                 log_error!(
                                     "Failed to on_server_ready for identity because of absent"
-                                );
-                            }
-                            TryResult::Locked => {
-                                log_error!(
-                                    "Failed to on_server_ready for identity because of locked"
                                 );
                             }
                         }
