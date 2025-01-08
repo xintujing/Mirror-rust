@@ -411,10 +411,9 @@ pub trait NetworkManagerTrait: Any {
     fn room_slots(&mut self) -> &mut Vec<u32>;
     fn recalculate_room_player_indices(&mut self) -> (i32, u32);
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
+    fn _set_all_players_ready(&mut self, value: bool);
     fn room_scene(&self) -> &String;
     fn gameplay_scene(&self) -> &String;
-    fn all_players_ready(&self) -> bool;
-    fn set_all_players_ready(&mut self, value: bool);
     fn num_players(&self) -> usize {
         let mut num_players = 0;
         NetworkServerStatic::for_each_network_connection(|conn| {
@@ -577,20 +576,16 @@ impl NetworkManagerTrait for NetworkManager {
         unsafe { &mut PENDING_PLAYERS }
     }
 
+    fn _set_all_players_ready(&mut self, value: bool) {
+        let _ = value;
+    }
+
     fn room_scene(&self) -> &String {
         &self.offline_scene
     }
 
     fn gameplay_scene(&self) -> &String {
         &self.online_scene
-    }
-
-    fn all_players_ready(&self) -> bool {
-        false
-    }
-
-    fn set_all_players_ready(&mut self, value: bool) {
-        let _ = value;
     }
 
     fn reset(&mut self) {
