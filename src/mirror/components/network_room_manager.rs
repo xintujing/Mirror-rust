@@ -110,7 +110,7 @@ impl NetworkRoomManager {
         Self::on_server_ready(conn_id)
     }
 
-    fn scene_loaded_for_player(conn_id: u64, mut room_player: GameObject) {
+    fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject) {
         let network_manager = NetworkManagerStatic::network_manager_singleton();
         let room_scene = network_manager.online_scene().to_string();
         if NetworkManagerStatic::network_scene_name() == room_scene {
@@ -125,15 +125,18 @@ impl NetworkRoomManager {
 
         let mut game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
 
-        if game_player.is_none() {
-            let transform = network_manager.get_start_position();
-            room_player.transform = transform;
-            game_player = Some(room_player);
-        }
+        let player = match game_player {
+            None => {
+                let transform = network_manager.get_start_position();
+                room_player.transform = transform;
+                room_player
+            }
+            Some(ga) => &ga,
+        };
 
         NetworkServer::replace_player_for_connection(
             conn_id,
-            &game_player.unwrap(),
+            &player,
             ReplacePlayerOptions::KeepAuthority,
         );
     }
@@ -602,7 +605,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
         }
         // 如果 room_player 不为空
         if !room_player.is_null() {
-            Self::scene_loaded_for_player(conn_id, room_player);
+            Self::scene_loaded_for_player(conn_id, &mut room_player);
         }
     }
 
@@ -653,8 +656,8 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn on_server_scene_changed(&mut self, new_scene_name: String) {
         if new_scene_name != self.room_scene {
-            for pp in self.pending_players.iter() {
-                Self::scene_loaded_for_player(pp.conn, pp.room_player.clone());
+            for pp in self.pending_players.iter_mut() {
+                Self::scene_loaded_for_player(pp.conn, &mut pp.room_player);
             }
             self.pending_players.clear();
         }
