@@ -714,6 +714,7 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
     }
 
     fn on_room_server_players_ready(&mut self) {
+        log_error!("11111 OnRoomServerPlayersReady");
         self.server_change_scene(self.gameplay_scene.to_string());
     }
 
