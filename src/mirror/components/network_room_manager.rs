@@ -123,12 +123,17 @@ impl NetworkRoomManager {
             return;
         }
 
-        let transform = network_manager.get_start_position();
-        room_player.transform = transform;
+        let mut game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
+
+        if game_player.is_none() {
+            let transform = network_manager.get_start_position();
+            room_player.transform = transform;
+            game_player = Some(room_player);
+        }
 
         NetworkServer::replace_player_for_connection(
             conn_id,
-            &room_player,
+            &game_player.unwrap(),
             ReplacePlayerOptions::KeepAuthority,
         );
     }
@@ -137,11 +142,18 @@ impl NetworkRoomManager {
         self.network_manager.online_scene != self.network_manager.offline_scene
     }
 
-    fn check_ready_to_begin(&mut self) {}
+    fn check_ready_to_begin(&mut self) {
+        // TODO fix CheckReadyToBegin
+        self.set_all_players_ready(true);
+    }
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject>;
+    fn on_room_server_create_game_player(
+        conn_id: u64,
+        game_object: &GameObject,
+    ) -> Option<GameObject>;
     fn on_room_server_scene_changed(new_scene_name: String);
     fn on_room_start_server(&mut self);
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient);
@@ -681,6 +693,15 @@ impl NetworkManagerTrait for NetworkRoomManager {
 impl NetworkRoomManagerTrait for NetworkRoomManager {
     fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject> {
         let _ = conn_id;
+        None
+    }
+
+    fn on_room_server_create_game_player(
+        conn_id: u64,
+        game_object: &GameObject,
+    ) -> Option<GameObject> {
+        let _ = conn_id;
+        let _ = game_object;
         None
     }
 
