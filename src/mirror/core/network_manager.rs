@@ -674,7 +674,7 @@ impl NetworkManagerTrait for NetworkManager {
 
         if NetworkServerStatic::active() {
             NetworkServer::send_to_all(
-                &mut SceneMessage::new(new_scene_name.to_string(), SceneOperation::Normal, true),
+                &mut SceneMessage::new(new_scene_name.to_string(), SceneOperation::Normal, false),
                 TransportChannel::Reliable,
                 false,
             );
