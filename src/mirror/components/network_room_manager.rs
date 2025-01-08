@@ -110,6 +110,17 @@ impl NetworkRoomManager {
         Self::on_server_ready(conn_id)
     }
 
+    fn is_server_online_scene_change_needed(&self) -> bool {
+        self.network_manager.online_scene != self.network_manager.offline_scene
+    }
+
+    fn check_ready_to_begin(&mut self) {
+        // TODO fix CheckReadyToBegin
+        self.set_all_players_ready(true);
+    }
+}
+
+pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject) {
         let network_manager = NetworkManagerStatic::network_manager_singleton();
         let room_scene = network_manager.online_scene().to_string();
@@ -123,7 +134,7 @@ impl NetworkRoomManager {
             return;
         }
 
-        let mut game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
+        let game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
 
         let player = match game_player {
             None => {
@@ -131,7 +142,7 @@ impl NetworkRoomManager {
                 room_player.transform = transform;
                 room_player
             }
-            Some(ga) => &ga,
+            Some(ga) => &ga.clone(),
         };
 
         NetworkServer::replace_player_for_connection(
@@ -140,18 +151,6 @@ impl NetworkRoomManager {
             ReplacePlayerOptions::KeepAuthority,
         );
     }
-
-    fn is_server_online_scene_change_needed(&self) -> bool {
-        self.network_manager.online_scene != self.network_manager.offline_scene
-    }
-
-    fn check_ready_to_begin(&mut self) {
-        // TODO fix CheckReadyToBegin
-        self.set_all_players_ready(true);
-    }
-}
-
-pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
     fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject>;
     fn on_room_server_create_game_player(
         conn_id: u64,
@@ -209,28 +208,9 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn on_validate(&mut self) {
         // base.OnValidate();
-        self.network_manager.max_connections = self.network_manager.max_connections.max(0);
-
-        if !self.network_manager.player_obj.is_null()
-            && !self.network_manager.player_obj.is_has_component()
-        {
-            log_error!("NetworkManager - Player Prefab must have a NetworkIdentity.");
-        }
-
-        if !self.network_manager.player_obj.is_null()
-            && self
-            .network_manager
-            .spawn_prefabs
-            .contains(&self.network_manager.player_obj)
-        {
-            log_warn!("NetworkManager - Player Prefab doesn't need to be in Spawnable Prefabs list too. Removing it.");
-            self.network_manager
-                .spawn_prefabs
-                .retain(|x| x != &self.network_manager.player_obj);
-        }
+        self.network_manager.on_validate();
 
         // NetworkRoomManager start
-
         // always <= maxConnections
         self.min_players = self
             .network_manager
@@ -333,6 +313,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
     fn gameplay_scene(&self) -> &String {
         &self.gameplay_scene
+    }
+
+    fn all_players_ready(&self) -> bool {
+        self._all_players_ready
     }
 
     fn set_all_players_ready(&mut self, value: bool) {

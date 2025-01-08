@@ -23,7 +23,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
-use crate::{log_error, log_info, log_warn};
+use crate::{log_debug, log_error, log_info, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
@@ -1282,7 +1282,13 @@ impl NetworkServer {
             }
         }
 
-        match Self::init_identity_by_game_obj(conn_id, &player) {
+        log_debug!(format!(
+            "ReplacePlayer: replacing player for connectionId: {} {}",
+            conn_id,
+            player.prefab
+        ));
+        // 初始化 NetworkIdentity
+        match player.get_identity_by_prefab() {
             None => {
                 log_warn!(format!("ReplacePlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
                 return false;

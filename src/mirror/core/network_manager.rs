@@ -413,6 +413,7 @@ pub trait NetworkManagerTrait: Any {
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
     fn room_scene(&self) -> &String;
     fn gameplay_scene(&self) -> &String;
+    fn all_players_ready(&self) -> bool;
     fn set_all_players_ready(&mut self, value: bool);
     fn num_players(&self) -> usize {
         let mut num_players = 0;
@@ -582,6 +583,10 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn gameplay_scene(&self) -> &String {
         &self.online_scene
+    }
+
+    fn all_players_ready(&self) -> bool {
+        false
     }
 
     fn set_all_players_ready(&mut self, value: bool) {
