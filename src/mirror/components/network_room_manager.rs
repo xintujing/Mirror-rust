@@ -460,6 +460,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
                     }
                 }
             }
+            self.set_all_players_ready(false);
         }
 
         // base.OnServerChangeScene(newSceneName);
