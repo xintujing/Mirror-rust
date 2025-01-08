@@ -1,0 +1,8 @@
+[package]
+name = "quick_start"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+signal-hook = "0.3.17"
+mirror_rust = { path = "../../../Mirror-rust" }
