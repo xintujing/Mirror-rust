@@ -473,10 +473,7 @@ impl NetworkIdentity {
                     conn.remove_from_observing(self, true);
                 }
                 TryResult::Absent => {
-                    log_error!(format!(
-                        "Failed to clear observers because connection {} is absent.",
-                        conn_id
-                    ));
+                    // do nothing
                 }
                 TryResult::Locked => {
                     log_error!(format!(
