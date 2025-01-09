@@ -114,8 +114,6 @@ pub struct AuthRequestMessage {
     pub password: String,
 }
 impl NetworkMessageTrait for AuthRequestMessage {
-    const FULL_NAME: &'static str = "";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         Self {
             username: reader.read_string(),
@@ -130,6 +128,13 @@ impl NetworkMessageTrait for AuthRequestMessage {
 
     fn get_hash_code() -> u16 {
         4296
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        ""
     }
 }
 
@@ -147,8 +152,6 @@ impl AuthResponseMessage {
 }
 
 impl NetworkMessageTrait for AuthResponseMessage {
-    const FULL_NAME: &'static str = "";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         Self {
             code: reader.read_byte(),
@@ -164,6 +167,13 @@ impl NetworkMessageTrait for AuthResponseMessage {
 
     fn get_hash_code() -> u16 {
         26160
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        ""
     }
 }
 

@@ -34,7 +34,6 @@ impl SyncData {
 }
 
 impl NetworkMessageTrait for SyncData {
-    const FULL_NAME: &'static str = "";
     fn deserialize(reader: &mut NetworkReader) -> Self {
         // 改变的数据
         let changed = reader.read_byte();
@@ -136,6 +135,13 @@ impl NetworkMessageTrait for SyncData {
             write.write_float(self.scale.y);
             write.write_float(self.scale.z);
         }
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        ""
     }
 }
 

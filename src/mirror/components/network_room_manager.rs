@@ -126,8 +126,6 @@ impl NetworkRoomManager {
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
-    fn set_all_players_ready(&mut self, value: bool);
-
     fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject) {
         let network_manager = NetworkManagerStatic::network_manager_singleton();
         let room_scene = network_manager.online_scene().to_string();
@@ -158,12 +156,12 @@ pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
             ReplacePlayerOptions::KeepAuthority,
         );
     }
-    fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject>;
+    fn on_room_server_create_room_player(&mut self, conn_id: u64) -> Option<GameObject>;
     fn on_room_server_create_game_player(
         conn_id: u64,
         game_object: &GameObject,
     ) -> Option<GameObject>;
-    fn on_room_server_scene_changed(new_scene_name: String);
+    fn on_room_server_scene_changed(&mut self, new_scene_name: String);
     fn on_room_start_server(&mut self);
     fn on_room_server_connect(conn: &mut NetworkConnectionToClient);
     fn on_room_server_disconnect(conn: &mut NetworkConnectionToClient);
@@ -180,7 +178,6 @@ impl NetworkManagerTrait for NetworkRoomManager {
     fn set_authenticator(&mut self, authenticator: Box<dyn NetworkAuthenticatorTrait>) {
         self.network_manager.set_authenticator(authenticator);
     }
-
     fn set_mode(&mut self, mode: NetworkManagerMode) {
         self.network_manager.set_mode(mode);
     }
@@ -314,8 +311,20 @@ impl NetworkManagerTrait for NetworkRoomManager {
         &mut self.pending_players
     }
 
-    fn _set_all_players_ready(&mut self, value: bool) {
-        self.set_all_players_ready(value);
+    fn set_all_players_ready(&mut self, value: bool) {
+        let was_ready = self._all_players_ready;
+        let now_ready = value;
+        if was_ready != now_ready {
+            self._all_players_ready = value;
+            match now_ready {
+                true => {
+                    self.on_room_server_players_ready();
+                }
+                false => {
+                    self.on_room_server_players_not_ready();
+                }
+            }
+        }
     }
 
     fn room_scene(&self) -> &String {
@@ -479,7 +488,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             network_room_manager.room_slots().retain(|x| x != net_id);
         }
 
-        network_room_manager._set_all_players_ready(false);
+        network_room_manager.set_all_players_ready(false);
 
         for net_id in network_room_manager.room_slots().iter() {
             match NetworkServerStatic::spawned_network_identities().try_get(net_id) {
@@ -592,7 +601,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
 
         let mut player_obj: GameObject;
         // 自定义方法创建 player_obj
-        match Self::on_room_server_create_room_player(conn_id) {
+        match self.on_room_server_create_room_player(conn_id) {
             None => {
                 // 拿到 player_obj
                 player_obj = self.room_player_prefab.clone();
@@ -636,7 +645,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             }
             self.pending_players.clear();
         }
-        Self::on_room_server_scene_changed(new_scene_name);
+        self.on_room_server_scene_changed(new_scene_name);
     }
 
     fn on_start_server(&mut self) {
@@ -669,23 +678,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
 }
 
 impl NetworkRoomManagerTrait for NetworkRoomManager {
-    fn set_all_players_ready(&mut self, value: bool) {
-        let was_ready = self._all_players_ready;
-        let now_ready = value;
-        if was_ready != now_ready {
-            self._all_players_ready = value;
-            match now_ready {
-                true => {
-                    self.on_room_server_players_ready();
-                }
-                false => {
-                    self.on_room_server_players_not_ready();
-                }
-            }
-        }
-    }
-
-    fn on_room_server_create_room_player(conn_id: u64) -> Option<GameObject> {
+    fn on_room_server_create_room_player(&mut self, conn_id: u64) -> Option<GameObject> {
         let _ = conn_id;
         None
     }
@@ -699,7 +692,7 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
         None
     }
 
-    fn on_room_server_scene_changed(new_scene_name: String) {
+    fn on_room_server_scene_changed(&mut self, new_scene_name: String) {
         let _ = new_scene_name;
     }
 
@@ -711,10 +704,10 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
 
     fn on_room_server_disconnect(conn: &mut NetworkConnectionToClient) {
         let _ = conn;
+        log_error!("Room on_room_server_disconnect");
     }
 
     fn on_room_server_players_ready(&mut self) {
-        log_error!("11111 OnRoomServerPlayersReady");
         self.server_change_scene(self.gameplay_scene.to_string());
     }
 

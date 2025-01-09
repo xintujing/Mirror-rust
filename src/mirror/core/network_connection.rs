@@ -15,7 +15,7 @@ pub struct NetworkConnection {
     last_ping_time: f64,
     is_authenticated: bool,
     #[allow(warnings)]
-    authentication_data: Vec<u8>,
+    pub authentication_data: Option<Box<dyn NetworkMessageTrait>>,
     net_id: u32,
     owned: Vec<u32>,
     remote_time_stamp: f64,
@@ -109,7 +109,7 @@ impl NetworkConnectionTrait for NetworkConnection {
         Self {
             id: conn_id,
             is_authenticated: false,
-            authentication_data: Default::default(),
+            authentication_data: None,
             is_ready: false,
             last_message_time: ts,
             net_id: 0,

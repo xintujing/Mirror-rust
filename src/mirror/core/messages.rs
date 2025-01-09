@@ -20,20 +20,27 @@ impl NetworkMessageHandler {
     }
 }
 
-pub trait NetworkMessageTrait: Default {
-    const FULL_NAME: &'static str;
-    fn deserialize(reader: &mut NetworkReader) -> Self;
-    fn serialize(&mut self, writer: &mut NetworkWriter);
-    fn get_hash_code() -> u16 {
-        Self::FULL_NAME.get_stable_hash_code16()
+pub trait NetworkMessageTrait: Send + Sync {
+    fn deserialize(reader: &mut NetworkReader) -> Self
+    where
+        Self: Sized;
+    fn serialize(&mut self, writer: &mut NetworkWriter)
+    where
+        Self: Sized;
+    fn get_hash_code() -> u16
+    where
+        Self: Sized,
+    {
+        Self::get_full_name().get_stable_hash_code16()
     }
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized;
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct TimeSnapshotMessage;
 impl NetworkMessageTrait for TimeSnapshotMessage {
-    const FULL_NAME: &'static str = "Mirror.TimeSnapshotMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -43,13 +50,18 @@ impl NetworkMessageTrait for TimeSnapshotMessage {
         // 57097
         writer.write_ushort(Self::get_hash_code());
     }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        &"Mirror.TimeSnapshotMessage"
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct ReadyMessage;
 impl NetworkMessageTrait for ReadyMessage {
-    const FULL_NAME: &'static str = "Mirror.ReadyMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -59,13 +71,18 @@ impl NetworkMessageTrait for ReadyMessage {
         // 43708
         writer.write_ushort(Self::get_hash_code());
     }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ReadyMessage"
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct NotReadyMessage;
 impl NetworkMessageTrait for NotReadyMessage {
-    const FULL_NAME: &'static str = "Mirror.NotReadyMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -75,13 +92,18 @@ impl NetworkMessageTrait for NotReadyMessage {
         // 43378
         writer.write_ushort(Self::get_hash_code());
     }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.NotReadyMessage"
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
 pub struct AddPlayerMessage;
 impl NetworkMessageTrait for AddPlayerMessage {
-    const FULL_NAME: &'static str = "Mirror.AddPlayerMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -90,6 +112,13 @@ impl NetworkMessageTrait for AddPlayerMessage {
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 49414
         writer.write_ushort(Self::get_hash_code());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.AddPlayerMessage"
     }
 }
 
@@ -135,8 +164,6 @@ impl SceneMessage {
     }
 }
 impl NetworkMessageTrait for SceneMessage {
-    const FULL_NAME: &'static str = "Mirror.SceneMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let scene_name = reader.read_string();
         let operation = SceneOperation::from(reader.read_byte());
@@ -149,10 +176,17 @@ impl NetworkMessageTrait for SceneMessage {
     }
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 3552
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.write_str(self.scene_name.as_str());
         writer.write_byte(self.operation.to_u8());
         writer.write_bool(self.custom_handling);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.SceneMessage"
     }
 }
 
@@ -189,8 +223,6 @@ impl CommandMessage {
 }
 
 impl NetworkMessageTrait for CommandMessage {
-    const FULL_NAME: &'static str = "Mirror.CommandMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         let component_index = reader.read_byte();
@@ -206,11 +238,18 @@ impl NetworkMessageTrait for CommandMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 39124
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
         writer.write_array_segment_and_size(self.payload.as_slice());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.CommandMessage"
     }
 }
 
@@ -243,8 +282,6 @@ impl RpcMessage {
     }
 }
 impl NetworkMessageTrait for RpcMessage {
-    const FULL_NAME: &'static str = "Mirror.RpcMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         let component_index = reader.read_byte();
@@ -260,11 +297,18 @@ impl NetworkMessageTrait for RpcMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 40238
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
         writer.write_byte(self.component_index);
         writer.write_ushort(self.function_hash);
         writer.write_array_segment_and_size(self.payload.as_slice());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.RpcMessage"
     }
 }
 
@@ -311,8 +355,6 @@ impl SpawnMessage {
     }
 }
 impl NetworkMessageTrait for SpawnMessage {
-    const FULL_NAME: &'static str = "Mirror.SpawnMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         let is_local_player = reader.read_bool();
@@ -338,7 +380,7 @@ impl NetworkMessageTrait for SpawnMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
         writer.write_bool(self.is_local_player);
         writer.write_bool(self.is_owner);
@@ -348,6 +390,13 @@ impl NetworkMessageTrait for SpawnMessage {
         writer.write_quaternion(self.rotation);
         writer.write_vector3(self.scale);
         writer.write_array_segment_and_size(self.payload.as_slice());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.SpawnMessage"
     }
 }
 
@@ -368,8 +417,6 @@ impl ChangeOwnerMessage {
     }
 }
 impl NetworkMessageTrait for ChangeOwnerMessage {
-    const FULL_NAME: &'static str = "Mirror.ChangeOwnerMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         let is_owner = reader.read_bool();
@@ -382,18 +429,23 @@ impl NetworkMessageTrait for ChangeOwnerMessage {
     }
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
         writer.write_bool(self.is_owner);
         writer.write_bool(self.is_local_player);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ChangeOwnerMessage"
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct ObjectSpawnStartedMessage;
 impl NetworkMessageTrait for ObjectSpawnStartedMessage {
-    const FULL_NAME: &'static str = "Mirror.ObjectSpawnStartedMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -401,15 +453,20 @@ impl NetworkMessageTrait for ObjectSpawnStartedMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ObjectSpawnStartedMessage"
     }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
 pub struct ObjectSpawnFinishedMessage;
 impl NetworkMessageTrait for ObjectSpawnFinishedMessage {
-    const FULL_NAME: &'static str = "Mirror.ObjectSpawnFinishedMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let _ = reader;
         Self
@@ -417,7 +474,14 @@ impl NetworkMessageTrait for ObjectSpawnFinishedMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 43444
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ObjectSpawnFinishedMessage"
     }
 }
 
@@ -432,8 +496,6 @@ impl ObjectDestroyMessage {
     }
 }
 impl NetworkMessageTrait for ObjectDestroyMessage {
-    const FULL_NAME: &'static str = "Mirror.ObjectDestroyMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         Self { net_id }
@@ -441,8 +503,15 @@ impl NetworkMessageTrait for ObjectDestroyMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ObjectDestroyMessage"
     }
 }
 
@@ -457,8 +526,6 @@ impl ObjectHideMessage {
     }
 }
 impl NetworkMessageTrait for ObjectHideMessage {
-    const FULL_NAME: &'static str = "Mirror.ObjectHideMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         Self { net_id }
@@ -466,8 +533,15 @@ impl NetworkMessageTrait for ObjectHideMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.ObjectHideMessage"
     }
 }
 
@@ -488,7 +562,6 @@ impl EntityStateMessage {
     }
 }
 impl NetworkMessageTrait for EntityStateMessage {
-    const FULL_NAME: &'static str = "Mirror.EntityStateMessage";
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let net_id = reader.decompress_var_uint();
         let payload = reader.read_bytes_and_size();
@@ -497,9 +570,16 @@ impl NetworkMessageTrait for EntityStateMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 12504
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.compress_var_uint(self.net_id);
         writer.write_array_segment_and_size(self.payload.as_slice());
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.EntityStateMessage"
     }
 }
 
@@ -519,8 +599,6 @@ impl NetworkPingMessage {
 }
 
 impl NetworkMessageTrait for NetworkPingMessage {
-    const FULL_NAME: &'static str = "Mirror.NetworkPingMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let local_time = reader.read_double();
         let predicted_time_adjusted = reader.read_double();
@@ -532,9 +610,16 @@ impl NetworkMessageTrait for NetworkPingMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 17487
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.write_double(self.local_time);
         writer.write_double(self.predicted_time_adjusted);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.NetworkPingMessage"
     }
 }
 
@@ -559,8 +644,6 @@ impl NetworkPongMessage {
     }
 }
 impl NetworkMessageTrait for NetworkPongMessage {
-    const FULL_NAME: &'static str = "Mirror.NetworkPongMessage";
-
     fn deserialize(reader: &mut NetworkReader) -> Self {
         let local_time = reader.read_double();
         let prediction_error_unadjusted = reader.read_double();
@@ -574,9 +657,16 @@ impl NetworkMessageTrait for NetworkPongMessage {
 
     fn serialize(&mut self, writer: &mut NetworkWriter) {
         // 27095
-        writer.write_ushort(Self::FULL_NAME.get_stable_hash_code16());
+        writer.write_ushort(Self::get_full_name().get_stable_hash_code16());
         writer.write_double(self.local_time);
         writer.write_double(self.prediction_error_unadjusted);
         writer.write_double(self.prediction_error_adjusted);
+    }
+
+    fn get_full_name() -> &'static str
+    where
+        Self: Sized,
+    {
+        "Mirror.NetworkPongMessage"
     }
 }
