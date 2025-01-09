@@ -26,20 +26,28 @@ impl NetworkAuthenticatorTraitStatic {
     }
 }
 
-pub trait NetworkAuthenticatorTrait: Send + Sync {
-    fn enable(self);
+pub trait NetworkAuthenticatorTrait: Send + Sync
+where
+    Self: 'static,
+{
+    fn enable(self)
+    where
+        Self: Sized,
+    {
+        let network_manager_singleton = NetworkManagerStatic::network_manager_singleton();
+        network_manager_singleton.set_authenticator(Box::new(self));
+    }
     fn on_auth_request_message(
         connection_id: u64,
         reader: &mut NetworkReader,
         channel: TransportChannel,
     ) where
         Self: Sized;
-    fn on_start_server(&mut self) {
-        // NetworkServer::register_handler::<AuthRequestMessage>(Box::new(Self::on_auth_request_message), false);
-    }
-    fn on_stop_server(&mut self) {
-        // NetworkServer::unregister_handler::<AuthRequestMessage>();
-    }
+
+    // NetworkServer::register_handler::<AuthRequestMessage>(Box::new(Self::on_auth_request_message), false);
+    fn on_start_server(&mut self);
+    // NetworkServer::unregister_handler::<AuthRequestMessage>();
+    fn on_stop_server(&mut self);
     fn on_server_authenticate(&mut self, conn: &mut NetworkConnectionToClient) {
         let _ = conn;
     }

@@ -1,5 +1,5 @@
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait, Readable};
-use crate::{log_trace, log_warn};
+use crate::{log_error, log_trace};
 use half::f16;
 use nalgebra::{Quaternion, Vector2, Vector3, Vector4};
 use rust_decimal::Decimal;
@@ -7,12 +7,15 @@ use rust_decimal::Decimal;
 pub struct NetworkReaderExtensions;
 impl NetworkReaderExtensions {
     fn read_string(reader: &mut NetworkReader) -> String {
-        let length = reader.read_ushort() as usize - 1;
-        let bytes = reader.read_bytes(length);
+        let length = reader.read_ushort() as usize;
+        if length == 0 {
+            return String::new();
+        }
+        let bytes = reader.read_bytes(length - 1);
         if let Ok(string) = String::from_utf8(bytes) {
             string
         } else {
-            log_warn!("NetworkReaderExtensions::read_string() failed to convert bytes to string");
+            log_error!("NetworkReaderExtensions::read_string() failed to convert bytes to string");
             String::new()
         }
     }

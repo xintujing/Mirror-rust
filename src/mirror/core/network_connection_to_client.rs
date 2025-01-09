@@ -1,4 +1,5 @@
 use crate::log_error;
+use crate::mirror::core::messages::NetworkMessageTrait;
 use crate::mirror::core::network_connection::{NetworkConnection, NetworkConnectionTrait};
 use crate::mirror::core::network_identity::NetworkIdentity;
 use crate::mirror::core::network_manager::NetworkManagerStatic;
@@ -132,6 +133,14 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
 
     fn set_authenticated(&mut self, authenticated: bool) {
         self.network_connection.set_authenticated(authenticated);
+    }
+
+    fn set_authenticated_data(&mut self, data: Box<dyn NetworkMessageTrait>) {
+        self.network_connection.set_authenticated_data(data);
+    }
+
+    fn authenticated_data(&self) -> &Option<Box<dyn NetworkMessageTrait>> {
+        self.network_connection.authenticated_data()
     }
 
     fn owned(&mut self) -> &mut Vec<u32> {

@@ -15,7 +15,7 @@ pub struct NetworkConnection {
     last_ping_time: f64,
     is_authenticated: bool,
     #[allow(warnings)]
-    pub authentication_data: Option<Box<dyn NetworkMessageTrait>>,
+    authentication_data: Option<Box<dyn NetworkMessageTrait>>,
     net_id: u32,
     owned: Vec<u32>,
     remote_time_stamp: f64,
@@ -38,6 +38,8 @@ pub trait NetworkConnectionTrait {
     fn set_ready(&mut self, ready: bool);
     fn is_authenticated(&self) -> bool;
     fn set_authenticated(&mut self, authenticated: bool);
+    fn set_authenticated_data(&mut self, data: Box<dyn NetworkMessageTrait>);
+    fn authenticated_data(&self) -> &Option<Box<dyn NetworkMessageTrait>>;
     fn owned(&mut self) -> &mut Vec<u32>;
     fn set_owned(&mut self, owned: Vec<u32>);
     fn send_network_message<T>(&mut self, message: &mut T, channel: TransportChannel)
@@ -176,6 +178,14 @@ impl NetworkConnectionTrait for NetworkConnection {
 
     fn set_authenticated(&mut self, authenticated: bool) {
         self.is_authenticated = authenticated;
+    }
+
+    fn set_authenticated_data(&mut self, data: Box<dyn NetworkMessageTrait>) {
+        self.authentication_data = Some(data);
+    }
+
+    fn authenticated_data(&self) -> &Option<Box<dyn NetworkMessageTrait>> {
+        &self.authentication_data
     }
 
     fn owned(&mut self) -> &mut Vec<u32> {
