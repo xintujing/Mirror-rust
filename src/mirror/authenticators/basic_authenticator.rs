@@ -8,6 +8,7 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::transport::TransportChannel;
 use dashmap::try_result::TryResult;
 use std::any::Any;
+use std::sync::RwLock;
 
 pub struct BasicAuthenticator {
     username: String,
@@ -46,7 +47,7 @@ impl NetworkAuthenticatorTrait for BasicAuthenticator {
                             conn.send_network_message(&mut response, channel);
 
                             // 设置认证数据
-                            conn.set_authenticated_data(Box::new(message));
+                            conn.set_authenticated_data(Box::new(RwLock::new(message)));
 
                             // 设置连接已认证
                             Self::server_accept(&mut conn);
@@ -133,6 +134,10 @@ impl NetworkMessageTrait for AuthRequestMessage {
     {
         ""
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 // auth响应消息
@@ -171,6 +176,10 @@ impl NetworkMessageTrait for AuthResponseMessage {
         Self: Sized,
     {
         ""
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

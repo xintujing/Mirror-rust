@@ -3,6 +3,7 @@ use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::tools::compress::CompressTrait;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use std::any::Any;
 use std::fmt::Debug;
 use std::ops::BitOrAssign;
 
@@ -142,6 +143,10 @@ impl NetworkMessageTrait for SyncData {
         Self: Sized,
     {
         ""
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 

@@ -14,6 +14,7 @@ use crate::mirror::core::transport::{Transport, TransportChannel};
 use dashmap::try_result::TryResult;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
+use std::sync::RwLock;
 
 pub struct NetworkConnectionToClient {
     network_connection: NetworkConnection,
@@ -135,11 +136,11 @@ impl NetworkConnectionTrait for NetworkConnectionToClient {
         self.network_connection.set_authenticated(authenticated);
     }
 
-    fn set_authenticated_data(&mut self, data: Box<dyn NetworkMessageTrait>) {
+    fn set_authenticated_data(&mut self, data: Box<RwLock<dyn NetworkMessageTrait>>) {
         self.network_connection.set_authenticated_data(data);
     }
 
-    fn authenticated_data(&self) -> &Option<Box<dyn NetworkMessageTrait>> {
+    fn authenticated_data(&mut self) -> &Option<Box<RwLock<dyn NetworkMessageTrait>>> {
         self.network_connection.authenticated_data()
     }
 

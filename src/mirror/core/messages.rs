@@ -3,6 +3,7 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::tools::stable_hash::StableHash;
 use crate::mirror::core::transport::TransportChannel;
 use nalgebra::{Quaternion, Vector3};
+use std::any::Any;
 
 pub type NetworkMessageHandlerFunc = fn(u64, &mut NetworkReader, TransportChannel);
 
@@ -36,6 +37,7 @@ pub trait NetworkMessageTrait: Send + Sync {
     fn get_full_name() -> &'static str
     where
         Self: Sized;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -56,6 +58,10 @@ impl NetworkMessageTrait for TimeSnapshotMessage {
         Self: Sized,
     {
         &"Mirror.TimeSnapshotMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -78,6 +84,10 @@ impl NetworkMessageTrait for ReadyMessage {
     {
         "Mirror.ReadyMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -99,6 +109,10 @@ impl NetworkMessageTrait for NotReadyMessage {
     {
         "Mirror.NotReadyMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Copy, Default)]
@@ -119,6 +133,10 @@ impl NetworkMessageTrait for AddPlayerMessage {
         Self: Sized,
     {
         "Mirror.AddPlayerMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -188,6 +206,10 @@ impl NetworkMessageTrait for SceneMessage {
     {
         "Mirror.SceneMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -251,6 +273,10 @@ impl NetworkMessageTrait for CommandMessage {
     {
         "Mirror.CommandMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -309,6 +335,10 @@ impl NetworkMessageTrait for RpcMessage {
         Self: Sized,
     {
         "Mirror.RpcMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -398,6 +428,10 @@ impl NetworkMessageTrait for SpawnMessage {
     {
         "Mirror.SpawnMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -441,6 +475,10 @@ impl NetworkMessageTrait for ChangeOwnerMessage {
     {
         "Mirror.ChangeOwnerMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -462,6 +500,10 @@ impl NetworkMessageTrait for ObjectSpawnStartedMessage {
     {
         "Mirror.ObjectSpawnStartedMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -482,6 +524,10 @@ impl NetworkMessageTrait for ObjectSpawnFinishedMessage {
         Self: Sized,
     {
         "Mirror.ObjectSpawnFinishedMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -513,6 +559,10 @@ impl NetworkMessageTrait for ObjectDestroyMessage {
     {
         "Mirror.ObjectDestroyMessage"
     }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -542,6 +592,10 @@ impl NetworkMessageTrait for ObjectHideMessage {
         Self: Sized,
     {
         "Mirror.ObjectHideMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -580,6 +634,10 @@ impl NetworkMessageTrait for EntityStateMessage {
         Self: Sized,
     {
         "Mirror.EntityStateMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -620,6 +678,10 @@ impl NetworkMessageTrait for NetworkPingMessage {
         Self: Sized,
     {
         "Mirror.NetworkPingMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -668,5 +730,9 @@ impl NetworkMessageTrait for NetworkPongMessage {
         Self: Sized,
     {
         "Mirror.NetworkPongMessage"
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
