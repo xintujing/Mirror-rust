@@ -124,15 +124,11 @@ impl NetworkMessageTrait for AuthRequestMessage {
         writer.write_string(self.password.to_string());
     }
 
-    fn get_hash_code() -> u16 {
-        4296
-    }
-
     fn get_full_name() -> &'static str
     where
         Self: Sized,
     {
-        ""
+        "Mirror.Authenticators.BasicAuthenticator+AuthRequestMessage"
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -167,15 +163,11 @@ impl NetworkMessageTrait for AuthResponseMessage {
         writer.write_string(self.message.to_string());
     }
 
-    fn get_hash_code() -> u16 {
-        26160
-    }
-
     fn get_full_name() -> &'static str
     where
         Self: Sized,
     {
-        ""
+        "Mirror.Authenticators.BasicAuthenticator+AuthResponseMessage"
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -186,13 +178,10 @@ impl NetworkMessageTrait for AuthResponseMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::mirror::core::tools::stable_hash::StableHash;
 
     #[test]
     fn test_auth_response_message() {
-        println!(
-            "{}",
-            AuthRequestMessage::get_full_name().get_stable_hash_code16()
-        )
+        println!("{}", AuthRequestMessage::get_hash_code());
+        println!("{}", AuthResponseMessage::get_hash_code());
     }
 }
