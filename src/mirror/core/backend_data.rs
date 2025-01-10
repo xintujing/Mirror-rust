@@ -1,20 +1,13 @@
+use crate::log_error;
 use crate::mirror::components::network_animator::Animator;
 use crate::mirror::core::network_behaviour::GameObject;
 use crate::mirror::core::network_identity::NetworkIdentity;
-use crate::mirror::core::network_loop::NetworkLoop;
 use crate::mirror::transports::kcp2k::kcp2k_transport::Kcp2kTransportConfig;
-use crate::{log_error, log_info};
-use config::Config;
 use lazy_static::lazy_static;
-use notify::event::{DataChange, ModifyKind};
-use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::collections::{HashSet, VecDeque};
 use std::path::Path;
-use std::sync::mpsc::channel;
-use std::sync::{OnceLock, RwLock};
-use std::time::Duration;
 
 lazy_static! {
     static ref BACKEND_DATA_FILE: String = "tobackend.json".to_string();
@@ -23,100 +16,25 @@ lazy_static! {
 pub struct BackendDataStatic;
 
 impl BackendDataStatic {
-    fn tobackend() -> &'static RwLock<Config> {
-        static BACKEND_DATA: OnceLock<RwLock<Config>> = OnceLock::new();
-        BACKEND_DATA.get_or_init(|| {
-            // 判断文件是否存在
-            if !Path::new(BACKEND_DATA_FILE.as_str()).exists() {
-                std::fs::write(BACKEND_DATA_FILE.as_str(), {
-                    let backend_data = BackendData {
-                        kcp2k_config: Default::default(),
-                        methods: Vec::new(),
-                        network_identities: Vec::new(),
-                        network_manager_settings: Vec::new(),
-                        network_room_manager_settings: Vec::new(),
-                        scene_ids: Vec::new(),
-                        sync_vars: Vec::new(),
-                        assets: Vec::new(),
-                    };
-                    serde_json::to_string_pretty(&backend_data).unwrap()
-                })
-                    .unwrap();
-            }
-
-            match Config::builder()
-                .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
-                .build()
-            {
-                Ok(backend_data) => RwLock::new(backend_data),
-                Err(e) => {
-                    panic!("Failed to read BackendData: {:?}", e);
-                }
-            }
-        })
-    }
-
-    pub fn watch() {
-        // Create a channel to receive the events.
-        let (tx, rx) = channel();
-
-        // Automatically select the best implementation for your platform.
-        // You can also access each implementation directly e.g. INotifyWatcher.
-        let mut watcher: RecommendedWatcher = Watcher::new(
-            tx,
-            notify::Config::default().with_poll_interval(Duration::from_secs(3)),
-        )
-            .unwrap();
-
-        // Add a path to be watched. All files and directories at that path and
-        // below will be monitored for changes.
-        watcher
-            .watch(
-                Path::new(BACKEND_DATA_FILE.as_str()),
-                RecursiveMode::NonRecursive,
-            )
-            .unwrap_or_else(|_| {});
-
-        // This is a simple loop, but you may want to use more complex logic here,
-        // for example to handle I/O.
-        while let Ok(event) = rx.recv() {
-            if NetworkLoop::stop_signal() {
-                break;
-            }
-            match event {
-                Ok(Event {
-                       kind: notify::event::EventKind::Modify(ModifyKind::Data(DataChange::Content)),
-                       ..
-                   }) => {
-                    match Config::builder()
-                        .add_source(config::File::with_name(BACKEND_DATA_FILE.as_str()))
-                        .build()
-                    {
-                        Ok(backend_data) => {
-                            *Self::tobackend().write().unwrap() = backend_data;
-                            NetworkLoop::set_stop(true);
-                            log_info!(format!("{} has been updated", BACKEND_DATA_FILE.as_str()));
-                        }
-                        Err(e) => {
-                            log_error!(format!("watch error: {:?}", e));
-                        }
-                    }
-                }
-                Err(e) => {
-                    log_error!(format!("watch error: {:?}", e));
-                }
-                _ => {}
-            }
-        }
-    }
-
     pub fn get_backend_data() -> BackendData {
-        match Self::tobackend().read().unwrap().clone().try_deserialize() {
-            Ok(backend_data) => backend_data,
-            Err(e) => {
-                panic!("Failed to deserialize BackendData: {:?}", e);
-            }
+        // 判断文件是否存在
+        if !Path::new(BACKEND_DATA_FILE.as_str()).exists() {
+            std::fs::write(BACKEND_DATA_FILE.as_str(), {
+                let backend_data = BackendData {
+                    kcp2k_config: Default::default(),
+                    methods: Vec::new(),
+                    network_identities: Vec::new(),
+                    network_manager_settings: Vec::new(),
+                    network_room_manager_settings: Vec::new(),
+                    scene_ids: Vec::new(),
+                    sync_vars: Vec::new(),
+                    assets: Vec::new(),
+                };
+                serde_json::to_string_pretty(&backend_data).unwrap()
+            }).unwrap();
         }
+        // 使用 BackendData::import 方法导入数据
+        Self::import(BACKEND_DATA_FILE.as_str())
     }
 
     pub fn import(path: &'static str) -> BackendData {
