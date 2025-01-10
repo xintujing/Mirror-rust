@@ -1,10 +1,12 @@
 use crate::mirror::core::batching::batcher::Batcher;
 use crate::mirror::core::messages::{NetworkMessageTrait, NetworkPingMessage};
 use crate::mirror::core::network_messages::NetworkMessages;
+use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::transport::{Transport, TransportChannel};
 use crate::{log_error, log_warn};
+use dashmap::try_result::TryResult;
 use std::sync::RwLock;
 
 pub struct NetworkConnection {
@@ -86,6 +88,43 @@ pub trait NetworkConnectionTrait {
 
 impl NetworkConnection {
     pub const LOCAL_CONNECTION_ID: i32 = 0;
+    pub fn get_auth_data<T: NetworkMessageTrait + 'static, F: FnMut(&mut T)>(
+        conn_id: u64,
+        mut func: F,
+    ) -> bool {
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut conn) => {
+                // 拿到认证数据
+                if let Some(data_box) = conn.authenticated_data() {
+                    // 尝试写入认证数据
+                    match data_box.try_write() {
+                        Ok(mut data_rwg) => match data_rwg.as_any_mut().downcast_mut::<T>() {
+                            None => {
+                                log_error!(format!(
+                                    "Failed to downcast to {}",
+                                    std::any::type_name::<T>()
+                                ));
+                            }
+                            Some(data) => {
+                                func(data);
+                                return true;
+                            }
+                        },
+                        Err(err) => {
+                            log_error!(format!("Failed to write auth data: {}", err));
+                        }
+                    }
+                }
+            }
+            TryResult::Absent => {
+                log_error!("Failed to get connection by conn_id: {}", conn_id);
+            }
+            TryResult::Locked => {
+                log_error!("Failed to get connection by conn_id: {}", conn_id);
+            }
+        }
+        false
+    }
 }
 
 impl NetworkConnectionTrait for NetworkConnection {
