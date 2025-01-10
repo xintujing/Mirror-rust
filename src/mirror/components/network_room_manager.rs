@@ -311,6 +311,10 @@ impl NetworkManagerTrait for NetworkRoomManager {
         &mut self.pending_players
     }
 
+    fn all_players_ready(&self) -> bool {
+        self._all_players_ready
+    }
+
     fn set_all_players_ready(&mut self, value: bool) {
         let was_ready = self._all_players_ready;
         let now_ready = value;

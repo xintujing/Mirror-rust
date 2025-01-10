@@ -411,6 +411,7 @@ pub trait NetworkManagerTrait: Any {
     fn room_slots(&mut self) -> &mut Vec<u32>;
     fn recalculate_room_player_indices(&mut self) -> (i32, u32);
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer>;
+    fn all_players_ready(&self) -> bool;
     fn set_all_players_ready(&mut self, value: bool);
     fn room_scene(&self) -> &String;
     fn gameplay_scene(&self) -> &String;
@@ -574,6 +575,10 @@ impl NetworkManagerTrait for NetworkManager {
     fn pending_players(&mut self) -> &mut Vec<PendingPlayer> {
         static mut PENDING_PLAYERS: Vec<PendingPlayer> = Vec::new();
         unsafe { &mut PENDING_PLAYERS }
+    }
+
+    fn all_players_ready(&self) -> bool {
+        true
     }
 
     fn set_all_players_ready(&mut self, value: bool) {
