@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 signal-hook = "0.3.17"
 mirror_rust = { path = "../../../Mirror-rust" }
+dashmap = "6.1.0"
