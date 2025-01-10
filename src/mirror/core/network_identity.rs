@@ -617,6 +617,43 @@ impl NetworkIdentity {
         }
         false
     }
+    pub fn get_component_by_conn_id<T, F>(conn_id: u64, func: F) -> bool
+    where
+        T: NetworkBehaviourTrait,
+        F: FnMut(&mut T),
+    {
+        let net_id;
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(conn) => {
+                net_id = conn.net_id();
+            }
+            TryResult::Absent => {
+                log_error!("Failed to get component by conn_id because connection is absent.");
+                return false;
+            }
+            TryResult::Locked => {
+                log_error!("Failed to get component by conn_id because connection is locked.");
+                return false;
+            }
+        }
+        if net_id == 0 {
+            return false;
+        }
+        match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
+            TryResult::Present(identity) => {
+                identity.get_component::<T, _>(func);
+                true
+            }
+            TryResult::Absent => {
+                log_error!("Failed to get component by conn_id because identity is absent.");
+                false
+            }
+            TryResult::Locked => {
+                log_error!("Failed to get component by conn_id because identity is locked.");
+                false
+            }
+        }
+    }
 
     //
     // pub fn get_component_by_index(
