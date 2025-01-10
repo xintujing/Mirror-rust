@@ -189,7 +189,7 @@ impl NetworkIdentity {
         self.game_object = game_object;
         for i in 0..self.network_behaviours_count {
             if let TryResult::Present(mut component) =
-                NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i))
+                NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i))
             {
                 component.set_game_object(self.game_object.clone());
             }
@@ -304,7 +304,7 @@ impl NetworkIdentity {
     }
     pub fn on_start_server(&mut self) {
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     component.on_start_server();
                 }
@@ -319,7 +319,7 @@ impl NetworkIdentity {
     }
     pub fn on_stop_server(&mut self) {
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     component.on_stop_server();
                 }
@@ -336,7 +336,7 @@ impl NetworkIdentity {
         let mut owner_mask: u64 = 0;
         let mut observers_mask: u64 = 0;
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     let nth_bit = 1 << i;
                     let dirty = component.is_dirty();
@@ -384,7 +384,7 @@ impl NetworkIdentity {
 
         if (owner_mask | observers_mask) != 0 {
             for i in 0..self.network_behaviours_count {
-                match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+                match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                     TryResult::Present(mut component) => {
                         let owner_dirty = Self::is_dirty(owner_mask, i);
                         let observers_dirty = Self::is_dirty(observers_mask, i);
@@ -425,7 +425,7 @@ impl NetworkIdentity {
 
         for i in 0..self.network_behaviours_count {
             if Self::is_dirty(mask, i) {
-                match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+                match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                     TryResult::Present(mut component) => {
                         if component.sync_direction() == &SyncDirection::ServerToClient {
                             if !component.deserialize(reader, false) {
@@ -516,7 +516,7 @@ impl NetworkIdentity {
 
         // 添加观察者
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     component.add_observer(conn_id);
                 }
@@ -546,7 +546,7 @@ impl NetworkIdentity {
     }
     fn clear_all_components_dirty_bits(&mut self) {
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     component.clear_all_dirty_bits();
                 }
@@ -566,7 +566,7 @@ impl NetworkIdentity {
     pub fn remove_observer(&mut self, conn_id: u64) {
         // 清理组件的 observer
         for i in 0..self.network_behaviours_count {
-            match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i)) {
+            match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                 TryResult::Present(mut component) => {
                     component.remove_observer(conn_id);
                 }
@@ -607,7 +607,7 @@ impl NetworkIdentity {
     {
         for i in 0..self.network_behaviours_count {
             if let TryResult::Present(mut component) =
-                NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", self.net_id, i))
+                NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i))
             {
                 if let Some(component) = component.as_any_mut().downcast_mut::<T>() {
                     func(component);

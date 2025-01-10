@@ -87,7 +87,7 @@ lazy_static! {
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDS: DashSet<u32> = DashSet::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
-    pub static ref NETWORK_BEHAVIOURS: DashMap<String, Box<dyn NetworkBehaviourTrait>> =
+    pub static ref NETWORK_BEHAVIOURS: DashMap<(u32,u8), Box<dyn NetworkBehaviourTrait>> =
         DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
     static ref TRANSPORT_DATA_UN_BATCHER: RwLock<UnBatcher> = RwLock::new(UnBatcher::new());
@@ -97,13 +97,13 @@ lazy_static! {
 impl NETWORK_BEHAVIOURS {
     // 添加 NetworkBehaviour
     pub fn add_behaviour(net_id: u32, index: u8, behaviour: Box<dyn NetworkBehaviourTrait>) {
-        NETWORK_BEHAVIOURS.insert(format!("{}_{}", net_id, index), behaviour);
+        NETWORK_BEHAVIOURS.insert((net_id, index), behaviour);
     }
     // 更新 NetworkBehaviour 的 NetId
     pub fn update_behaviour_net_id(o_net_id: u32, n_net_id: u32, count: u8) {
         for i in 0..count {
-            let o_key = format!("{}_{}", o_net_id, i);
-            let n_key = format!("{}_{}", n_net_id, i);
+            let o_key = (o_net_id, i);
+            let n_key = (n_net_id, i);
             if let Some((_, mut behaviour)) = NETWORK_BEHAVIOURS.remove(&o_key) {
                 behaviour.set_net_id(n_net_id);
                 NETWORK_BEHAVIOURS.insert(n_key, behaviour);
@@ -114,17 +114,17 @@ impl NETWORK_BEHAVIOURS {
     pub fn update_behaviour_conn_id(net_id: u32, conn_id: u64, count: u8) {
         for i in 0..count {
             if let Some((_, mut behaviour)) =
-                NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i))
+                NETWORK_BEHAVIOURS.remove(&(net_id, i))
             {
                 behaviour.set_connection_to_client(conn_id);
-                NETWORK_BEHAVIOURS.insert(format!("{}_{}", net_id, i), behaviour);
+                NETWORK_BEHAVIOURS.insert((net_id, i), behaviour);
             }
         }
     }
     // 移除 NetworkBehaviour
     pub fn remove_behaviour(net_id: u32, count: u8) {
         for i in 0..count {
-            NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i));
+            NETWORK_BEHAVIOURS.remove(&(net_id, i));
         }
     }
 }
@@ -286,7 +286,7 @@ impl NetworkServerStatic {
     pub fn remove_spawned_network_identity(net_id: &u32) {
         if let Some((net_id, sni)) = SPAWNED_NETWORK_IDENTITIES.remove(net_id) {
             for i in 0..sni.network_behaviours_count {
-                NETWORK_BEHAVIOURS.remove(&format!("{}_{}", net_id, i));
+                NETWORK_BEHAVIOURS.remove(&(net_id, i));
             }
         }
         SPAWNED_NETWORK_IDS.remove(net_id);

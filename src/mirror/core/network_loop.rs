@@ -301,7 +301,7 @@ impl NetworkLoop {
             .iter()
             .for_each(|identity| {
                 for i in 0..identity.network_behaviours_count {
-                    match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", identity.net_id(), i)) {
+                    match NETWORK_BEHAVIOURS.try_get_mut(&(identity.net_id(), i)) {
                         TryResult::Present(mut network_behaviour) => {
                             network_behaviour.update();
                         }
@@ -349,7 +349,7 @@ impl NetworkLoop {
             .iter()
             .for_each(|identity| {
                 for i in 0..identity.network_behaviours_count {
-                    match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", identity.net_id(), i)) {
+                    match NETWORK_BEHAVIOURS.try_get_mut(&(identity.net_id(), i)) {
                         TryResult::Present(mut network_behaviour) => {
                             network_behaviour.late_update();
                         }

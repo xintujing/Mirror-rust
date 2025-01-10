@@ -121,7 +121,7 @@ impl NetworkCommonBehaviour {
             return;
         }
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
@@ -342,7 +342,6 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
     fn remove_observer(&mut self, value: u64) {
         self.network_behaviour.observers.retain(|&x| x != value)
     }
-
 
     fn game_object(&self) -> &GameObject {
         &self.network_behaviour.game_object

@@ -254,7 +254,7 @@ impl NetworkTransformUnreliable {
             return;
         }
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
@@ -311,7 +311,7 @@ impl NetworkTransformUnreliable {
         }
 
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
@@ -381,7 +381,7 @@ impl NetworkTransformUnreliable {
         let sync_data = SyncData::deserialize(reader);
 
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
@@ -686,7 +686,7 @@ impl NetworkTransformUnreliable {
         }
 
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
@@ -753,7 +753,7 @@ impl NetworkTransformUnreliable {
         }
 
         // 获取 NetworkBehaviour
-        match NETWORK_BEHAVIOURS.try_get_mut(&format!("{}_{}", net_id, component_index)) {
+        match NETWORK_BEHAVIOURS.try_get_mut(&(net_id, component_index)) {
             TryResult::Present(mut component) => {
                 component
                     .as_any_mut()
