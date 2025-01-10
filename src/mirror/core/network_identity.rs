@@ -637,6 +637,7 @@ impl NetworkIdentity {
             }
         }
         if net_id == 0 {
+            log_error!("Failed to get component by conn_id because net_id is 0.");
             return false;
         }
         match NetworkServerStatic::spawned_network_identities().try_get_mut(&net_id) {
