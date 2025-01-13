@@ -991,8 +991,6 @@ impl NetworkServer {
         conn.remove_from_observings_observers();
         // 销毁 owned 对象
         conn.destroy_owned_objects();
-        // 设置 net_id 为 0
-        conn.set_net_id(0);
     }
 
     pub fn destroy(conn: &mut NetworkConnectionToClient, identity: &mut NetworkIdentity) {
