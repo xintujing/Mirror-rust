@@ -1280,10 +1280,6 @@ impl NetworkServer {
             }
         }
 
-        log_debug!(format!(
-            "ReplacePlayer: replacing player for connectionId: {} {}",
-            conn_id, player.prefab
-        ));
         // 初始化 NetworkIdentity
         match player.get_identity_by_prefab() {
             None => {
