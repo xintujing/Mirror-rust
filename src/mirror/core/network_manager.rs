@@ -1,8 +1,6 @@
 use crate::mirror::authenticators::network_authenticator::{
     NetworkAuthenticatorTrait, NetworkAuthenticatorTraitStatic,
 };
-use crate::mirror::components::network_room_manager::PendingPlayer;
-use crate::mirror::components::network_room_player::NetworkRoomPlayer;
 use crate::mirror::components::network_transform::network_transform_base::Transform;
 use crate::mirror::core::backend_data::{
     BackendDataStatic, NetworkManagerSetting, SnapshotInterpolationSetting,
@@ -19,8 +17,6 @@ use crate::{log_debug, log_error, log_warn};
 use atomic::Atomic;
 use dashmap::try_result::TryResult;
 use lazy_static::lazy_static;
-use nalgebra::Vector3;
-use rand::Rng;
 use std::any::Any;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
@@ -214,7 +210,9 @@ pub trait NetworkManagerTrait: Any {
     where
         Self: Sized;
     // zhuce
-    fn register_server_messages();
+    fn register_server_messages()
+    where
+        Self: Sized;
     fn initialize_singleton() -> bool
     where
         Self: Sized,
