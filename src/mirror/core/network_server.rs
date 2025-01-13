@@ -1238,9 +1238,11 @@ impl NetworkServer {
         player: &GameObject,
         replace_player_options: ReplacePlayerOptions,
     ) -> bool {
+        let net_id;
         // 确认 是本人
         match NetworkServerStatic::network_connections().try_get(&conn_id) {
             TryResult::Present(conn) => {
+                net_id = conn.net_id();
                 match NetworkServerStatic::spawned_network_identities().try_get(&conn.net_id()) {
                     TryResult::Present(identity) => {
                         if identity.connection_to_client() != 0
@@ -1291,7 +1293,9 @@ impl NetworkServer {
                 log_warn!(format!("ReplacePlayer: player GameObject has no NetworkIdentity. Please add a NetworkIdentity to {:?}",1));
                 return false;
             }
-            Some(identity) => {
+            Some(mut identity) => {
+                identity.set_net_id(net_id);
+                identity.set_connection_to_client(conn_id);
                 Self::set_client_ready(conn_id);
                 Self::respawn(identity);
             }
