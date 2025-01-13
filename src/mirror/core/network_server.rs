@@ -23,7 +23,7 @@ use crate::mirror::core::tools::time_sample::TimeSample;
 use crate::mirror::core::transport::{
     Transport, TransportCallback, TransportCallbackType, TransportChannel, TransportError,
 };
-use crate::{log_debug, log_error, log_info, log_warn};
+use crate::{log_error, log_info, log_warn};
 use atomic::Atomic;
 use dashmap::mapref::multiple::RefMutMulti;
 use dashmap::try_result::TryResult;
@@ -1236,11 +1236,9 @@ impl NetworkServer {
         player: &GameObject,
         replace_player_options: ReplacePlayerOptions,
     ) -> bool {
-        let net_id;
         // 确认 是本人
         match NetworkServerStatic::network_connections().try_get(&conn_id) {
             TryResult::Present(conn) => {
-                net_id = conn.net_id();
                 match NetworkServerStatic::spawned_network_identities().try_get(&conn.net_id()) {
                     TryResult::Present(identity) => {
                         if identity.connection_to_client() != 0
@@ -1287,8 +1285,6 @@ impl NetworkServer {
                 return false;
             }
             Some(mut identity) => {
-                // 设置连接的 NetworkIdentity 的 net_id
-                identity.set_net_id(net_id);
                 // 设置连接的 NetworkIdentity 的 client_owner
                 identity.set_connection_to_client(conn_id);
                 // 设置连接的 client_ready
@@ -1650,7 +1646,8 @@ impl NetworkServer {
     pub fn set_all_clients_not_ready() {
         NetworkServerStatic::for_each_network_connection(|mut connection| {
             connection.set_ready(false);
-            connection.remove_from_observings_observers();
+            // TODO fix
+            // connection.remove_from_observings_observers();
             connection
                 .send_network_message(&mut NotReadyMessage::default(), TransportChannel::Reliable);
         });
