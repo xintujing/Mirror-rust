@@ -117,10 +117,10 @@ impl NetworkConnection {
                 }
             }
             TryResult::Absent => {
-                log_error!("Failed to get connection by conn_id: {}", conn_id);
+                log_error!("Failed to get connection by conn_id: ", conn_id);
             }
             TryResult::Locked => {
-                log_error!("Failed to get connection by conn_id: {}", conn_id);
+                log_error!("Failed to get connection by conn_id: ", conn_id);
             }
         }
         false
