@@ -87,7 +87,7 @@ lazy_static! {
     static ref NETWORK_CONNECTIONS: DashMap<u64, NetworkConnectionToClient> = DashMap::new();
     static ref SPAWNED_NETWORK_IDS: DashSet<u32> = DashSet::new();
     static ref SPAWNED_NETWORK_IDENTITIES: DashMap<u32, NetworkIdentity> = DashMap::new();
-    pub static ref NETWORK_BEHAVIOURS: DashMap<(u32,u8), Box<dyn NetworkBehaviourTrait>> =
+    pub static ref NETWORK_BEHAVIOURS: DashMap<(u32, u8), Box<dyn NetworkBehaviourTrait>> =
         DashMap::new();
     static ref NETWORK_MESSAGE_HANDLERS: DashMap<u16, NetworkMessageHandler> = DashMap::new();
     static ref TRANSPORT_DATA_UN_BATCHER: RwLock<UnBatcher> = RwLock::new(UnBatcher::new());
@@ -113,9 +113,7 @@ impl NETWORK_BEHAVIOURS {
     // 更新 NetworkBehaviour 的 ConnectionId
     pub fn update_behaviour_conn_id(net_id: u32, conn_id: u64, count: u8) {
         for i in 0..count {
-            if let Some((_, mut behaviour)) =
-                NETWORK_BEHAVIOURS.remove(&(net_id, i))
-            {
+            if let Some((_, mut behaviour)) = NETWORK_BEHAVIOURS.remove(&(net_id, i)) {
                 behaviour.set_connection_to_client(conn_id);
                 NETWORK_BEHAVIOURS.insert((net_id, i), behaviour);
             }
@@ -1284,8 +1282,7 @@ impl NetworkServer {
 
         log_debug!(format!(
             "ReplacePlayer: replacing player for connectionId: {} {}",
-            conn_id,
-            player.prefab
+            conn_id, player.prefab
         ));
         // 初始化 NetworkIdentity
         match player.get_identity_by_prefab() {
@@ -1294,9 +1291,13 @@ impl NetworkServer {
                 return false;
             }
             Some(mut identity) => {
+                // 设置连接的 NetworkIdentity 的 net_id
                 identity.set_net_id(net_id);
+                // 设置连接的 NetworkIdentity 的 client_owner
                 identity.set_connection_to_client(conn_id);
+                // 设置连接的 client_ready
                 Self::set_client_ready(conn_id);
+                // 重生
                 Self::respawn(identity);
             }
         }
