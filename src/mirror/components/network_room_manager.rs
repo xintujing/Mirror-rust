@@ -110,7 +110,7 @@ impl NetworkRoomManager {
         Self::on_server_ready(conn_id)
     }
 
-    fn is_server_online_scene_change_needed(&self) -> bool {
+    pub fn is_server_online_scene_change_needed(&self) -> bool {
         self.network_manager.online_scene != self.network_manager.offline_scene
     }
 
@@ -695,10 +695,7 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
     ) -> Option<GameObject> {
         let _ = conn_id;
         let _ = game_object;
-        Some(GameObject::new_with_prefab(format!(
-            "{}{}{}",
-            "Assets/Resources/", "Profab/Person/Player1", ".prefab"
-        )))
+        None
     }
 
     fn on_room_server_scene_changed(&mut self, new_scene_name: String) {
