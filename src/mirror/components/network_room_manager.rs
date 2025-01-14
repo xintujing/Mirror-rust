@@ -126,36 +126,7 @@ impl NetworkRoomManager {
 }
 
 pub trait NetworkRoomManagerTrait: NetworkManagerTrait {
-    fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject) {
-        let network_manager = NetworkManagerStatic::network_manager_singleton();
-        let room_scene = network_manager.online_scene().to_string();
-        if NetworkManagerStatic::network_scene_name() == room_scene {
-            let pending_player = PendingPlayer {
-                conn: conn_id,
-                room_player: room_player.clone(),
-            };
-
-            network_manager.pending_players().push(pending_player);
-            return;
-        }
-
-        let game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
-
-        let player = match game_player {
-            None => {
-                let transform = network_manager.get_start_position();
-                room_player.transform = transform;
-                room_player
-            }
-            Some(ga) => &ga.clone(),
-        };
-
-        NetworkServer::replace_player_for_connection(
-            conn_id,
-            &player,
-            ReplacePlayerOptions::KeepAuthority,
-        );
-    }
+    fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject);
     fn on_room_server_create_room_player(&mut self, conn_id: u64) -> Option<GameObject>;
     fn on_room_server_create_game_player(
         conn_id: u64,
@@ -682,6 +653,37 @@ impl NetworkManagerTrait for NetworkRoomManager {
 }
 
 impl NetworkRoomManagerTrait for NetworkRoomManager {
+    fn scene_loaded_for_player(conn_id: u64, room_player: &mut GameObject) {
+        let network_manager = NetworkManagerStatic::network_manager_singleton();
+        let room_scene = network_manager.online_scene().to_string();
+        if NetworkManagerStatic::network_scene_name() == room_scene {
+            let pending_player = PendingPlayer {
+                conn: conn_id,
+                room_player: room_player.clone(),
+            };
+
+            network_manager.pending_players().push(pending_player);
+            return;
+        }
+
+        let game_player = Self::on_room_server_create_game_player(conn_id, &room_player);
+
+        let player = match game_player {
+            None => {
+                let transform = network_manager.get_start_position();
+                room_player.transform = transform;
+                room_player
+            }
+            Some(ga) => &ga.clone(),
+        };
+
+        NetworkServer::replace_player_for_connection(
+            conn_id,
+            &player,
+            ReplacePlayerOptions::KeepAuthority,
+        );
+    }
+
     fn on_room_server_create_room_player(&mut self, conn_id: u64) -> Option<GameObject> {
         let _ = conn_id;
         None
@@ -693,7 +695,10 @@ impl NetworkRoomManagerTrait for NetworkRoomManager {
     ) -> Option<GameObject> {
         let _ = conn_id;
         let _ = game_object;
-        None
+        Some(GameObject::new_with_prefab(format!(
+            "{}{}{}",
+            "Assets/Resources/", "Profab/Person/Player1", ".prefab"
+        )))
     }
 
     fn on_room_server_scene_changed(&mut self, new_scene_name: String) {
