@@ -359,6 +359,7 @@ pub trait NetworkManagerTrait: Any {
     fn on_server_scene_changed(&mut self, new_scene_name: String);
     fn on_start_server(&mut self);
     fn on_stop_server(&mut self);
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 impl NetworkManagerTrait for NetworkManager {
@@ -783,4 +784,8 @@ impl NetworkManagerTrait for NetworkManager {
 
     fn on_start_server(&mut self) {}
     fn on_stop_server(&mut self) {}
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
 }
