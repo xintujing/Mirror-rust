@@ -517,6 +517,57 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
             },
         );
     }
+    fn send_target_rpc_internal(
+        &self,
+        mut conn_id: u64,
+        function_full_name: &str,
+        function_hash_code: i32,
+        writer: &NetworkWriter,
+        channel: TransportChannel,
+    ) {
+        if !NetworkServerStatic::active() {
+            log_error!(format!(
+                "RPC Function {} called without an active server.",
+                function_full_name
+            ));
+            return;
+        }
+        let mut rpc = RpcMessage::new(
+            self.net_id(),
+            self.index(),
+            function_hash_code as u16,
+            writer.to_bytes(),
+        );
+
+        if conn_id == 0 {
+            conn_id = self.connection_to_client();
+        }
+
+        if conn_id == 0 {
+            log_error!("Failed to send target rpc because connection id is 0.");
+            return;
+        }
+
+        match NetworkServerStatic::network_connections().try_get_mut(&conn_id) {
+            TryResult::Present(mut conn_to_client) => {
+                if conn_to_client.is_ready() {
+                    conn_to_client.send_network_message(&mut rpc, channel);
+                }
+            }
+            TryResult::Absent => {
+                log_error!(format!(
+                    "Failed to send target rpc because connection {} is absent.",
+                    conn_id
+                ));
+            }
+            TryResult::Locked => {
+                log_error!(format!(
+                    "Failed to send target rpc because connection {} is locked.",
+                    conn_id
+                ));
+            }
+        }
+    }
     fn send_entity_internal(
         &self,
         writer: &NetworkWriter,
