@@ -10,10 +10,17 @@ impl NetworkWriterExtensions {
     fn write_string<S: AsRef<str>>(writer: &mut NetworkWriter, value: S) {
         let bytes = value.as_ref().as_bytes();
         let length = bytes.len();
-        if length > NetworkWriter::MAX_STRING_LENGTH - writer.get_position() {
-            log_error!("String length exceeds maximum length of {}", NetworkWriter::MAX_STRING_LENGTH - writer.get_position());
+        if length == 0 {
+            writer.write_ushort(0);
+            return;
         }
-        writer.write_blittable(1 + length as u16);
+        if length > NetworkWriter::MAX_STRING_LENGTH - writer.get_position() {
+            log_error!(
+                "String length exceeds maximum length of {}",
+                NetworkWriter::MAX_STRING_LENGTH - writer.get_position()
+            );
+        }
+        writer.write_ushort(1 + length as u16);
         writer.write_array_segment_all(bytes);
     }
 }
