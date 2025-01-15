@@ -393,7 +393,7 @@ impl NetworkBehaviourTrait for NetworkCommonBehaviour {
             false => {
                 writer.compress_var_ulong(self.sync_var_dirty_bits());
                 for i in 0..self.sync_vars.len() as u8 {
-                    if self.sync_var_dirty_bits() & (1 << i) != 0 {
+                    if (self.sync_var_dirty_bits() & 1 << i) != 0 {
                         if let Some(sync_var) = self.sync_vars.get(&i) {
                             writer.write_array_segment_all(sync_var.value.as_slice());
                         }
