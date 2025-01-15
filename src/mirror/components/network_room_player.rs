@@ -268,10 +268,10 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
             writer.compress_var_int(self.index);
         } else {
             writer.compress_var_ulong(self.sync_var_dirty_bits());
-            if (self.sync_var_dirty_bits() & 1 << 0) != 0 {
+            if self.sync_var_is_dirty(0) {
                 writer.write_bool(self.ready_to_begin);
             }
-            if (self.sync_var_dirty_bits() & 1 << 1) != 0 {
+            if self.sync_var_is_dirty(1) {
                 writer.compress_var_int(self.index);
             }
         }

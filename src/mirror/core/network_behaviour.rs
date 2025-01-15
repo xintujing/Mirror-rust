@@ -312,6 +312,9 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn sub_class(&self) -> String;
     fn set_sub_class(&mut self, value: String);
     fn sync_var_dirty_bits(&self) -> u64;
+    fn sync_var_is_dirty(&self, index: u8) -> bool {
+        (self.sync_var_dirty_bits() & 1 << index) != 0
+    }
     // SetSyncVarDirtyBit
     fn set_sync_var_dirty_bits(&mut self, dirty_bit: u64) {
         self.__set_sync_var_dirty_bits(self.sync_var_dirty_bits() | dirty_bit);
