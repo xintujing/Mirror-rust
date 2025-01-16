@@ -115,12 +115,11 @@ impl NetworkRoomManager {
     }
 
     fn check_ready_to_begin(&mut self) {
-        log_error!("CheckReadyToBegin 1");
         if NetworkManagerStatic::network_scene_name() != self.room_scene {
             return;
         }
-        log_error!("CheckReadyToBegin 2");
         // TODO fix CheckReadyToBegin
+        self.pending_players.clear();
         self.set_all_players_ready(true);
     }
 }
