@@ -114,13 +114,43 @@ impl NetworkRoomManager {
         self.network_manager.online_scene != self.network_manager.offline_scene
     }
 
-    fn check_ready_to_begin(&mut self) {
+    fn check_ready_to_begin(&mut self, component: &mut NetworkRoomPlayer) {
         if NetworkManagerStatic::network_scene_name() != self.room_scene {
             return;
         }
-        // TODO fix CheckReadyToBegin
-        self.pending_players.clear();
-        self.set_all_players_ready(true);
+        let mut number_of_ready_players = 0;
+        for conn in NetworkServerStatic::network_connections().iter() {
+            match NetworkServerStatic::spawned_network_identities().try_get_mut(&conn.net_id()) {
+                TryResult::Present(identity) => {
+                    if !identity.get_component::<NetworkRoomPlayer, _>(|room_player| {
+                        if room_player.ready_to_begin {
+                            number_of_ready_players += 1;
+                        }
+                    }) {
+                        if conn.net_id() == component.net_id() {
+                            number_of_ready_players += 1;
+                        }
+                    }
+                }
+                TryResult::Absent => {
+                    log_error!("Failed to get component by conn_id because identity is absent.");
+                }
+                TryResult::Locked => {
+                    log_error!("Failed to get component by conn_id because identity is locked.");
+                }
+            }
+        }
+        let enough_ready_players =
+            self.min_players <= 0 || number_of_ready_players >= self.min_players;
+        match enough_ready_players {
+            true => {
+                self.pending_players.clear();
+                self.set_all_players_ready(true);
+            }
+            false => {
+                self.set_all_players_ready(false);
+            }
+        }
     }
 }
 
@@ -237,7 +267,7 @@ impl NetworkManagerTrait for NetworkRoomManager {
             }
 
             if current_players == ready_players {
-                self.check_ready_to_begin();
+                self.check_ready_to_begin(component);
             } else {
                 self.set_all_players_ready(false);
             }
