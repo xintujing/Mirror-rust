@@ -451,11 +451,17 @@ impl NetworkIdentity {
     ) -> &mut NetworkIdentitySerialization {
         if self.last_serialization.tick != tick {
             self.last_serialization.reset_writers();
-            self.serialize_server(
-                false,
-                &mut self.last_serialization.owner_writer,
-                &mut self.last_serialization.observers_writer,
-            );
+            NetworkWriterPool::get_return(|owner_writer| {
+                NetworkWriterPool::get_return(|observers_writer| {
+                    self.serialize_server(false, owner_writer, observers_writer);
+                    self.last_serialization
+                        .owner_writer
+                        .write_array_segment_all(owner_writer.to_array_segment());
+                    self.last_serialization
+                        .observers_writer
+                        .write_array_segment_all(observers_writer.to_array_segment());
+                });
+            });
             self.last_serialization.tick = tick;
         }
         &mut self.last_serialization
