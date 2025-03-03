@@ -742,18 +742,19 @@ impl NetworkBehaviourTrait for NetworkAnimator {
     }
 
     fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>> {
-        // &mut self.get_state().network_behaviour.sync_objects
-        // &mut self
-        //     .modify_state(|state| state.network_behaviour.sync_objects)
-        //     .unwrap()
-        todo!()
+        // // &mut self.get_state().network_behaviour.sync_objects
+        // // &mut self
+        // //     .modify_state(|state| state.network_behaviour.sync_objects)
+        // //     .unwrap()
+        // todo!()
+        self.modify_state(|state| state.network_behaviour.sync_objects.clone())
+            .unwrap()
     }
 
     fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>) {
         // // self.get_state().network_behaviour.sync_objects = value
-        // self.modify_state(|state| state.network_behaviour.sync_objects = value)
-        //     .unwrap();
-        todo!()
+        self.modify_state(|state| state.network_behaviour.sync_objects = value)
+            .unwrap();
     }
 
     fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>) {
