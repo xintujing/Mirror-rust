@@ -27,7 +27,7 @@ use std::fmt::Debug;
 use std::sync::Once;
 
 type NetworkBehaviourFactoryType =
-fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait>;
+    fn(GameObject, &NetworkBehaviourComponent) -> Box<dyn NetworkBehaviourTrait>;
 
 lazy_static! {
     static ref NETWORK_BEHAVIOURS_FACTORIES: DashMap<String, NetworkBehaviourFactoryType> =
@@ -181,7 +181,7 @@ impl PartialEq for GameObject {
     }
 }
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum SyncDirection {
     ServerToClient,
     ClientToServer,
@@ -197,7 +197,7 @@ impl SyncDirection {
     }
 }
 
-#[derive(Debug, PartialOrd, PartialEq)]
+#[derive(Debug, PartialOrd, PartialEq, Copy, Clone)]
 pub enum SyncMode {
     Observers,
     Owners,
@@ -303,9 +303,9 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_sync_interval(&mut self, value: f64);
     fn last_sync_time(&self) -> f64;
     fn set_last_sync_time(&mut self, value: f64);
-    fn sync_direction(&mut self) -> &SyncDirection;
+    fn sync_direction(&mut self) -> SyncDirection;
     fn set_sync_direction(&mut self, value: SyncDirection);
-    fn sync_mode(&mut self) -> &SyncMode;
+    fn sync_mode(&mut self) -> SyncMode;
     fn set_sync_mode(&mut self, value: SyncMode);
     fn index(&self) -> u8;
     fn set_index(&mut self, value: u8);
@@ -329,10 +329,10 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn set_net_id(&mut self, value: u32);
     fn connection_to_client(&self) -> u64;
     fn set_connection_to_client(&mut self, value: u64);
-    fn observers(&self) -> &Vec<u64>;
+    fn observers(&self) -> Vec<u64>;
     fn add_observer(&mut self, conn_id: u64);
     fn remove_observer(&mut self, value: u64);
-    fn game_object(&self) -> &GameObject;
+    fn game_object(&self) -> GameObject;
     fn set_game_object(&mut self, value: GameObject);
     fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>>;
     fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>);

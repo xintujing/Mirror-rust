@@ -121,16 +121,16 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         self.network_behaviour.last_sync_time = value;
     }
 
-    fn sync_direction(&mut self) -> &SyncDirection {
-        &self.network_behaviour.sync_direction
+    fn sync_direction(&mut self) -> SyncDirection {
+        self.network_behaviour.sync_direction
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
         self.network_behaviour.sync_direction = value;
     }
 
-    fn sync_mode(&mut self) -> &SyncMode {
-        &self.network_behaviour.sync_mode
+    fn sync_mode(&mut self) -> SyncMode {
+        self.network_behaviour.sync_mode.clone()
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
@@ -185,8 +185,8 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         self.network_behaviour.connection_to_client = value;
     }
 
-    fn observers(&self) -> &Vec<u64> {
-        &self.network_behaviour.observers
+    fn observers(&self) -> Vec<u64> {
+        self.network_behaviour.observers.clone()
     }
 
     fn add_observer(&mut self, conn_id: u64) {
@@ -197,8 +197,8 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         self.network_behaviour.observers.retain(|&x| x != value);
     }
 
-    fn game_object(&self) -> &GameObject {
-        &self.network_behaviour.game_object
+    fn game_object(&self) -> GameObject {
+        self.network_behaviour.game_object.clone()
     }
 
     fn set_game_object(&mut self, value: GameObject) {

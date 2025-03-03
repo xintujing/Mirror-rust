@@ -342,12 +342,12 @@ impl NetworkIdentity {
                     let dirty = component.is_dirty();
 
                     if initial_state
-                        || (*component.sync_direction() == SyncDirection::ServerToClient) && dirty
+                        || (component.sync_direction() == SyncDirection::ServerToClient) && dirty
                     {
                         owner_mask |= nth_bit;
                     }
 
-                    if *component.sync_mode() == SyncMode::Observers {
+                    if component.sync_mode() == SyncMode::Observers {
                         if initial_state || dirty {
                             observers_mask |= nth_bit;
                         }
@@ -427,7 +427,7 @@ impl NetworkIdentity {
             if Self::is_dirty(mask, i) {
                 match NETWORK_BEHAVIOURS.try_get_mut(&(self.net_id, i)) {
                     TryResult::Present(mut component) => {
-                        if component.sync_direction() == &SyncDirection::ServerToClient {
+                        if component.sync_direction() == SyncDirection::ServerToClient {
                             if !component.deserialize(reader, false) {
                                 return false;
                             }

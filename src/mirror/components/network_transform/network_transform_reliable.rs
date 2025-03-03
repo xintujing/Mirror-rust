@@ -52,7 +52,7 @@ impl NetworkTransformReliable {
 
     // UpdateServer()
     fn update_server(&mut self) {
-        if self.sync_direction() == &SyncDirection::ClientToServer
+        if self.sync_direction() == SyncDirection::ClientToServer
             && self.connection_to_client() != 0
         {
             if self.network_transform_base.server_snapshots.len() == 0 {
@@ -131,7 +131,7 @@ impl NetworkTransformReliable {
         rotation: Quaternion<f32>,
         scale: Vector3<f32>,
     ) {
-        if self.sync_direction() != &SyncDirection::ClientToServer {
+        if self.sync_direction() != SyncDirection::ClientToServer {
             return;
         }
 
@@ -275,7 +275,7 @@ impl NetworkTransformReliable {
 
     // UserCode_CmdTeleport_Vector3
     fn user_code_cmd_teleport_vector3(&mut self, position: Vector3<f32>) {
-        if *self.sync_direction() != SyncDirection::ServerToClient {
+        if self.sync_direction() != SyncDirection::ServerToClient {
             return;
         }
         self.on_teleport_vector3(position);
@@ -349,7 +349,7 @@ impl NetworkTransformReliable {
         position: Vector3<f32>,
         rotation: Quaternion<f32>,
     ) {
-        if *self.sync_direction() != SyncDirection::ServerToClient {
+        if self.sync_direction() != SyncDirection::ServerToClient {
             return;
         }
         self.on_teleport_vector3_quaternion(position, rotation);
@@ -465,16 +465,16 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
         self.network_transform_base.network_behaviour.last_sync_time = value
     }
 
-    fn sync_direction(&mut self) -> &SyncDirection {
-        &self.network_transform_base.network_behaviour.sync_direction
+    fn sync_direction(&mut self) -> SyncDirection {
+        self.network_transform_base.network_behaviour.sync_direction.clone()
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
         self.network_transform_base.network_behaviour.sync_direction = value
     }
 
-    fn sync_mode(&mut self) -> &SyncMode {
-        &self.network_transform_base.network_behaviour.sync_mode
+    fn sync_mode(&mut self) -> SyncMode {
+        self.network_transform_base.network_behaviour.sync_mode.clone()
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
@@ -544,8 +544,8 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             .connection_to_client = value
     }
 
-    fn observers(&self) -> &Vec<u64> {
-        &self.network_transform_base.network_behaviour.observers
+    fn observers(&self) -> Vec<u64> {
+        self.network_transform_base.network_behaviour.observers.clone()
     }
 
     fn add_observer(&mut self, conn_id: u64) {
@@ -563,8 +563,8 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
 
-    fn game_object(&self) -> &GameObject {
-        &self.network_transform_base.network_behaviour.game_object
+    fn game_object(&self) -> GameObject {
+        self.network_transform_base.network_behaviour.game_object.clone()
     }
 
     fn set_game_object(&mut self, value: GameObject) {
