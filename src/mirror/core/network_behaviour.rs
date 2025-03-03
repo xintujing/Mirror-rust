@@ -16,7 +16,7 @@ use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::NetworkServerStatic;
 use crate::mirror::core::network_time::NetworkTime;
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
-use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::sync_object::{CloneSyncObject, SyncObject};
 use crate::mirror::core::transport::TransportChannel;
 use crate::{log_error, log_warn};
 use dashmap::try_result::TryResult;
@@ -220,7 +220,7 @@ pub struct NetworkBehaviour {
     pub connection_to_client: u64,
     pub observers: Vec<u64>,
     pub game_object: GameObject,
-    pub sync_objects: Vec<Box<dyn SyncObject>>,
+    pub sync_objects: Vec<Box<dyn CloneSyncObject>>,
     pub sync_var_hook_guard: u64,
     pub run_start: bool,
 }
@@ -334,9 +334,9 @@ pub trait NetworkBehaviourTrait: Any + Send + Sync + Debug {
     fn remove_observer(&mut self, value: u64);
     fn game_object(&self) -> GameObject;
     fn set_game_object(&mut self, value: GameObject);
-    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>>;
-    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>);
-    fn add_sync_object(&mut self, value: Box<dyn SyncObject>);
+    fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>>;
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>);
+    fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>);
     fn has_sync_objects(&mut self) -> bool {
         self.sync_objects().len() > 0
     }

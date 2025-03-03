@@ -4,7 +4,9 @@ use crate::mirror::components::network_transform::network_transform_base::{
 };
 use crate::mirror::components::network_transform::transform_snapshot::TransformSnapshot;
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
@@ -13,7 +15,7 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
-use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::sync_object::{CloneSyncObject, SyncObject};
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::{Compress, CompressTrait};
 use crate::mirror::core::tools::delta_compression::DeltaCompression;
@@ -97,10 +99,10 @@ impl NetworkTransformReliable {
             self.position_precision,
         ) || angle > self.rotation_sensitivity
             || Self::quantized_changed(
-            self.last_snapshot.scale,
-            current.scale,
-            self.scale_precision,
-        )
+                self.last_snapshot.scale,
+                current.scale,
+                self.scale_precision,
+            )
     }
 
     fn quantized_changed(u: Vector3<f32>, v: Vector3<f32>, precision: f32) -> bool {
@@ -163,12 +165,12 @@ impl NetworkTransformReliable {
 
         if self.network_transform_base.only_sync_on_change
             && Self::needs_correction(
-            &mut self.network_transform_base.server_snapshots,
-            timestamp,
-            NetworkServerStatic::send_interval() as f64
-                * self.network_transform_base.send_interval_multiplier as f64,
-            self.only_sync_on_change_correction_multiplier as f64,
-        )
+                &mut self.network_transform_base.server_snapshots,
+                timestamp,
+                NetworkServerStatic::send_interval() as f64
+                    * self.network_transform_base.send_interval_multiplier as f64,
+                self.only_sync_on_change_correction_multiplier as f64,
+            )
         {
             let position = self.get_position();
             let rotation = self.get_rotation();
@@ -207,7 +209,7 @@ impl NetworkTransformReliable {
     ) -> bool {
         snapshots.len() == 1
             && remote_timestamp - snapshots.iter().next().unwrap().1.remote_time
-            >= buffer_time * tolerance_multiplier
+                >= buffer_time * tolerance_multiplier
     }
 
     fn rewrite_history(
@@ -466,7 +468,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn sync_direction(&mut self) -> SyncDirection {
-        self.network_transform_base.network_behaviour.sync_direction.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sync_direction
+            .clone()
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
@@ -474,7 +479,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn sync_mode(&mut self) -> SyncMode {
-        self.network_transform_base.network_behaviour.sync_mode.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sync_mode
+            .clone()
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
@@ -545,7 +553,10 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
     }
 
     fn observers(&self) -> Vec<u64> {
-        self.network_transform_base.network_behaviour.observers.clone()
+        self.network_transform_base
+            .network_behaviour
+            .observers
+            .clone()
     }
 
     fn add_observer(&mut self, conn_id: u64) {
@@ -562,24 +573,29 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
             .retain(|&x| x != value);
     }
 
-
     fn game_object(&self) -> GameObject {
-        self.network_transform_base.network_behaviour.game_object.clone()
+        self.network_transform_base
+            .network_behaviour
+            .game_object
+            .clone()
     }
 
     fn set_game_object(&mut self, value: GameObject) {
         self.network_transform_base.network_behaviour.game_object = value
     }
 
-    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
-        &mut self.network_transform_base.network_behaviour.sync_objects
+    fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>> {
+        self.network_transform_base
+            .network_behaviour
+            .sync_objects
+            .clone()
     }
 
-    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>) {
         self.network_transform_base.network_behaviour.sync_objects = value
     }
 
-    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+    fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>) {
         self.network_transform_base
             .network_behaviour
             .sync_objects
@@ -659,7 +675,7 @@ impl NetworkBehaviourTrait for NetworkTransformReliable {
                     snapshot.position,
                     self.position_precision,
                 )
-                    .1;
+                .1;
             }
             if self.sync_scale() {
                 self.last_serialized_scale =

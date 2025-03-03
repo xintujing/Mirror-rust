@@ -20,3 +20,13 @@ pub trait SyncObject: Any + Send + Sync + Debug {
     fn on_deserialize_delta(&mut self, reader: &mut NetworkReader) -> bool;
     fn reset(&mut self);
 }
+
+pub trait CloneSyncObject: SyncObject {
+    fn clone_box(&self) -> Box<dyn CloneSyncObject>;
+}
+
+impl Clone for Box<dyn CloneSyncObject> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}

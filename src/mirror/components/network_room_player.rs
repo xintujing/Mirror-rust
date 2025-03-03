@@ -8,7 +8,7 @@ use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
-use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::sync_object::{CloneSyncObject, SyncObject};
 use dashmap::try_result::TryResult;
 use std::any::Any;
 use std::sync::Once;
@@ -205,15 +205,15 @@ impl NetworkBehaviourTrait for NetworkRoomPlayer {
         self.network_behaviour.game_object = value
     }
 
-    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
-        &mut self.network_behaviour.sync_objects
+    fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>> {
+        self.network_behaviour.sync_objects.clone()
     }
 
-    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>) {
         self.network_behaviour.sync_objects = value
     }
 
-    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+    fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>) {
         self.network_behaviour.sync_objects.push(value);
     }
 

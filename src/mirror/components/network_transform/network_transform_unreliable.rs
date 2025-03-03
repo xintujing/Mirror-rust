@@ -6,7 +6,9 @@ use crate::mirror::components::network_transform::transform_snapshot::TransformS
 use crate::mirror::components::network_transform::transform_sync_data::{Changed, SyncData};
 use crate::mirror::core::backend_data::NetworkBehaviourComponent;
 use crate::mirror::core::messages::NetworkMessageTrait;
-use crate::mirror::core::network_behaviour::{GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode};
+use crate::mirror::core::network_behaviour::{
+    GameObject, NetworkBehaviour, NetworkBehaviourTrait, SyncDirection, SyncMode,
+};
 use crate::mirror::core::network_connection::NetworkConnectionTrait;
 use crate::mirror::core::network_reader::{NetworkReader, NetworkReaderTrait};
 use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOURS};
@@ -15,7 +17,7 @@ use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
 use crate::mirror::core::snapshot_interpolation::snapshot_interpolation::SnapshotInterpolation;
-use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::sync_object::{CloneSyncObject, SyncObject};
 use crate::mirror::core::tools::accurateinterval::AccurateInterval;
 use crate::mirror::core::tools::compress::CompressTrait;
 use crate::mirror::core::transport::TransportChannel;
@@ -924,7 +926,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn sync_direction(&mut self) -> SyncDirection {
-        self.network_transform_base.network_behaviour.sync_direction.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sync_direction
+            .clone()
     }
 
     fn set_sync_direction(&mut self, value: SyncDirection) {
@@ -932,7 +937,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn sync_mode(&mut self) -> SyncMode {
-        self.network_transform_base.network_behaviour.sync_mode.clone()
+        self.network_transform_base
+            .network_behaviour
+            .sync_mode
+            .clone()
     }
 
     fn set_sync_mode(&mut self, value: SyncMode) {
@@ -1003,7 +1011,10 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
     }
 
     fn observers(&self) -> Vec<u64> {
-        self.network_transform_base.network_behaviour.observers.clone()
+        self.network_transform_base
+            .network_behaviour
+            .observers
+            .clone()
     }
 
     fn add_observer(&mut self, conn_id: u64) {
@@ -1020,24 +1031,29 @@ impl NetworkBehaviourTrait for NetworkTransformUnreliable {
             .retain(|&x| x != value);
     }
 
-
     fn game_object(&self) -> GameObject {
-        self.network_transform_base.network_behaviour.game_object.clone()
+        self.network_transform_base
+            .network_behaviour
+            .game_object
+            .clone()
     }
 
     fn set_game_object(&mut self, value: GameObject) {
         self.network_transform_base.network_behaviour.game_object = value
     }
 
-    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
-        &mut self.network_transform_base.network_behaviour.sync_objects
+    fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>> {
+        self.network_transform_base
+            .network_behaviour
+            .sync_objects
+            .clone()
     }
 
-    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>) {
         self.network_transform_base.network_behaviour.sync_objects = value
     }
 
-    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+    fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>) {
         self.network_transform_base
             .network_behaviour
             .sync_objects

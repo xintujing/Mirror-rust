@@ -10,7 +10,7 @@ use crate::mirror::core::network_server::{NetworkServerStatic, NETWORK_BEHAVIOUR
 use crate::mirror::core::network_writer::{NetworkWriter, NetworkWriterTrait};
 use crate::mirror::core::network_writer_pool::NetworkWriterPool;
 use crate::mirror::core::remote_calls::RemoteProcedureCalls;
-use crate::mirror::core::sync_object::SyncObject;
+use crate::mirror::core::sync_object::{CloneSyncObject, SyncObject};
 use crate::mirror::core::transport::TransportChannel;
 use dashmap::mapref::one::Ref;
 use dashmap::try_result::TryResult;
@@ -741,7 +741,7 @@ impl NetworkBehaviourTrait for NetworkAnimator {
             .unwrap();
     }
 
-    fn sync_objects(&mut self) -> &mut Vec<Box<dyn SyncObject>> {
+    fn sync_objects(&mut self) -> Vec<Box<dyn CloneSyncObject>> {
         // &mut self.get_state().network_behaviour.sync_objects
         // &mut self
         //     .modify_state(|state| state.network_behaviour.sync_objects)
@@ -749,14 +749,14 @@ impl NetworkBehaviourTrait for NetworkAnimator {
         todo!()
     }
 
-    fn set_sync_objects(&mut self, value: Vec<Box<dyn SyncObject>>) {
+    fn set_sync_objects(&mut self, value: Vec<Box<dyn CloneSyncObject>>) {
         // // self.get_state().network_behaviour.sync_objects = value
         // self.modify_state(|state| state.network_behaviour.sync_objects = value)
         //     .unwrap();
         todo!()
     }
 
-    fn add_sync_object(&mut self, value: Box<dyn SyncObject>) {
+    fn add_sync_object(&mut self, value: Box<dyn CloneSyncObject>) {
         // self.get_state().network_behaviour.sync_objects.push(value);
         self.modify_state(|state| state.network_behaviour.sync_objects.push(value))
             .unwrap();
